@@ -145,6 +145,7 @@ Edit `config.json` to configure:
 
 Pre-configured sample workflows with optimal defaults and pipe-driven architecture are provided in the [`workflows/`](workflows/) directory:
 - **[Wan2.1 (ModusFlow).json](workflows/Wan2.1%20(ModusFlow).json)**: Wan 2.1 Video Diffusion workflow with unified Text-to-Video (T2V) and Image-to-Video (I2V) toggle, spatio-temporal latents, and in-house video encoding.
+- **[Wan2.2 Image (ModusFlow).json](workflows/Wan2.2%20Image%20(ModusFlow).json)**: Wan 2.2 Still Image Generation workflow with 48-channel 5D latents, Dynamic Guidance decay, full 12-slot detailing pipeline, and Restormer / 4x Remacri upscaling.
 - **[Chroma (ModusFlow).json](workflows/Chroma%20(ModusFlow).json)**: Chroma 1-HD de-distilled Flux with CFG scale decay and anti-waxing pipe.
 - **[Flux1.Dev (ModusFlow).json](workflows/Flux1.Dev%20(ModusFlow).json)**: Flux.1-dev with dual CLIP (T5 + CLIP-L) and distilled guidance decay.
 - **[SD3.5 (ModusFlow).json](workflows/SD3.5%20(ModusFlow).json)**: Stable Diffusion 3.5 Large with SGM Uniform scheduler and distilled guidance decay.

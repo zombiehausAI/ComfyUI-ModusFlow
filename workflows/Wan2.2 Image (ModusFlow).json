@@ -1,0 +1,4460 @@
+{
+  "id": "a3ed6c1c-ec20-4494-b8fb-62f0a7afe468",
+  "revision": 0,
+  "last_node_id": 621,
+  "last_link_id": 1200,
+  "nodes": [
+    {
+      "id": 596,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        1820,
+        440
+      ],
+      "size": [
+        270,
+        320
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1133
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1134
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "padding",
+          "name": "padding",
+          "type": "INT",
+          "widget": {
+            "name": "padding"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "mask_blur",
+          "name": "mask_blur",
+          "type": "INT",
+          "widget": {
+            "name": "mask_blur"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blend_feather",
+          "name": "blend_feather",
+          "type": "INT",
+          "widget": {
+            "name": "blend_feather"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "context_pad",
+          "name": "context_pad",
+          "type": "INT",
+          "widget": {
+            "name": "context_pad"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler",
+          "name": "sampler",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled",
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "slot",
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": [
+            1144
+          ]
+        }
+      ],
+      "title": "ModusFlow Detailer Slot (Face)",
+      "properties": {
+        "aux_id": "ComfyUI-ModusFlow.git",
+        "ver": "2586e995c032d1eb2c578dc720293dfaaf32c465",
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "face-yolo8n.pt",
+        20,
+        4.5,
+        0.3,
+        32,
+        4,
+        24,
+        32,
+        "euler",
+        "simple",
+        true
+      ],
+      "widgets_values_named": {
+        "model": "face-yolo8n.pt",
+        "steps": 20,
+        "cfg": 4.5,
+        "denoise": 0.3,
+        "padding": 32,
+        "mask_blur": 4,
+        "blend_feather": 24,
+        "context_pad": 32,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "enabled": true
+      }
+    },
+    {
+      "id": 597,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        1820,
+        800
+      ],
+      "size": [
+        270,
+        320
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1149
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1137
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "padding",
+          "name": "padding",
+          "type": "INT",
+          "widget": {
+            "name": "padding"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "mask_blur",
+          "name": "mask_blur",
+          "type": "INT",
+          "widget": {
+            "name": "mask_blur"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blend_feather",
+          "name": "blend_feather",
+          "type": "INT",
+          "widget": {
+            "name": "blend_feather"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "context_pad",
+          "name": "context_pad",
+          "type": "INT",
+          "widget": {
+            "name": "context_pad"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler",
+          "name": "sampler",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled",
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "slot",
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": [
+            1145
+          ]
+        }
+      ],
+      "title": "ModusFlow Detailer Slot (Eyes)",
+      "properties": {
+        "aux_id": "ComfyUI-ModusFlow.git",
+        "ver": "5c2b19fa5aefaa8099a9e474fcaed73906527a59",
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "PitEyeDetailer-v2-seg.pt",
+        30,
+        4.5,
+        0.3,
+        32,
+        4,
+        24,
+        32,
+        "euler",
+        "simple",
+        true
+      ],
+      "widgets_values_named": {
+        "model": "PitEyeDetailer-v2-seg.pt",
+        "steps": 30,
+        "cfg": 4.5,
+        "denoise": 0.3,
+        "padding": 32,
+        "mask_blur": 4,
+        "blend_feather": 24,
+        "context_pad": 32,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "enabled": true
+      }
+    },
+    {
+      "id": 604,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        2380,
+        440
+      ],
+      "size": [
+        270,
+        320
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1156
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1157
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "padding",
+          "name": "padding",
+          "type": "INT",
+          "widget": {
+            "name": "padding"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "mask_blur",
+          "name": "mask_blur",
+          "type": "INT",
+          "widget": {
+            "name": "mask_blur"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blend_feather",
+          "name": "blend_feather",
+          "type": "INT",
+          "widget": {
+            "name": "blend_feather"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "context_pad",
+          "name": "context_pad",
+          "type": "INT",
+          "widget": {
+            "name": "context_pad"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler",
+          "name": "sampler",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled",
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "slot",
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": [
+            1158
+          ]
+        }
+      ],
+      "title": "ModusFlow Detailer Slot (Breasts)",
+      "properties": {
+        "aux_id": "ComfyUI-ModusFlow.git",
+        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8",
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "adetailers_breasts.pt",
+        20,
+        4.5,
+        0.3,
+        32,
+        4,
+        24,
+        32,
+        "euler",
+        "simple",
+        true
+      ],
+      "widgets_values_named": {
+        "model": "adetailers_breasts.pt",
+        "steps": 20,
+        "cfg": 4.5,
+        "denoise": 0.3,
+        "padding": 32,
+        "mask_blur": 4,
+        "blend_feather": 24,
+        "context_pad": 32,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "enabled": true
+      }
+    },
+    {
+      "id": 606,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        2660,
+        440
+      ],
+      "size": [
+        270,
+        320
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1163
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1164
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "padding",
+          "name": "padding",
+          "type": "INT",
+          "widget": {
+            "name": "padding"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "mask_blur",
+          "name": "mask_blur",
+          "type": "INT",
+          "widget": {
+            "name": "mask_blur"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blend_feather",
+          "name": "blend_feather",
+          "type": "INT",
+          "widget": {
+            "name": "blend_feather"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "context_pad",
+          "name": "context_pad",
+          "type": "INT",
+          "widget": {
+            "name": "context_pad"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler",
+          "name": "sampler",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled",
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "slot",
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": [
+            1162
+          ]
+        }
+      ],
+      "title": "ModusFlow Detailer Slot (Penis)",
+      "properties": {
+        "aux_id": "ComfyUI-ModusFlow.git",
+        "ver": "5c2b19fa5aefaa8099a9e474fcaed73906527a59",
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "CockAndBallYolo8x.pt",
+        10,
+        4.5,
+        0.3,
+        32,
+        4,
+        24,
+        32,
+        "euler",
+        "simple",
+        true
+      ],
+      "widgets_values_named": {
+        "model": "CockAndBallYolo8x.pt",
+        "steps": 10,
+        "cfg": 4.5,
+        "denoise": 0.3,
+        "padding": 32,
+        "mask_blur": 4,
+        "blend_feather": 24,
+        "context_pad": 32,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "enabled": true
+      }
+    },
+    {
+      "id": 605,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        2380,
+        800
+      ],
+      "size": [
+        270,
+        320
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1159
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1160
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "padding",
+          "name": "padding",
+          "type": "INT",
+          "widget": {
+            "name": "padding"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "mask_blur",
+          "name": "mask_blur",
+          "type": "INT",
+          "widget": {
+            "name": "mask_blur"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blend_feather",
+          "name": "blend_feather",
+          "type": "INT",
+          "widget": {
+            "name": "blend_feather"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "context_pad",
+          "name": "context_pad",
+          "type": "INT",
+          "widget": {
+            "name": "context_pad"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler",
+          "name": "sampler",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled",
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "slot",
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": [
+            1161
+          ]
+        }
+      ],
+      "title": "ModusFlow Detailer Slot (Nipples)",
+      "properties": {
+        "aux_id": "ComfyUI-ModusFlow.git",
+        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8",
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "adetailers_nipples.pt",
+        20,
+        4.5,
+        0.3,
+        32,
+        4,
+        24,
+        32,
+        "euler",
+        "simple",
+        true
+      ],
+      "widgets_values_named": {
+        "model": "adetailers_nipples.pt",
+        "steps": 20,
+        "cfg": 4.5,
+        "denoise": 0.3,
+        "padding": 32,
+        "mask_blur": 4,
+        "blend_feather": 24,
+        "context_pad": 32,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "enabled": true
+      }
+    },
+    {
+      "id": 607,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        2660,
+        800
+      ],
+      "size": [
+        270,
+        320
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1166
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1167
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "padding",
+          "name": "padding",
+          "type": "INT",
+          "widget": {
+            "name": "padding"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "mask_blur",
+          "name": "mask_blur",
+          "type": "INT",
+          "widget": {
+            "name": "mask_blur"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blend_feather",
+          "name": "blend_feather",
+          "type": "INT",
+          "widget": {
+            "name": "blend_feather"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "context_pad",
+          "name": "context_pad",
+          "type": "INT",
+          "widget": {
+            "name": "context_pad"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler",
+          "name": "sampler",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled",
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "slot",
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": [
+            1165
+          ]
+        }
+      ],
+      "title": "ModusFlow Detailer Slot (Vagina)",
+      "properties": {
+        "aux_id": "ComfyUI-ModusFlow.git",
+        "ver": "2b740779f36af09f1226847fe22140c5e98fa27f",
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "adetailers_vagina.pt",
+        25,
+        4.5,
+        0.3,
+        32,
+        4,
+        24,
+        32,
+        "euler",
+        "simple",
+        true
+      ],
+      "widgets_values_named": {
+        "model": "adetailers_vagina.pt",
+        "steps": 25,
+        "cfg": 4.5,
+        "denoise": 0.3,
+        "padding": 32,
+        "mask_blur": 4,
+        "blend_feather": 24,
+        "context_pad": 32,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "enabled": true
+      }
+    },
+    {
+      "id": 609,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        1820,
+        1160
+      ],
+      "size": [
+        270,
+        320
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1169
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1170
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "padding",
+          "name": "padding",
+          "type": "INT",
+          "widget": {
+            "name": "padding"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "mask_blur",
+          "name": "mask_blur",
+          "type": "INT",
+          "widget": {
+            "name": "mask_blur"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blend_feather",
+          "name": "blend_feather",
+          "type": "INT",
+          "widget": {
+            "name": "blend_feather"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "context_pad",
+          "name": "context_pad",
+          "type": "INT",
+          "widget": {
+            "name": "context_pad"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler",
+          "name": "sampler",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled",
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "slot",
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": [
+            1168
+          ]
+        }
+      ],
+      "title": "ModusFlow Detailer Slot (Lips)",
+      "properties": {
+        "aux_id": "ComfyUI-ModusFlow.git",
+        "ver": "2b740779f36af09f1226847fe22140c5e98fa27f",
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "lips_v1.pt",
+        20,
+        4.5,
+        0.3,
+        32,
+        4,
+        24,
+        32,
+        "euler",
+        "simple",
+        true
+      ],
+      "widgets_values_named": {
+        "model": "lips_v1.pt",
+        "steps": 20,
+        "cfg": 4.5,
+        "denoise": 0.3,
+        "padding": 32,
+        "mask_blur": 4,
+        "blend_feather": 24,
+        "context_pad": 32,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "enabled": true
+      }
+    },
+    {
+      "id": 611,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        1820,
+        1520
+      ],
+      "size": [
+        270,
+        320
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1172
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1173
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "padding",
+          "name": "padding",
+          "type": "INT",
+          "widget": {
+            "name": "padding"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "mask_blur",
+          "name": "mask_blur",
+          "type": "INT",
+          "widget": {
+            "name": "mask_blur"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blend_feather",
+          "name": "blend_feather",
+          "type": "INT",
+          "widget": {
+            "name": "blend_feather"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "context_pad",
+          "name": "context_pad",
+          "type": "INT",
+          "widget": {
+            "name": "context_pad"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler",
+          "name": "sampler",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled",
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "slot",
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": [
+            1171
+          ]
+        }
+      ],
+      "title": "ModusFlow Detailer Slot (Lips)",
+      "properties": {
+        "aux_id": "ComfyUI-ModusFlow.git",
+        "ver": "2b740779f36af09f1226847fe22140c5e98fa27f",
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "JTeethSeg.pt",
+        10,
+        4.5,
+        0.3,
+        32,
+        4,
+        24,
+        32,
+        "euler",
+        "simple",
+        true
+      ],
+      "widgets_values_named": {
+        "model": "JTeethSeg.pt",
+        "steps": 10,
+        "cfg": 4.5,
+        "denoise": 0.3,
+        "padding": 32,
+        "mask_blur": 4,
+        "blend_feather": 24,
+        "context_pad": 32,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "enabled": true
+      }
+    },
+    {
+      "id": 602,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        2100,
+        440.44508180527
+      ],
+      "size": [
+        270,
+        320
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1150
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1151
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "padding",
+          "name": "padding",
+          "type": "INT",
+          "widget": {
+            "name": "padding"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "mask_blur",
+          "name": "mask_blur",
+          "type": "INT",
+          "widget": {
+            "name": "mask_blur"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blend_feather",
+          "name": "blend_feather",
+          "type": "INT",
+          "widget": {
+            "name": "blend_feather"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "context_pad",
+          "name": "context_pad",
+          "type": "INT",
+          "widget": {
+            "name": "context_pad"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler",
+          "name": "sampler",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled",
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "slot",
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": [
+            1154
+          ]
+        }
+      ],
+      "title": "ModusFlow Detailer Slot (Hands)",
+      "properties": {
+        "aux_id": "ComfyUI-ModusFlow.git",
+        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8",
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "hand_yolov8n.pt",
+        25,
+        4.5,
+        0.3,
+        32,
+        4,
+        24,
+        32,
+        "euler",
+        "simple",
+        true
+      ],
+      "widgets_values_named": {
+        "model": "hand_yolov8n.pt",
+        "steps": 25,
+        "cfg": 4.5,
+        "denoise": 0.3,
+        "padding": 32,
+        "mask_blur": 4,
+        "blend_feather": 24,
+        "context_pad": 32,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "enabled": true
+      }
+    },
+    {
+      "id": 603,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        2100,
+        800
+      ],
+      "size": [
+        270,
+        320
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1152
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1153
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "padding",
+          "name": "padding",
+          "type": "INT",
+          "widget": {
+            "name": "padding"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "mask_blur",
+          "name": "mask_blur",
+          "type": "INT",
+          "widget": {
+            "name": "mask_blur"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blend_feather",
+          "name": "blend_feather",
+          "type": "INT",
+          "widget": {
+            "name": "blend_feather"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "context_pad",
+          "name": "context_pad",
+          "type": "INT",
+          "widget": {
+            "name": "context_pad"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler",
+          "name": "sampler",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled",
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "slot",
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": []
+        }
+      ],
+      "title": "ModusFlow Detailer Slot (Nails)",
+      "properties": {
+        "aux_id": "ComfyUI-ModusFlow.git",
+        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8",
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "nails_seg_s_yolov8_v1.pt",
+        20,
+        4.5,
+        0.15,
+        32,
+        4,
+        24,
+        32,
+        "euler",
+        "simple",
+        true
+      ],
+      "widgets_values_named": {
+        "model": "nails_seg_s_yolov8_v1.pt",
+        "steps": 20,
+        "cfg": 4.5,
+        "denoise": 0.15,
+        "padding": 32,
+        "mask_blur": 4,
+        "blend_feather": 24,
+        "context_pad": 32,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "enabled": true
+      }
+    },
+    {
+      "id": 614,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        2940,
+        440
+      ],
+      "size": [
+        270,
+        320
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1180
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1181
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "padding",
+          "name": "padding",
+          "type": "INT",
+          "widget": {
+            "name": "padding"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "mask_blur",
+          "name": "mask_blur",
+          "type": "INT",
+          "widget": {
+            "name": "mask_blur"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blend_feather",
+          "name": "blend_feather",
+          "type": "INT",
+          "widget": {
+            "name": "blend_feather"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "context_pad",
+          "name": "context_pad",
+          "type": "INT",
+          "widget": {
+            "name": "context_pad"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler",
+          "name": "sampler",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled",
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "slot",
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": [
+            1178
+          ]
+        }
+      ],
+      "title": "ModusFlow Detailer Slot (Feet)",
+      "properties": {
+        "aux_id": "ComfyUI-ModusFlow.git",
+        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8",
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "adetailerFootYolov8x_v20.pt",
+        20,
+        4.5,
+        0.3,
+        32,
+        4,
+        24,
+        32,
+        "euler",
+        "simple",
+        true
+      ],
+      "widgets_values_named": {
+        "model": "adetailerFootYolov8x_v20.pt",
+        "steps": 20,
+        "cfg": 4.5,
+        "denoise": 0.3,
+        "padding": 32,
+        "mask_blur": 4,
+        "blend_feather": 24,
+        "context_pad": 32,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "enabled": true
+      }
+    },
+    {
+      "id": 613,
+      "type": "ModusFlowRestormer",
+      "pos": [
+        1522.151427696665,
+        1035.0521914401836
+      ],
+      "size": [
+        290.6715917804065,
+        130
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1176
+        },
+        {
+          "localized_name": "model_file",
+          "name": "model_file",
+          "type": "COMBO",
+          "widget": {
+            "name": "model_file"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "task",
+          "name": "task",
+          "type": "COMBO",
+          "widget": {
+            "name": "task"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "tile_size",
+          "name": "tile_size",
+          "type": "INT",
+          "widget": {
+            "name": "tile_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "tile_overlap",
+          "name": "tile_overlap",
+          "type": "INT",
+          "widget": {
+            "name": "tile_overlap"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            1188
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ComfyUI-ModusFlow.git",
+        "ver": "1e8ed331c3746ec1959496866b140bb65c1f5d89",
+        "Node name for S&R": "ModusFlowRestormer"
+      },
+      "widgets_values": [
+        "dual_pixel_defocus_deblurring.pth",
+        "Single_Image_Defocus_Deblurring",
+        128,
+        32
+      ],
+      "widgets_values_named": {
+        "model_file": "dual_pixel_defocus_deblurring.pth",
+        "task": "Single_Image_Defocus_Deblurring",
+        "tile_size": 128,
+        "tile_overlap": 32
+      }
+    },
+    {
+      "id": 587,
+      "type": "UpscaleModelLoader",
+      "pos": [
+        1180,
+        750
+      ],
+      "size": [
+        330,
+        60
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model_name",
+          "name": "model_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "model_name"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "UPSCALE_MODEL",
+          "name": "UPSCALE_MODEL",
+          "type": "UPSCALE_MODEL",
+          "links": [
+            1116
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.11.1",
+        "Node name for S&R": "UpscaleModelLoader"
+      },
+      "widgets_values": [
+        "4x_foolhardy_Remacri.pth"
+      ],
+      "widgets_values_named": {
+        "model_name": "4x_foolhardy_Remacri.pth"
+      }
+    },
+    {
+      "id": 585,
+      "type": "ImageUpscaleWithModel",
+      "pos": [
+        1180.1050905528461,
+        1060.392942383095
+      ],
+      "size": [
+        330,
+        50
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "upscale_model",
+          "name": "upscale_model",
+          "type": "UPSCALE_MODEL",
+          "link": 1116
+        },
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1188
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1190,
+            1191
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.11.1",
+        "Node name for S&R": "ImageUpscaleWithModel"
+      }
+    },
+    {
+      "id": 583,
+      "type": "ModusFlowVideoLatent",
+      "pos": [
+        360,
+        830
+      ],
+      "size": [
+        315,
+        280
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            1106
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "Node name for S&R": "ModusFlowVideoLatent"
+      },
+      "widgets_values": [
+        "Text to Video (T2V)",
+        "Wan 2.2 (48ch, 4x time)",
+        "1280x720 (720p 16:9)",
+        1280,
+        720,
+        "Manual",
+        1,
+        1
+      ],
+      "widgets_values_named": {
+        "mode": "Text to Video (T2V)",
+        "model_type": "Wan 2.2 (48ch, 4x time)",
+        "resolution": "1280x720 (720p 16:9)",
+        "width": 1280,
+        "height": 720,
+        "frames": "Manual",
+        "length": 1,
+        "batch_size": 1
+      },
+      "title": "ModusFlow Latent (Wan 2.2 Image)"
+    },
+    {
+      "id": 580,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -230,
+        830
+      ],
+      "size": [
+        240,
+        90
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 1107
+        },
+        {
+          "localized_name": "text",
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 1193
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "CONDITIONING",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            1110
+          ]
+        }
+      ],
+      "title": "Postitive Encode",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.10.0",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "text": ""
+      }
+    },
+    {
+      "id": 593,
+      "type": "ModusFlowSaveImage",
+      "pos": [
+        170,
+        830
+      ],
+      "size": [
+        330,
+        420
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 1192
+        },
+        {
+          "localized_name": "filename_prefix",
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "format",
+          "name": "format",
+          "type": "COMBO",
+          "widget": {
+            "name": "format"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "quality",
+          "name": "quality",
+          "type": "INT",
+          "widget": {
+            "name": "quality"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "embed_metadata",
+          "name": "embed_metadata",
+          "type": "COMBO",
+          "widget": {
+            "name": "embed_metadata"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clean_vram",
+          "name": "clean_vram",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "clean_vram"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": 1123
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "aux_id": "ComfyUI-ModusFlow.git",
+        "ver": "82721378f8b0c72b347131f9698c11d6344ae41d",
+        "Node name for S&R": "ModusFlowSaveImage"
+      },
+      "widgets_values": [
+        "%date%/Wan2.2_%seed%",
+        "png",
+        100,
+        "enabled",
+        true,
+        416549927880549,
+        "randomize"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "%date%/Wan2.2_%seed%",
+        "format": "png",
+        "quality": 100,
+        "embed_metadata": "enabled",
+        "clean_vram": true,
+        "seed": 416549927880549,
+        "control_after_generate": "randomize"
+      }
+    },
+    {
+      "id": 581,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -30,
+        830
+      ],
+      "size": [
+        230,
+        90
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 1108
+        },
+        {
+          "localized_name": "text",
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 1194
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "CONDITIONING",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            1109
+          ]
+        }
+      ],
+      "title": "Negative Encode",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.10.0",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "text": ""
+      }
+    },
+    {
+      "id": 594,
+      "type": "ModusFlowSaveImage",
+      "pos": [
+        1570.6772795464983,
+        1204.3835430954841
+      ],
+      "size": [
+        330,
+        420
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 1190
+        },
+        {
+          "localized_name": "filename_prefix",
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "format",
+          "name": "format",
+          "type": "COMBO",
+          "widget": {
+            "name": "format"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "quality",
+          "name": "quality",
+          "type": "INT",
+          "widget": {
+            "name": "quality"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "embed_metadata",
+          "name": "embed_metadata",
+          "type": "COMBO",
+          "widget": {
+            "name": "embed_metadata"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clean_vram",
+          "name": "clean_vram",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "clean_vram"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": 1127
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "aux_id": "ComfyUI-ModusFlow.git",
+        "ver": "801f2346c50668984bc3a4c9c98743e40419445a",
+        "Node name for S&R": "ModusFlowSaveImage"
+      },
+      "widgets_values": [
+        "%date:yyyy-MM-dd%\\Upscaled\\Wan2.2_Upscaled_%seed%",
+        "png",
+        100,
+        "enabled",
+        true,
+        991316483615537,
+        "randomize"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "%date:yyyy-MM-dd%\\Upscaled\\Wan2.2_Upscaled_%seed%",
+        "format": "png",
+        "quality": 100,
+        "embed_metadata": "enabled",
+        "clean_vram": true,
+        "seed": 991316483615537,
+        "control_after_generate": "randomize"
+      }
+    },
+    {
+      "id": 579,
+      "type": "ModusFlowImageGallery",
+      "pos": [
+        -870,
+        80.82118797446795
+      ],
+      "size": [
+        530,
+        1050
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "refresh_trigger",
+          "name": "refresh_trigger",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "refresh_trigger"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "ver": "f34e6afba4acaddd61a25b49fbad0d35928e2128",
+        "Node name for S&R": "ModusFlowImageGallery"
+      }
+    },
+    {
+      "id": 601,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        1820,
+        80
+      ],
+      "size": [
+        270,
+        320
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1147
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1148
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMBO",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "padding",
+          "name": "padding",
+          "type": "INT",
+          "widget": {
+            "name": "padding"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "mask_blur",
+          "name": "mask_blur",
+          "type": "INT",
+          "widget": {
+            "name": "mask_blur"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blend_feather",
+          "name": "blend_feather",
+          "type": "INT",
+          "widget": {
+            "name": "blend_feather"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "context_pad",
+          "name": "context_pad",
+          "type": "INT",
+          "widget": {
+            "name": "context_pad"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler",
+          "name": "sampler",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled",
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "slot",
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": [
+            1146
+          ]
+        }
+      ],
+      "title": "ModusFlow Detailer Slot (Person)",
+      "properties": {
+        "aux_id": "ComfyUI-ModusFlow.git",
+        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8",
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "person_yolov8n-seg.pt",
+        10,
+        4.5,
+        0.3,
+        32,
+        4,
+        24,
+        32,
+        "euler",
+        "simple",
+        true
+      ],
+      "widgets_values_named": {
+        "model": "person_yolov8n-seg.pt",
+        "steps": 10,
+        "cfg": 4.5,
+        "denoise": 0.3,
+        "padding": 32,
+        "mask_blur": 4,
+        "blend_feather": 24,
+        "context_pad": 32,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "enabled": true
+      }
+    },
+    {
+      "id": 618,
+      "type": "easy imageScaleDownBy",
+      "pos": [
+        1179.6465049449732,
+        1147.9420855323062
+      ],
+      "size": [
+        330.1724718030566,
+        58
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 1191
+        },
+        {
+          "localized_name": "scale_by",
+          "name": "scale_by",
+          "type": "FLOAT",
+          "widget": {
+            "name": "scale_by"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1192
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-easy-use",
+        "ver": "d60b61d5759b020eff3356b3d395a1adb5456869",
+        "Node name for S&R": "easy imageScaleDownBy"
+      },
+      "widgets_values": [
+        0.5
+      ],
+      "widgets_values_named": {
+        "scale_by": 0.5
+      }
+    },
+    {
+      "id": 595,
+      "type": "ModusFlowAllInOneDetailer",
+      "pos": [
+        1520,
+        80
+      ],
+      "size": [
+        290,
+        710
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "pipe",
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 1200
+        },
+        {
+          "localized_name": "image",
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 1199
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "shape": 7,
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "shape": 7,
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        },
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "localized_name": "slot_1",
+          "name": "slot_1",
+          "shape": 7,
+          "type": "DETAILER_SLOT",
+          "link": 1146
+        },
+        {
+          "localized_name": "confidence",
+          "name": "confidence",
+          "type": "FLOAT",
+          "widget": {
+            "name": "confidence"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "name": "slot_2",
+          "type": "DETAILER_SLOT",
+          "link": 1144
+        },
+        {
+          "name": "slot_3",
+          "type": "DETAILER_SLOT",
+          "link": 1145
+        },
+        {
+          "name": "slot_4",
+          "type": "DETAILER_SLOT",
+          "link": 1154
+        },
+        {
+          "name": "slot_5",
+          "type": "DETAILER_SLOT",
+          "link": 1178
+        },
+        {
+          "name": "slot_6",
+          "type": "DETAILER_SLOT",
+          "link": 1158
+        },
+        {
+          "name": "slot_7",
+          "type": "DETAILER_SLOT",
+          "link": 1161
+        },
+        {
+          "name": "slot_8",
+          "type": "DETAILER_SLOT",
+          "link": 1162
+        },
+        {
+          "name": "slot_9",
+          "type": "DETAILER_SLOT",
+          "link": 1165
+        },
+        {
+          "name": "slot_10",
+          "type": "DETAILER_SLOT",
+          "link": 1168
+        },
+        {
+          "name": "slot_11",
+          "type": "DETAILER_SLOT",
+          "link": 1171
+        },
+        {
+          "name": "slot_12",
+          "type": "DETAILER_SLOT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            1176
+          ]
+        },
+        {
+          "localized_name": "pipe",
+          "name": "pipe",
+          "type": "PIPE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "ComfyUI-ModusFlow.git",
+        "ver": "892a4d8f05f65971c085153e5e2f27446a8018de",
+        "Node name for S&R": "ModusFlowAllInOneDetailer"
+      },
+      "widgets_values": [
+        0.7,
+        188597779187716,
+        "randomize"
+      ],
+      "widgets_values_named": {
+        "confidence": 0.7,
+        "seed": 188597779187716,
+        "control_after_generate": "randomize"
+      }
+    },
+    {
+      "id": 554,
+      "type": "ModusFlowKSampler",
+      "pos": [
+        1180,
+        80.53852022341623
+      ],
+      "size": [
+        330,
+        620
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "pipe",
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 1196
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "shape": 7,
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "shape": 7,
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        },
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "localized_name": "latent_image",
+          "name": "latent_image",
+          "shape": 7,
+          "type": "LATENT",
+          "link": 1106
+        },
+        {
+          "localized_name": "latent_operation",
+          "name": "latent_operation",
+          "shape": 7,
+          "type": "LATENT_OPERATION",
+          "link": null
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler_name",
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "use_cudnn",
+          "name": "use_cudnn",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "use_cudnn"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "latent",
+          "name": "latent",
+          "type": "LATENT",
+          "links": []
+        },
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            1197
+          ]
+        },
+        {
+          "localized_name": "audio",
+          "name": "audio",
+          "type": "AUDIO",
+          "links": []
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "links": [
+            1123,
+            1127
+          ]
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "links": []
+        },
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "links": []
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "links": null
+        },
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            1133,
+            1147,
+            1149,
+            1150,
+            1152,
+            1156,
+            1159,
+            1163,
+            1166,
+            1169,
+            1180
+          ]
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            1134,
+            1137,
+            1148,
+            1151,
+            1153,
+            1157,
+            1160,
+            1164,
+            1167,
+            1170,
+            1181
+          ]
+        },
+        {
+          "localized_name": "pipe",
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            1198
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "ver": "d2cd15aeabdd170b0a1f383a42cdf6ad12978d74",
+        "Node name for S&R": "ModusFlowKSampler"
+      },
+      "widgets_values": [
+        835321251059112,
+        "randomize",
+        30,
+        5.5,
+        "uni_pc",
+        "simple",
+        1.0,
+        false
+      ],
+      "widgets_values_named": {
+        "seed": 835321251059112,
+        "steps": 30,
+        "cfg": 5.5,
+        "sampler_name": "uni_pc",
+        "scheduler": "simple",
+        "denoise": 1.0,
+        "use_cudnn": false
+      },
+      "title": "ModusFlow KSampler"
+    },
+    {
+      "id": 556,
+      "type": "ModusFlowModelLoader",
+      "pos": [
+        360,
+        80
+      ],
+      "size": [
+        330,
+        710
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "unet_name",
+          "name": "unet_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "unet_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "weight_dtype",
+          "name": "weight_dtype",
+          "type": "COMBO",
+          "widget": {
+            "name": "weight_dtype"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "use_dual_clip_loader",
+          "name": "use_dual_clip_loader",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "use_dual_clip_loader"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "dual_clip_type",
+          "name": "dual_clip_type",
+          "type": "COMBO",
+          "widget": {
+            "name": "dual_clip_type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clip1_name",
+          "name": "clip1_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip1_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clip1_type",
+          "name": "clip1_type",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip1_type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clip1_device",
+          "name": "clip1_device",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip1_device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clip2_name",
+          "name": "clip2_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip2_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clip2_type",
+          "name": "clip2_type",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip2_type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clip2_device",
+          "name": "clip2_device",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip2_device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clip3_name",
+          "name": "clip3_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip3_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clip3_type",
+          "name": "clip3_type",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip3_type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clip3_device",
+          "name": "clip3_device",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip3_device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clip4_name",
+          "name": "clip4_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip4_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clip4_type",
+          "name": "clip4_type",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip4_type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clip4_device",
+          "name": "clip4_device",
+          "type": "COMBO",
+          "widget": {
+            "name": "clip4_device"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clip_skip",
+          "name": "clip_skip",
+          "type": "INT",
+          "widget": {
+            "name": "clip_skip"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "checkpoint_name",
+          "name": "checkpoint_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "checkpoint_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "use_checkpoint_clip",
+          "name": "use_checkpoint_clip",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "use_checkpoint_clip"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "vae_name",
+          "name": "vae_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "vae_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "t5_min_length",
+          "name": "t5_min_length",
+          "type": "INT",
+          "widget": {
+            "name": "t5_min_length"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "t5_min_padding",
+          "name": "t5_min_padding",
+          "type": "INT",
+          "widget": {
+            "name": "t5_min_padding"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "links": []
+        },
+        {
+          "localized_name": "clip_merged",
+          "name": "clip_merged",
+          "type": "CLIP",
+          "links": []
+        },
+        {
+          "localized_name": "clip1",
+          "name": "clip1",
+          "type": "CLIP",
+          "links": [
+            1107,
+            1108
+          ]
+        },
+        {
+          "localized_name": "clip2",
+          "name": "clip2",
+          "type": "CLIP",
+          "links": []
+        },
+        {
+          "localized_name": "clip3",
+          "name": "clip3",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "localized_name": "clip4",
+          "name": "clip4",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "links": null
+        },
+        {
+          "localized_name": "pipe",
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            1105
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "ver": "560fe307282f4464b31c72613460cf15af22f571",
+        "Node name for S&R": "ModusFlowModelLoader"
+      },
+      "widgets_values": [
+        "wan2.2_ti2v_5B_fp16.safetensors",
+        "default",
+        false,
+        "sdxl",
+        "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "wan",
+        "auto",
+        "disabled",
+        "flux2",
+        "auto",
+        "disabled",
+        "flux2",
+        "auto",
+        "disabled",
+        "flux2",
+        "auto",
+        0,
+        "None",
+        false,
+        "wan2.2_vae.safetensors",
+        512,
+        0
+      ],
+      "widgets_values_named": {
+        "unet_name": "wan2.2_ti2v_5B_fp16.safetensors",
+        "weight_dtype": "default",
+        "use_dual_clip": false,
+        "dual_clip_type": "sdxl",
+        "clip_name1": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "clip_type1": "wan",
+        "clip_device1": "auto",
+        "clip_name2": "disabled",
+        "clip_type2": "flux2",
+        "clip_device2": "auto",
+        "clip_name3": "disabled",
+        "clip_type3": "flux2",
+        "clip_device3": "auto",
+        "clip_name4": "disabled",
+        "clip_type4": "flux2",
+        "clip_device4": "auto",
+        "clip_layer": 0,
+        "checkpoint_name": "None",
+        "checkpoint_clip": false,
+        "vae_name": "wan2.2_vae.safetensors",
+        "tile_size": 512,
+        "t5_min_length": 0
+      },
+      "title": "ModusFlow Model Loader (Wan 2.2)"
+    },
+    {
+      "id": 544,
+      "type": "ModusFlowLoraLoader",
+      "pos": [
+        700,
+        80
+      ],
+      "size": [
+        470,
+        1020
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "pipe",
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 1105
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "shape": 7,
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "shape": 7,
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1110
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1109
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "link": null
+        },
+        {
+          "localized_name": "lora_stack",
+          "name": "lora_stack",
+          "type": "STRING",
+          "widget": {
+            "name": "lora_stack"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "base_model_name",
+          "name": "base_model_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "base_model_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_filter",
+          "name": "lora_filter",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "lora_filter"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "civitai_api_key",
+          "name": "civitai_api_key",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "civitai_api_key"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "links": []
+        },
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "links": []
+        },
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            1172
+          ]
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            1173
+          ]
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "localized_name": "pipe",
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            1195
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "ver": "6e17ff3e25b9aa707bd785eaa854d7ad7b117d76",
+        "Node name for S&R": "ModusFlowLoraLoader"
+      },
+      "widgets_values": [
+        "[{\"name\": \"example_wan2.2_lora.safetensors\", \"strength\": 0.8, \"enabled\": false}]",
+        "wan",
+        "",
+        "",
+        ""
+      ],
+      "widgets_values_named": {
+        "lora_stack": "[{\"name\": \"example_wan2.2_lora.safetensors\", \"strength\": 0.8, \"enabled\": false}]",
+        "category_filter": "wan",
+        "saved_stack": "",
+        "stack_category": "",
+        "search": ""
+      },
+      "title": "ModusFlow LoRA Loader"
+    },
+    {
+      "id": 619,
+      "type": "ModusFlowTextEditor",
+      "pos": [
+        -230,
+        80
+      ],
+      "size": [
+        580,
+        710
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "positive_input",
+          "name": "positive_input",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "localized_name": "negative_input",
+          "name": "negative_input",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "localized_name": "positive_embedding",
+          "name": "positive_embedding",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "localized_name": "negative_embedding",
+          "name": "negative_embedding",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "type": "STRING",
+          "widget": {
+            "name": "positive"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "type": "STRING",
+          "widget": {
+            "name": "negative"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "saved_prompt",
+          "name": "saved_prompt",
+          "type": "COMBO",
+          "widget": {
+            "name": "saved_prompt"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "type": "STRING",
+          "links": [
+            1193
+          ]
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "type": "STRING",
+          "links": [
+            1194
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "ver": "aa93e6dbc4797c5bc97ec424d6eaba0587c1b9a7",
+        "Node name for S&R": "ModusFlowTextEditor"
+      },
+      "widgets_values": [
+        "masterpiece, high quality, photorealistic photograph of a stunning cinematic scene, ultra-detailed skin textures, atmospheric depth of field, 85mm portrait lens, professional lighting, 8k resolution",
+        "ugly, deformed, noisy, blurry, distorted, low quality, grainy, cartoon, 3d render, watermark, signature",
+        "--all categories--",
+        "--select prompt--",
+        "",
+        null,
+        null,
+        null
+      ],
+      "widgets_values_named": {
+        "positive": "masterpiece, high quality, photorealistic photograph of a stunning cinematic scene, ultra-detailed skin textures, atmospheric depth of field, 85mm portrait lens, professional lighting, 8k resolution",
+        "negative": "ugly, deformed, noisy, blurry, distorted, low quality, grainy, cartoon, 3d render, watermark, signature",
+        "category_filter": "--all categories--",
+        "saved_prompt": "--select prompt--",
+        "prompt_category": "",
+        "Save Prompt": null,
+        "Update Selected": null,
+        "Refresh List": null
+      },
+      "title": "Prompt Editor"
+    },
+    {
+      "id": 620,
+      "type": "ModusDynamicGuidance",
+      "pos": [
+        1180.961356393982,
+        849.7608882268361
+      ],
+      "size": [
+        329.6288604001887,
+        174
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "pipe",
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 1195
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "shape": 7,
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "localized_name": "scale_start",
+          "name": "scale_start",
+          "type": "FLOAT",
+          "widget": {
+            "name": "scale_start"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scale_end",
+          "name": "scale_end",
+          "type": "FLOAT",
+          "widget": {
+            "name": "scale_end"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "decay_power",
+          "name": "decay_power",
+          "type": "FLOAT",
+          "widget": {
+            "name": "decay_power"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "decay_profile",
+          "name": "decay_profile",
+          "type": "COMBO",
+          "widget": {
+            "name": "decay_profile"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "guidance_mode",
+          "name": "guidance_mode",
+          "type": "COMBO",
+          "widget": {
+            "name": "guidance_mode"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "localized_name": "pipe",
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            1196
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "ver": "0989dad862e261586ff98024f8c4f4b539227e5a",
+        "Node name for S&R": "ModusDynamicGuidance"
+      },
+      "widgets_values": [
+        5.0,
+        2.5,
+        1.0,
+        "linear",
+        "CFG Scale (Chroma / SDXL / SD1.5)"
+      ],
+      "widgets_values_named": {
+        "scale_start": 5.0,
+        "scale_end": 2.5,
+        "decay_power": 1.0,
+        "decay_profile": "linear",
+        "guidance_mode": "CFG Scale (Chroma / SDXL / SD1.5)"
+      },
+      "title": "Modus Dynamic Guidance"
+    },
+    {
+      "id": 621,
+      "type": "ModusDeWaxTextureRestore",
+      "pos": [
+        1520.1377784579415,
+        849.242681971459
+      ],
+      "size": [
+        292.8781806143801,
+        146
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1197
+        },
+        {
+          "localized_name": "mask",
+          "name": "mask",
+          "shape": 7,
+          "type": "MASK",
+          "link": null
+        },
+        {
+          "localized_name": "pipe",
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 1198
+        },
+        {
+          "localized_name": "micro_texture",
+          "name": "micro_texture",
+          "type": "FLOAT",
+          "widget": {
+            "name": "micro_texture"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "grain_intensity",
+          "name": "grain_intensity",
+          "type": "FLOAT",
+          "widget": {
+            "name": "grain_intensity"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blur_radius",
+          "name": "blur_radius",
+          "type": "INT",
+          "widget": {
+            "name": "blur_radius"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            1199
+          ]
+        },
+        {
+          "localized_name": "pipe",
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            1200
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "ver": "0989dad862e261586ff98024f8c4f4b539227e5a",
+        "Node name for S&R": "ModusDeWaxTextureRestore"
+      },
+      "widgets_values": [
+        0.3,
+        0.06,
+        3
+      ],
+      "widgets_values_named": {
+        "micro_texture": 0.3,
+        "grain_intensity": 0.06,
+        "blur_radius": 3
+      }
+    }
+  ],
+  "links": [
+    [
+      1105,
+      556,
+      7,
+      544,
+      0,
+      "PIPE"
+    ],
+    [
+      1106,
+      583,
+      0,
+      554,
+      6,
+      "LATENT"
+    ],
+    [
+      1107,
+      556,
+      2,
+      580,
+      0,
+      "CLIP"
+    ],
+    [
+      1108,
+      556,
+      2,
+      581,
+      0,
+      "CLIP"
+    ],
+    [
+      1109,
+      581,
+      0,
+      544,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      1110,
+      580,
+      0,
+      544,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1116,
+      587,
+      0,
+      585,
+      0,
+      "UPSCALE_MODEL"
+    ],
+    [
+      1133,
+      554,
+      7,
+      596,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1134,
+      554,
+      8,
+      596,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      1137,
+      554,
+      8,
+      597,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      1147,
+      554,
+      7,
+      601,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1148,
+      554,
+      8,
+      601,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      1149,
+      554,
+      7,
+      597,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1150,
+      554,
+      7,
+      602,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1151,
+      554,
+      8,
+      602,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      1152,
+      554,
+      7,
+      603,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1153,
+      554,
+      8,
+      603,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      1156,
+      554,
+      7,
+      604,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1157,
+      554,
+      8,
+      604,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      1159,
+      554,
+      7,
+      605,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1160,
+      554,
+      8,
+      605,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      1163,
+      554,
+      7,
+      606,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1164,
+      554,
+      8,
+      606,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      1166,
+      554,
+      7,
+      607,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1167,
+      554,
+      8,
+      607,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      1169,
+      554,
+      7,
+      609,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1170,
+      554,
+      8,
+      609,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      1172,
+      544,
+      2,
+      611,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1173,
+      544,
+      3,
+      611,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      1176,
+      595,
+      0,
+      613,
+      0,
+      "IMAGE"
+    ],
+    [
+      1180,
+      554,
+      7,
+      614,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      1181,
+      554,
+      8,
+      614,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      1188,
+      613,
+      0,
+      585,
+      1,
+      "IMAGE"
+    ],
+    [
+      1190,
+      585,
+      0,
+      594,
+      0,
+      "IMAGE"
+    ],
+    [
+      1191,
+      585,
+      0,
+      618,
+      0,
+      "IMAGE"
+    ],
+    [
+      1192,
+      618,
+      0,
+      593,
+      0,
+      "IMAGE"
+    ],
+    [
+      1193,
+      619,
+      0,
+      580,
+      1,
+      "STRING"
+    ],
+    [
+      1194,
+      619,
+      1,
+      581,
+      1,
+      "STRING"
+    ],
+    [
+      1146,
+      601,
+      0,
+      595,
+      7,
+      "DETAILER_SLOT"
+    ],
+    [
+      1123,
+      554,
+      3,
+      593,
+      6,
+      "INT"
+    ],
+    [
+      1127,
+      554,
+      3,
+      594,
+      6,
+      "INT"
+    ],
+    [
+      1144,
+      596,
+      0,
+      595,
+      10,
+      "DETAILER_SLOT"
+    ],
+    [
+      1145,
+      597,
+      0,
+      595,
+      11,
+      "DETAILER_SLOT"
+    ],
+    [
+      1154,
+      602,
+      0,
+      595,
+      12,
+      "DETAILER_SLOT"
+    ],
+    [
+      1178,
+      614,
+      0,
+      595,
+      13,
+      "DETAILER_SLOT"
+    ],
+    [
+      1158,
+      604,
+      0,
+      595,
+      14,
+      "DETAILER_SLOT"
+    ],
+    [
+      1161,
+      605,
+      0,
+      595,
+      15,
+      "DETAILER_SLOT"
+    ],
+    [
+      1162,
+      606,
+      0,
+      595,
+      16,
+      "DETAILER_SLOT"
+    ],
+    [
+      1165,
+      607,
+      0,
+      595,
+      17,
+      "DETAILER_SLOT"
+    ],
+    [
+      1168,
+      609,
+      0,
+      595,
+      18,
+      "DETAILER_SLOT"
+    ],
+    [
+      1171,
+      611,
+      0,
+      595,
+      19,
+      "DETAILER_SLOT"
+    ],
+    [
+      1195,
+      544,
+      5,
+      620,
+      0,
+      "PIPE"
+    ],
+    [
+      1196,
+      620,
+      1,
+      554,
+      0,
+      "PIPE"
+    ],
+    [
+      1197,
+      554,
+      1,
+      621,
+      0,
+      "IMAGE"
+    ],
+    [
+      1198,
+      554,
+      9,
+      621,
+      2,
+      "PIPE"
+    ],
+    [
+      1199,
+      621,
+      0,
+      595,
+      1,
+      "IMAGE"
+    ],
+    [
+      1200,
+      621,
+      1,
+      595,
+      0,
+      "PIPE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.45,
+      "offset": [
+        626.1215439332809,
+        197.75731802854102
+      ]
+    },
+    "frontendVersion": "1.53.6",
+    "workflowRendererVersion": "LG",
+    "ue_links": [],
+    "node_versions": {
+      "comfy-core": "0.3.14",
+      "ComfyUI_tinyterraNodes": "b292f8e88314637aac96a3979831fd6b4f3862ac",
+      "efficiency-nodes-comfyui": "3ead4afd120833f3bffdefeca0d6545df8051798"
+    },
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "extensions": {
+    "seed_widgets": {
+      "554": 0,
+      "593": 5,
+      "594": 5,
+      "595": 1
+    }
+  },
+  "version": 0.4
+}
