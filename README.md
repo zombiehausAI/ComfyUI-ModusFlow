@@ -11,7 +11,7 @@ A comprehensive collection of professional-grade custom nodes for ComfyUI, featu
 
 ## 🌟 Overview
 
-ComfyUI-ModusFlow provides 20 custom nodes organized into six categories:
+ComfyUI-ModusFlow provides 22 custom nodes organized into six categories:
 
 **🤖 AI & Prompt Enhancement**
 - Ollama Prompt Refiner - Full-pipeline prompt enhancement with Ollama LLMs, conditioning output, and pipe support
@@ -27,12 +27,14 @@ ComfyUI-ModusFlow provides 20 custom nodes organized into six categories:
 - KSampler - Enhanced sampler with pipe support, audio latent handling, and CUDNN control
 - Batch KSampler - Simplified KSampler for batch workflows
 - Latent Preset - Blank latent generator with common resolution presets
+- Modus Dynamic Guidance - Sampling-level dynamic guidance hook to address plastic, waxy skin tones without LoRAs
 
-**🖼️ Image Enhancement**
+**🖼️ Image Enhancement & Post-Processing**
 - Detailer Slot - Config bundle for one YOLO detection + inpaint pass
 - All-in-One Detailer - Runs any number of Detailer Slots sequentially with pipe support
 - Upscaler - Tiled upscaling with seam fixing and post-processing
 - Restormer - Deep learning image restoration (motion deblur, defocus, denoising)
+- Modus De-Wax Texture Restore - Post-decode micro-texture reconstruction and organic sensor grain restoration
 
 **🔊 Audio**
 - Save Audio - Multi-format audio export (flac, wav, mp3, ogg) with filename variables
@@ -116,11 +118,13 @@ Edit `config.json` to configure:
 - [KSampler](docs/ksampler.md)
 - [Batch KSampler](docs/batch-ksampler.md)
 - [Latent Preset](docs/latent-preset.md)
+- [Modus Dynamic Guidance](docs/dynamic-guidance.md)
 
-**Image Enhancement**
+**Image Enhancement & Post-Processing**
 - [All-in-One Detailer](docs/allinone-detailer.md)
 - [Upscaler](docs/upscaler.md)
 - [Restormer](docs/restormer.md)
+- [Modus De-Wax Texture Restore](docs/dewax-texture-restore.md)
 
 **Audio**
 - [Save Audio](docs/save-audio.md)

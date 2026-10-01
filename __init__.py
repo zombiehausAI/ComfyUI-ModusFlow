@@ -18,6 +18,8 @@ from .modules.ace_step_audio_node import ModusFlowAceStepAudio
 from .modules.allinone_detailer_node import ModusFlowDetailerSlot, ModusFlowAllInOneDetailer
 from .modules.conditioning_concat_node import ModusFlowConditioningConcat
 from .modules.restormer_node import ModusFlowRestormer
+from .modules.dynamic_guidance_node import ModusDynamicGuidance
+from .modules.dewax_texture_restore_node import ModusDeWaxTextureRestore
 import server
 from aiohttp import web
 import folder_paths
@@ -861,6 +863,8 @@ NODE_CLASS_MAPPINGS = {
     "ModusFlowAllInOneDetailer": ModusFlowAllInOneDetailer,
     "ModusFlowConditioningConcat": ModusFlowConditioningConcat,
     "ModusFlowRestormer": ModusFlowRestormer,
+    "ModusDynamicGuidance": ModusDynamicGuidance,
+    "ModusDeWaxTextureRestore": ModusDeWaxTextureRestore,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -884,6 +888,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ModusFlowAllInOneDetailer": "ModusFlow All-in-One Detailer",
     "ModusFlowConditioningConcat": "ModusFlow Conditioning Concat",
     "ModusFlowRestormer": "ModusFlow Restormer",
+    "ModusDynamicGuidance": "Modus Dynamic Guidance",
+    "ModusDeWaxTextureRestore": "Modus De-Wax Texture Restore",
 }
 
 WEB_DIRECTORY = "./web"
