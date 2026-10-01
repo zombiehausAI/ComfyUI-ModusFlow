@@ -60,6 +60,15 @@ Set the save directory in `config.json`:
 
 **Default:** `ComfyUI-ModusFlow/saved_prompts/`
 
+### Directory Structure
+Files are automatically organized into subdirectories by type:
+- `saved_prompts/prompts/`: Text Editor prompts and refined prompts (`.json`)
+- `saved_prompts/songs/`: Song lyrics and audio presets (`.json`)
+  - `saved_prompts/songs/tags/`: Individual tag text files (`.txt`)
+  - `saved_prompts/songs/lyrics/`: Individual lyric text files (`.txt`)
+
+> Legacy files saved directly in the root of `saved_prompts/` are automatically scanned and remain fully loadable.
+
 ## JSON File Format
 
 Each saved prompt is a `.json` file with the following structure:

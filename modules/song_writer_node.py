@@ -174,18 +174,25 @@ class ModusFlowSongWriter:
 
     @classmethod
     def get_saved_songs(cls):
-        """Get list of saved songs from the configured unified prompts directory."""
+        """Get list of saved songs from the configured unified prompts directory (songs/ subdirectory and root)."""
         try:
             from ..config import settings, BASE_DIR
             prompts_dir = settings.get('prompts_save_directory', '').strip()
             if not prompts_dir:
                 prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
 
-            if os.path.isdir(prompts_dir):
-                files = [f for f in os.listdir(prompts_dir) if f.endswith('.json')]
+            seen = set()
+            files = []
+            scan_dirs = [os.path.join(prompts_dir, 'songs'), prompts_dir, os.path.join(BASE_DIR, 'saved_songs')]
+            for d in scan_dirs:
+                if os.path.isdir(d):
+                    for f in sorted(os.listdir(d)):
+                        if f.endswith('.json') and f not in seen:
+                            seen.add(f)
+                            files.append(f)
+            if files:
                 files.sort()
-                if files:
-                    return ["--select song--"] + files
+                return ["--select song--"] + files
         except Exception as e:
             print(f"[ModusFlow SongWriter] Error loading songs list: {e}")
 

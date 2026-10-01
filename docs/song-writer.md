@@ -23,7 +23,7 @@ Interactive song composition and lyric formatting node tailored for state-of-the
 
 ### Interactive UI Buttons
 - **Category Filter**: Filter saved songs by category (e.g., `Song`, `Acoustic`, `Synthwave`).
-- **💾 Save Song**: Save current song parameters, lyrics, and styles as a new JSON file in `saved_prompts/`.
+- **💾 Save Song**: Save current song parameters, lyrics, and styles as a new JSON file in `saved_prompts/songs/`.
 - **✏️ Update Selected**: Overwrite the currently selected song file.
 - **🔄 Refresh List**: Dynamically reload the list of saved songs from disk.
 

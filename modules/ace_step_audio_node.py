@@ -14,16 +14,17 @@ import os
 
 
 def _get_songs_dir():
-    """Return the root songs directory (does NOT create subdirs). Defaults to unified prompts directory."""
+    """Return the songs subdirectory under saved_prompts (e.g. saved_prompts/songs)."""
     try:
         from ..config import settings, BASE_DIR
         songs_dir = settings.get("songs_save_directory", "").strip()
         if not songs_dir:
-            songs_dir = settings.get("prompts_save_directory", "").strip()
-            if not songs_dir:
-                songs_dir = os.path.join(BASE_DIR, "saved_prompts")
+            prompts_dir = settings.get("prompts_save_directory", "").strip()
+            if not prompts_dir:
+                prompts_dir = os.path.join(BASE_DIR, "saved_prompts")
+            songs_dir = os.path.join(prompts_dir, "songs")
     except Exception:
-        songs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "saved_prompts")
+        songs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "saved_prompts", "songs")
     return songs_dir
 
 
@@ -102,11 +103,20 @@ class ModusFlowAceStepAudio:
     @classmethod
     def _list_songs(cls):
         try:
-            d = _get_songs_dir()
-            if os.path.isdir(d):
-                files = sorted(f for f in os.listdir(d) if f.endswith(".json"))
-                if files:
-                    return ["--select song--"] + files
+            from ..config import settings, BASE_DIR
+            prompts_dir = settings.get("prompts_save_directory", "").strip() or os.path.join(BASE_DIR, "saved_prompts")
+            scan_dirs = [_get_songs_dir(), prompts_dir, os.path.join(BASE_DIR, "saved_songs")]
+            seen = set()
+            files = []
+            for d in scan_dirs:
+                if os.path.isdir(d):
+                    for f in sorted(os.listdir(d)):
+                        if f.endswith(".json") and f not in seen:
+                            seen.add(f)
+                            files.append(f)
+            if files:
+                files.sort()
+                return ["--select song--"] + files
         except Exception as e:
             print(f"[ModusFlow AceStepAudio] Error listing songs: {e}")
         return ["--no songs found--"]
@@ -114,11 +124,19 @@ class ModusFlowAceStepAudio:
     @classmethod
     def _list_tags(cls):
         try:
-            d = _tags_dir()
-            if os.path.isdir(d):
-                files = sorted(f for f in os.listdir(d) if f.endswith(".txt"))
-                if files:
-                    return ["--select tags--"] + files
+            from ..config import BASE_DIR
+            scan_dirs = [_tags_dir(), os.path.join(BASE_DIR, "saved_songs", "tags")]
+            seen = set()
+            files = []
+            for d in scan_dirs:
+                if os.path.isdir(d):
+                    for f in sorted(os.listdir(d)):
+                        if f.endswith(".txt") and f not in seen:
+                            seen.add(f)
+                            files.append(f)
+            if files:
+                files.sort()
+                return ["--select tags--"] + files
         except Exception as e:
             print(f"[ModusFlow AceStepAudio] Error listing tags: {e}")
         return ["--no tags found--"]
@@ -126,11 +144,19 @@ class ModusFlowAceStepAudio:
     @classmethod
     def _list_lyrics(cls):
         try:
-            d = _lyrics_dir()
-            if os.path.isdir(d):
-                files = sorted(f for f in os.listdir(d) if f.endswith(".txt"))
-                if files:
-                    return ["--select lyrics--"] + files
+            from ..config import BASE_DIR
+            scan_dirs = [_lyrics_dir(), os.path.join(BASE_DIR, "saved_songs", "lyrics")]
+            seen = set()
+            files = []
+            for d in scan_dirs:
+                if os.path.isdir(d):
+                    for f in sorted(os.listdir(d)):
+                        if f.endswith(".txt") and f not in seen:
+                            seen.add(f)
+                            files.append(f)
+            if files:
+                files.sort()
+                return ["--select lyrics--"] + files
         except Exception as e:
             print(f"[ModusFlow AceStepAudio] Error listing lyrics: {e}")
         return ["--no lyrics found--"]

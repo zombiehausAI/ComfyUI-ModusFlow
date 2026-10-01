@@ -10,9 +10,9 @@ This node is a drop-in replacement for ComfyUI's built-in `TextEncodeAceStepAudi
 
 | Button | Action |
 |--------|--------|
-| **💾 Save Song** | Saves current title + tags + lyrics to `saved_prompts/<title>.json` (uses title as filename; prompts if title is empty) |
+| **💾 Save Song** | Saves current title + tags + lyrics to `saved_prompts/songs/<title>.json` (uses title as filename; prompts if title is empty) |
 | **✏️ Update Song** | Overwrites the file currently shown in the dropdown with the current content |
-| **🔄 Refresh All** | Re-reads the unified saved_prompts folder and repopulates all dropdowns |
+| **🔄 Refresh All** | Re-reads `saved_prompts/songs/` (with fallback to root `saved_prompts/` and legacy `saved_songs/`) and repopulates dropdowns |
 
 Selecting a file from the **Saved Song** dropdown automatically loads the title, tags, and lyrics into the node.
 

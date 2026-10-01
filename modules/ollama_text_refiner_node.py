@@ -11,7 +11,7 @@ DEFAULT_SYSTEM_PROMPT = (
 class OllamaTextRefinerNode:
     @classmethod
     def get_saved_prompts(cls):
-        """Get list of saved prompts from the configured unified prompts directory."""
+        """Get list of saved prompts from the configured directory and subdirectories."""
         try:
             import os
             from ..config import settings, BASE_DIR
@@ -19,11 +19,18 @@ class OllamaTextRefinerNode:
             if not prompts_dir:
                 prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
 
-            if os.path.isdir(prompts_dir):
-                files = [f for f in os.listdir(prompts_dir) if f.endswith('.json')]
+            seen = set()
+            files = []
+            scan_dirs = [os.path.join(prompts_dir, 'prompts'), prompts_dir, os.path.join(prompts_dir, 'songs')]
+            for d in scan_dirs:
+                if os.path.isdir(d):
+                    for f in sorted(os.listdir(d)):
+                        if f.endswith('.json') and f not in seen:
+                            seen.add(f)
+                            files.append(f)
+            if files:
                 files.sort()
-                if files:
-                    return ["--select prompt--"] + files
+                return ["--select prompt--"] + files
         except Exception as e:
             print(f"[ModusFlow TextRefiner] Error loading prompts list: {e}")
 

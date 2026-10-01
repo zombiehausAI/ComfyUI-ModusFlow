@@ -43,7 +43,7 @@ The Ollama Prompt Refiner node enhances prompts using a locally running Ollama m
 - **saved_prompt** (dropdown): Select and load any prompt JSON file from the unified `saved_prompts/` directory.
 - **Category Filter**: Filter saved prompts by category.
 - **Prompt Category** (text): Specify or edit the category for saving.
-- **💾 Save Prompt**: Save the current `text_input` and `negative_prompt` as a JSON file in `saved_prompts/`.
+- **💾 Save Prompt**: Save the current `text_input` and `negative_prompt` as a JSON file in `saved_prompts/prompts/`.
 - **✏️ Update Selected**: Overwrite the currently selected prompt file.
 - **🔄 Refresh Prompts**: Refresh the list of saved prompts from disk.
 - **🔄 Refresh Models**: Refresh the list of running Ollama models.

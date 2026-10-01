@@ -326,9 +326,33 @@ async def save_config_endpoint(request):
     except Exception as e:
         return web.json_response({"success": False, "message": str(e)})
 
+def _get_base_prompts_dir():
+    """Return the root prompts save directory."""
+    from .config import settings, BASE_DIR
+    prompts_dir = settings.get('prompts_save_directory', '').strip()
+    if not prompts_dir:
+        prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
+    os.makedirs(prompts_dir, exist_ok=True)
+    return prompts_dir
+
+def _get_prompts_dir():
+    """Return the prompts subdirectory under saved_prompts (e.g. saved_prompts/prompts)."""
+    prompts_subdir = os.path.join(_get_base_prompts_dir(), 'prompts')
+    os.makedirs(prompts_subdir, exist_ok=True)
+    return prompts_subdir
+
+def _get_songs_dir():
+    """Return the songs subdirectory under saved_prompts (e.g. saved_prompts/songs)."""
+    from .config import settings, BASE_DIR
+    songs_dir = settings.get("songs_save_directory", "").strip()
+    if not songs_dir:
+        songs_dir = os.path.join(_get_base_prompts_dir(), "songs")
+    os.makedirs(songs_dir, exist_ok=True)
+    return songs_dir
+
 @server.PromptServer.instance.routes.post("/modusflow/save_prompt")
 async def save_prompt_endpoint(request):
-    """API endpoint to save a text prompt to a JSON file."""
+    """API endpoint to save a text prompt to a JSON file in saved_prompts/prompts/."""
     try:
         data = await request.json()
         filename = data.get("filename", "").strip()
@@ -347,16 +371,7 @@ async def save_prompt_endpoint(request):
         if not filename.endswith('.json'):
             filename += '.json'
 
-        # Get the prompts save directory from config
-        from .config import settings, BASE_DIR
-        prompts_dir = settings.get('prompts_save_directory', '').strip()
-        if not prompts_dir:
-            prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
-
-        # Create directory if it doesn't exist
-        os.makedirs(prompts_dir, exist_ok=True)
-
-        # Save as JSON
+        prompts_dir = _get_prompts_dir()
         file_path = os.path.join(prompts_dir, filename)
         prompt_data = {"type": data.get("type", "prompt") or "prompt", "category": category, "positive": positive, "negative": negative}
         with open(file_path, 'w', encoding='utf-8') as f:
@@ -371,7 +386,7 @@ async def save_prompt_endpoint(request):
 
 @server.PromptServer.instance.routes.post("/modusflow/load_prompt")
 async def load_prompt_endpoint(request):
-    """API endpoint to load a text prompt from a JSON file."""
+    """API endpoint to load a text prompt from JSON (checks prompts/, root saved_prompts/, and songs/)."""
     try:
         data = await request.json()
         filename = data.get("filename", "").strip()
@@ -379,17 +394,17 @@ async def load_prompt_endpoint(request):
         if not filename:
             return web.json_response({"success": False, "message": "Filename cannot be empty."})
 
-        # Sanitize filename to prevent directory traversal
         filename = os.path.basename(filename)
 
-        # Get the prompts save directory from config
-        from .config import settings, BASE_DIR
-        prompts_dir = settings.get('prompts_save_directory', '').strip()
-        if not prompts_dir:
-            prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
+        # Check in prompts/ subdirectory first, then root saved_prompts/, then songs/
+        candidate_paths = [
+            os.path.join(_get_prompts_dir(), filename),
+            os.path.join(_get_base_prompts_dir(), filename),
+            os.path.join(_get_songs_dir(), filename)
+        ]
+        file_path = next((p for p in candidate_paths if os.path.exists(p)), None)
 
-        file_path = os.path.join(prompts_dir, filename)
-        if not os.path.exists(file_path):
+        if not file_path:
             return web.json_response({"success": False, "message": f"File '{filename}' not found."})
 
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -427,31 +442,30 @@ async def load_prompt_endpoint(request):
 
 @server.PromptServer.instance.routes.get("/modusflow/list_prompts")
 async def list_prompts_endpoint(request):
-    """API endpoint to list all saved prompts with their category metadata."""
+    """API endpoint to list all saved prompts across prompts/, root saved_prompts/, and songs/."""
     try:
-        # Get the prompts save directory from config
-        from .config import settings, BASE_DIR
-        prompts_dir = settings.get('prompts_save_directory', '').strip()
-        if not prompts_dir:
-            prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
-
-        # Create directory if it doesn't exist
-        os.makedirs(prompts_dir, exist_ok=True)
-
+        seen = set()
         prompts = []
-        if os.path.isdir(prompts_dir):
-            for filename in sorted(f for f in os.listdir(prompts_dir) if f.endswith('.json')):
-                category = ""
-                file_type = "prompt"
-                try:
-                    file_path = os.path.join(prompts_dir, filename)
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                    category = data.get('category', '') or ''
-                    file_type = data.get('type', 'prompt') or 'prompt'
-                except Exception:
-                    pass
-                prompts.append({"filename": filename, "category": category, "type": file_type})
+
+        # Check directories in order of priority: prompts/ subdir, root saved_prompts/, songs/
+        scan_dirs = [_get_prompts_dir(), _get_base_prompts_dir(), _get_songs_dir()]
+        for d in scan_dirs:
+            if os.path.isdir(d):
+                for filename in sorted(f for f in os.listdir(d) if f.endswith('.json')):
+                    if filename in seen:
+                        continue
+                    seen.add(filename)
+                    category = ""
+                    file_type = "prompt"
+                    try:
+                        file_path = os.path.join(d, filename)
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                        category = data.get('category', '') or ''
+                        file_type = data.get('type', 'prompt') or 'prompt'
+                    except Exception:
+                        pass
+                    prompts.append({"filename": filename, "category": category, "type": file_type})
 
         return web.json_response({"success": True, "data": prompts})
     except Exception as e:
@@ -459,41 +473,38 @@ async def list_prompts_endpoint(request):
         print(f"[ModusFlow TextEditor] {msg}")
         return web.json_response({"success": False, "message": msg})
 
-def _get_songs_dir():
-    """Return the songs save directory, creating it if needed. Defaults to unified prompts save directory."""
-    from .config import settings, BASE_DIR
-    songs_dir = settings.get("songs_save_directory", "").strip()
-    if not songs_dir:
-        songs_dir = settings.get("prompts_save_directory", "").strip()
-        if not songs_dir:
-            songs_dir = os.path.join(BASE_DIR, "saved_prompts")
-    os.makedirs(songs_dir, exist_ok=True)
-    return songs_dir
-
 # ── Song Writer routes ─────────────────────────────────────────────────────────
 
 @server.PromptServer.instance.routes.get("/modusflow/song/list")
 async def song_writer_list(request):
-    """API endpoint to list all saved songs with their category and title."""
+    """API endpoint to list all saved songs across songs/, root saved_prompts/, and legacy saved_songs/."""
     try:
-        songs_dir = _get_songs_dir()
+        from .config import BASE_DIR
+        legacy_dir = os.path.join(BASE_DIR, "saved_songs")
+        scan_dirs = [_get_songs_dir(), _get_base_prompts_dir(), legacy_dir]
+
+        seen = set()
         songs = []
-        if os.path.isdir(songs_dir):
-            for filename in sorted(f for f in os.listdir(songs_dir) if f.endswith(".json")):
-                category = "Song"
-                title = ""
-                try:
-                    file_path = os.path.join(songs_dir, filename)
-                    with open(file_path, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                    category = data.get("category", "") or "Song"
-                    title = data.get("title", "")
-                    is_song = data.get("type") in ("song", "ace_song") or "lyrics" in data
-                    if not is_song:
+        for d in scan_dirs:
+            if os.path.isdir(d):
+                for filename in sorted(f for f in os.listdir(d) if f.endswith(".json")):
+                    if filename in seen:
                         continue
-                except Exception:
-                    pass
-                songs.append({"filename": filename, "category": category, "title": title})
+                    category = "Song"
+                    title = ""
+                    try:
+                        file_path = os.path.join(d, filename)
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        category = data.get("category", "") or "Song"
+                        title = data.get("title", "")
+                        is_song = data.get("type") in ("song", "ace_song") or "lyrics" in data
+                        if not is_song:
+                            continue
+                    except Exception:
+                        pass
+                    seen.add(filename)
+                    songs.append({"filename": filename, "category": category, "title": title})
         return web.json_response({"success": True, "data": songs})
     except Exception as e:
         msg = f"Error listing songs: {e}"
@@ -502,7 +513,7 @@ async def song_writer_list(request):
 
 @server.PromptServer.instance.routes.post("/modusflow/song/save")
 async def song_writer_save(request):
-    """API endpoint to save a song JSON file into the unified prompts directory."""
+    """API endpoint to save a song JSON file into saved_prompts/songs/."""
     try:
         data = await request.json()
         filename = data.get("filename", "").strip()
@@ -541,7 +552,7 @@ async def song_writer_save(request):
 
 @server.PromptServer.instance.routes.post("/modusflow/song/load")
 async def song_writer_load(request):
-    """API endpoint to load a song JSON file from the unified prompts directory."""
+    """API endpoint to load a song JSON file from songs/, root saved_prompts/, or legacy saved_songs/."""
     try:
         data = await request.json()
         filename = data.get("filename", "").strip()
@@ -549,10 +560,15 @@ async def song_writer_load(request):
             return web.json_response({"success": False, "message": "Filename cannot be empty."})
 
         filename = os.path.basename(filename)
-        songs_dir = _get_songs_dir()
-        file_path = os.path.join(songs_dir, filename)
+        from .config import BASE_DIR
+        candidate_paths = [
+            os.path.join(_get_songs_dir(), filename),
+            os.path.join(_get_base_prompts_dir(), filename),
+            os.path.join(BASE_DIR, "saved_songs", filename)
+        ]
+        file_path = next((p for p in candidate_paths if os.path.exists(p)), None)
 
-        if not os.path.exists(file_path):
+        if not file_path:
             return web.json_response({"success": False, "message": f"Song file '{filename}' not found."})
 
         with open(file_path, "r", encoding="utf-8") as f:
@@ -568,8 +584,16 @@ async def song_writer_load(request):
 async def ace_audio_list(request):
     """API endpoint to list all saved song files."""
     try:
-        songs_dir = _get_songs_dir()
-        files = sorted(f for f in os.listdir(songs_dir) if f.endswith(".json"))
+        from .config import BASE_DIR
+        scan_dirs = [_get_songs_dir(), _get_base_prompts_dir(), os.path.join(BASE_DIR, "saved_songs")]
+        seen = set()
+        files = []
+        for d in scan_dirs:
+            if os.path.isdir(d):
+                for f in sorted(os.listdir(d)):
+                    if f.endswith(".json") and f not in seen:
+                        seen.add(f)
+                        files.append(f)
         return web.json_response({"success": True, "data": files})
     except Exception as e:
         msg = f"Error listing songs: {e}"
@@ -578,7 +602,7 @@ async def ace_audio_list(request):
 
 @server.PromptServer.instance.routes.post("/modusflow/ace_audio/save")
 async def ace_audio_save(request):
-    """API endpoint to save tags and lyrics as a JSON song file."""
+    """API endpoint to save tags and lyrics as a JSON song file in saved_prompts/songs/."""
     try:
         data = await request.json()
         filename = data.get("filename", "").strip()
@@ -618,10 +642,15 @@ async def ace_audio_load(request):
             return web.json_response({"success": False, "message": "Filename cannot be empty."})
 
         filename = os.path.basename(filename)
-        songs_dir = _get_songs_dir()
-        file_path = os.path.join(songs_dir, filename)
+        from .config import BASE_DIR
+        candidate_paths = [
+            os.path.join(_get_songs_dir(), filename),
+            os.path.join(_get_base_prompts_dir(), filename),
+            os.path.join(BASE_DIR, "saved_songs", filename)
+        ]
+        file_path = next((p for p in candidate_paths if os.path.exists(p)), None)
 
-        if not os.path.exists(file_path):
+        if not file_path:
             return web.json_response({"success": False, "message": f"Song file '{filename}' not found."})
 
         with open(file_path, "r", encoding="utf-8") as f:
