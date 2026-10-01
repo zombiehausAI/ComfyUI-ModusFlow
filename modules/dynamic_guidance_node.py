@@ -15,11 +15,11 @@ class ModusDynamicGuidance:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "guidance_mode": (["CFG Scale (Chroma / SDXL / SD1.5)", "Flux / SD3 (Distilled Guidance)"], {"default": "CFG Scale (Chroma / SDXL / SD1.5)"}),
                 "scale_start": ("FLOAT", {"default": 3.5, "min": 0.5, "max": 15.0, "step": 0.1, "round": 0.01}),
                 "scale_end": ("FLOAT", {"default": 1.8, "min": 0.5, "max": 10.0, "step": 0.1, "round": 0.01}),
                 "decay_power": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 4.0, "step": 0.1, "round": 0.01}),
                 "decay_profile": (["linear", "cosine", "exponential"], {"default": "linear"}),
+                "guidance_mode": (["CFG Scale (Chroma / SDXL / SD1.5)", "Flux / SD3 (Distilled Guidance)"], {"default": "CFG Scale (Chroma / SDXL / SD1.5)"}),
             },
             "optional": {
                 "pipe": ("PIPE",),
@@ -66,8 +66,31 @@ class ModusDynamicGuidance:
         factor = max(0.0, min(1.0, factor))
         return scale_end + (scale_start - scale_end) * factor
 
-    def apply_dynamic_guidance(self, guidance_mode, scale_start, scale_end, decay_power, decay_profile,
+    def apply_dynamic_guidance(self, scale_start, scale_end, decay_power, decay_profile,
+                               guidance_mode="CFG Scale (Chroma / SDXL / SD1.5)",
                                pipe=None, model=None):
+        # Defensive validation against NaN or invalid types from UI widget shifts
+        try:
+            scale_start = float(scale_start)
+            if math.isnan(scale_start):
+                scale_start = 3.5
+        except (TypeError, ValueError):
+            scale_start = 3.5
+
+        try:
+            scale_end = float(scale_end)
+            if math.isnan(scale_end):
+                scale_end = 1.8
+        except (TypeError, ValueError):
+            scale_end = 1.8
+
+        try:
+            decay_power = float(decay_power)
+            if math.isnan(decay_power):
+                decay_power = 1.0
+        except (TypeError, ValueError):
+            decay_power = 1.0
+
         clip = None
         vae = None
         positive = None

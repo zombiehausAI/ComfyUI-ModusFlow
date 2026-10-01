@@ -22,11 +22,11 @@ It natively supports both normalized float timesteps (`1.0` -> `0.0` for flow / 
 
 | Input | Type | Default | Min | Max | Step | Description |
 |-------|------|---------|-----|-----|------|-------------|
-| guidance_mode | COMBO | CFG Scale (Chroma / SDXL / SD1.5) | — | — | — | Target mechanism: `CFG Scale (Chroma / SDXL / SD1.5)` or `Flux / SD3 (Distilled Guidance)` |
 | scale_start | FLOAT | 3.5 | 0.5 | 15.0 | 0.1 | Initial guidance scale during early composition steps |
 | scale_end | FLOAT | 1.8 | 0.5 | 10.0 | 0.1 | Final guidance scale during late detail refinement steps |
 | decay_power | FLOAT | 1.0 | 0.1 | 4.0 | 0.1 | Power exponent controlling curve curvature (`1.0` = standard profile) |
 | decay_profile | COMBO | linear | — | — | — | Schedule profile: `linear`, `cosine`, or `exponential` |
+| guidance_mode | COMBO | CFG Scale (Chroma / SDXL / SD1.5) | — | — | — | Target mechanism: `CFG Scale (Chroma / SDXL / SD1.5)` or `Flux / SD3 (Distilled Guidance)` |
 
 ### Optional
 
