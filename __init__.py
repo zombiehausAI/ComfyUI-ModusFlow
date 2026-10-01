@@ -20,6 +20,8 @@ from .modules.conditioning_concat_node import ModusFlowConditioningConcat
 from .modules.restormer_node import ModusFlowRestormer
 from .modules.dynamic_guidance_node import ModusDynamicGuidance
 from .modules.dewax_texture_restore_node import ModusDeWaxTextureRestore
+from .modules.video_latent_node import ModusFlowVideoLatent
+from .modules.save_video_node import ModusFlowSaveVideo
 import server
 from aiohttp import web
 import folder_paths
@@ -865,6 +867,8 @@ NODE_CLASS_MAPPINGS = {
     "ModusFlowRestormer": ModusFlowRestormer,
     "ModusDynamicGuidance": ModusDynamicGuidance,
     "ModusDeWaxTextureRestore": ModusDeWaxTextureRestore,
+    "ModusFlowVideoLatent": ModusFlowVideoLatent,
+    "ModusFlowSaveVideo": ModusFlowSaveVideo,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -890,6 +894,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ModusFlowRestormer": "ModusFlow Restormer",
     "ModusDynamicGuidance": "Modus Dynamic Guidance",
     "ModusDeWaxTextureRestore": "Modus De-Wax Texture Restore",
+    "ModusFlowVideoLatent": "ModusFlow Video Latent Preset",
+    "ModusFlowSaveVideo": "ModusFlow Save Video",
 }
 
 WEB_DIRECTORY = "./web"

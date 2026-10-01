@@ -113,6 +113,32 @@ Overcome the plastic, synthetic look caused by constant guidance and aggressive 
 
 ---
 
+### Workflow F: Unified Video Generation (Wan 2.1 T2V & I2V)
+
+Generate smooth, high-fidelity videos with seamless switching between Text-to-Video and Image-to-Video:
+
+1. **Load Video Backbone with `ModusFlow Model Loader`**:
+   - Model Type: `Diffusion Model (UNet / DiT)`.
+   - Select Wan 2.1 weights (e.g. `wan2.1_t2v_1.3B_bf16.safetensors` or `wan2.1_i2v_720p_14B_bf16.safetensors`).
+   - Connect UMT5 text encoder and Wan 2.1 video VAE (`wan_2.1_vae.safetensors`).
+2. **Spatio-Temporal Latents with `ModusFlow Video Latent Preset`**:
+   - Connect `image` (from `LoadImage`) and `vae` (from `ModusFlow Model Loader`).
+   - Set **Architecture**: `Wan 2.1 (16ch, 4x time)`.
+   - Set **Resolution**: `832x480 (16:9 Landscape)` or `1280x720 (720p 16:9)`.
+   - Set **Frames**: `81 frames` (5s @ 16fps) or `49 frames` (3s @ 16fps).
+   - **Switching Modes**: Simply change the **mode** dropdown:
+     - `Image to Video (I2V)`: Uses the connected image as the initial frame.
+     - `Text to Video (T2V)`: Generates pure text-to-video from prompt alone, ignoring the image input without rewiring.
+3. **Prompt & Dynamic Guidance**:
+   - Set prompt via `ModusFlow Text Editor` into Wan text conditioning.
+   - Route through `Modus Dynamic Guidance` with cosine decay to maintain temporal stability and prevent motion burn.
+4. **Sample & Encode**:
+   - Sample via `ModusFlow KSampler` (e.g. 30 steps, Euler / Simple, CFG 5.0).
+   - Decode frames using `VAE Decode`.
+   - Route decoded video frames directly into **`ModusFlow Save Video`** to encode to `.mp4` (H.264) or `.webm` with automatic preview.
+
+---
+
 ## 3. Recommended Node Pairings
 
 | Task | Primary Node | Complementary Nodes |
@@ -122,10 +148,11 @@ Overcome the plastic, synthetic look caused by constant guidance and aggressive 
 | Multi-encoder models (Flux/SD3) | `ModusFlow Multi-CLIP Text Encode` | `ModusFlow Model Loader` |
 | Dynamic Guidance / Anti-Waxing | `Modus Dynamic Guidance` | `ModusFlow KSampler`, `Modus De-Wax Texture Restore` |
 | Generation | `ModusFlow KSampler` | `ModusFlow Batch KSampler` |
+| Video Latent Generation (T2V & I2V) | `ModusFlow Video Latent Preset` | `ModusFlow Model Loader`, `ModusFlow Save Video` |
 | Texture & Micro-Detail Restore | `Modus De-Wax Texture Restore` | `Modus Dynamic Guidance`, `ModusFlow All-in-One Detailer` |
 | Inpainting & detailing | `ModusFlow All-in-One Detailer` | `ModusFlow Detailer Slot` |
 | Upscaling & cleanup | `ModusFlow Upscaler` | `ModusFlow Restormer` |
-| Export | `ModusFlow Save Image` | `ModusFlow Save Audio` |
+| Export | `ModusFlow Save Image` | `ModusFlow Save Video`, `ModusFlow Save Audio` |
 
 ---
 
@@ -134,3 +161,4 @@ Overcome the plastic, synthetic look caused by constant guidance and aggressive 
 - **Zero-Wire Reordering**: In the LoRA Loader, drag LoRAs in the stack to reorder execution or toggle their checkbox to disable without deleting.
 - **Pipe Passthrough**: Nodes that accept a `pipe` also emit the updated `pipe`, allowing clean linear chains: `Model Loader -> Dynamic Guidance -> KSampler -> De-Wax Restore -> Detailer`.
 - **YOLO Models**: Run `python utilities/download_models.py` to populate `models/ultralytics/` with face, hand, and person detector models.
+- **Video Memory Optimization**: For Wan 2.1 14B or 720p 81-frame videos, enable `clean_vram` on `ModusFlow Save Video` to purge PyTorch CUDA cache immediately upon rendering.

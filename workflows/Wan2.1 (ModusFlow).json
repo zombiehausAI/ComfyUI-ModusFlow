@@ -1,0 +1,1068 @@
+{
+  "id": "a3ed6c1c-ec20-4494-b8fb-62f0a7afe468",
+  "revision": 0,
+  "last_node_id": 622,
+  "last_link_id": 1204,
+  "nodes": [
+    {
+      "id": 583,
+      "type": "ModusFlowVideoLatent",
+      "pos": [
+        360,
+        830
+      ],
+      "size": [
+        315,
+        280
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1201
+        },
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 1204
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            1106
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "Node name for S&R": "ModusFlowVideoLatent"
+      },
+      "widgets_values": [
+        "Image to Video (I2V)",
+        "Wan 2.1 (16ch, 4x time)",
+        "832x480 (16:9 Landscape)",
+        832,
+        480,
+        "81 frames (~5 sec @ 16fps)",
+        81,
+        1
+      ],
+      "widgets_values_named": {
+        "mode": "Image to Video (I2V)",
+        "model_type": "Wan 2.1 (16ch, 4x time)",
+        "resolution": "832x480 (16:9 Landscape)",
+        "width": 832,
+        "height": 480,
+        "frames": "81 frames (~5 sec @ 16fps)",
+        "length": 81,
+        "batch_size": 1
+      },
+      "title": "ModusFlow Video Latent Preset (T2V / I2V)"
+    },
+    {
+      "id": 580,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -230,
+        830
+      ],
+      "size": [
+        240,
+        90
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 1107
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 1193
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            1110
+          ]
+        }
+      ],
+      "title": "Postitive Encode",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.10.0",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "text": ""
+      }
+    },
+    {
+      "id": 593,
+      "type": "ModusFlowSaveVideo",
+      "pos": [
+        1540,
+        80
+      ],
+      "size": [
+        350,
+        480
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 1202
+        },
+        {
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": 1203
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "Node name for S&R": "ModusFlowSaveVideo"
+      },
+      "widgets_values": [
+        "video/%date%/Wan21_%seed%",
+        16,
+        "mp4 (h264)",
+        19,
+        true
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "video/%date%/Wan21_%seed%",
+        "fps": 16,
+        "format": "mp4 (h264)",
+        "crf": 19,
+        "save_to_output": true
+      },
+      "title": "ModusFlow Save Video"
+    },
+    {
+      "id": 581,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -30,
+        830
+      ],
+      "size": [
+        230,
+        90
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 1108
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 1194
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            1109
+          ]
+        }
+      ],
+      "title": "Negative Encode",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.10.0",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "widgets_values_named": {
+        "text": ""
+      }
+    },
+    {
+      "id": 579,
+      "type": "ModusFlowImageGallery",
+      "pos": [
+        -870,
+        80.82118797446795
+      ],
+      "size": [
+        530,
+        1050
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "ver": "f34e6afba4acaddd61a25b49fbad0d35928e2128",
+        "Node name for S&R": "ModusFlowImageGallery"
+      }
+    },
+    {
+      "id": 554,
+      "type": "ModusFlowKSampler",
+      "pos": [
+        1180,
+        80.53852022341623
+      ],
+      "size": [
+        330,
+        620
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 1196
+        },
+        {
+          "name": "model",
+          "shape": 7,
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "name": "clip",
+          "shape": 7,
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        },
+        {
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "latent_image",
+          "shape": 7,
+          "type": "LATENT",
+          "link": 1106
+        },
+        {
+          "name": "latent_operation",
+          "shape": 7,
+          "type": "LATENT_OPERATION",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": []
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            1202
+          ]
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": []
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "links": [
+            1203
+          ]
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": []
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "links": []
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "links": null
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": []
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": []
+        },
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "ver": "d2cd15aeabdd170b0a1f383a42cdf6ad12978d74",
+        "Node name for S&R": "ModusFlowKSampler"
+      },
+      "widgets_values": [
+        997677797210412,
+        "randomize",
+        30,
+        5.0,
+        "euler",
+        "simple",
+        1,
+        false
+      ],
+      "widgets_values_named": {
+        "seed": 997677797210412,
+        "control_after_generate": "randomize",
+        "steps": 30,
+        "cfg": 5.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1,
+        "use_cudnn": false
+      }
+    },
+    {
+      "id": 556,
+      "type": "ModusFlowModelLoader",
+      "pos": [
+        360,
+        80
+      ],
+      "size": [
+        330,
+        710
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": []
+        },
+        {
+          "name": "clip_merged",
+          "type": "CLIP",
+          "links": []
+        },
+        {
+          "name": "clip1",
+          "type": "CLIP",
+          "links": [
+            1107,
+            1108
+          ]
+        },
+        {
+          "name": "clip2",
+          "type": "CLIP",
+          "links": []
+        },
+        {
+          "name": "clip3",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "clip4",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "links": [
+            1204
+          ]
+        },
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            1105
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "ver": "560fe307282f4464b31c72613460cf15af22f571",
+        "Node name for S&R": "ModusFlowModelLoader"
+      },
+      "widgets_values": [
+        "wan2.1_t2v_1.3B_bf16.safetensors",
+        "default",
+        false,
+        "wan",
+        "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "wan",
+        "auto",
+        "disabled",
+        "flux2",
+        "auto",
+        "disabled",
+        "flux2",
+        "auto",
+        "disabled",
+        "flux2",
+        "auto",
+        0,
+        "None",
+        false,
+        "wan_2.1_vae.safetensors",
+        512,
+        0
+      ],
+      "widgets_values_named": {
+        "unet_name": "wan2.1_t2v_1.3B_bf16.safetensors",
+        "weight_dtype": "default",
+        "use_dual_clip_loader": false,
+        "dual_clip_type": "wan",
+        "clip1_name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "clip1_type": "wan",
+        "clip1_device": "auto",
+        "clip2_name": "disabled",
+        "clip2_type": "flux2",
+        "clip2_device": "auto",
+        "clip3_name": "disabled",
+        "clip3_type": "flux2",
+        "clip3_device": "auto",
+        "clip4_name": "disabled",
+        "clip4_type": "flux2",
+        "clip4_device": "auto",
+        "clip_skip": 0,
+        "checkpoint_name": "None",
+        "use_checkpoint_clip": false,
+        "vae_name": "wan_2.1_vae.safetensors",
+        "t5_min_length": 512,
+        "t5_min_padding": 0
+      }
+    },
+    {
+      "id": 589,
+      "type": "ModusFlowTextEditor",
+      "pos": [
+        -1264.146732268531,
+        81.03668306713274
+      ],
+      "size": [
+        750,
+        720
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive_input",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "negative_input",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "positive_embedding",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "negative_embedding",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "text_input",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "embedding",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "negative",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "ver": "2e1e3e9deb5a6c9c6ae74658b89de843fbe83bee",
+        "Node name for S&R": "ModusFlowTextEditor"
+      },
+      "widgets_values": [
+        "cinematic photorealistic video of an astronaut walking across the Martian landscape,\n/* smooth cinematic camera tracking sideways, low angle shot, */\ndust blowing across red desert dunes, distant mountains, lens flare, bright sunny day, highly detailed, 4k resolution\n# alternative camera movements:\n// slow zoom in on helmet visor, static camera",
+        "blurry, jitter, morphing, low quality, distortion, static, cartoon, worst quality, watermark",
+        "--all categories--",
+        "--select prompt--",
+        "",
+        null,
+        null,
+        null
+      ],
+      "widgets_values_named": {
+        "positive": "cinematic photorealistic video of an astronaut walking across the Martian landscape,\n/* smooth cinematic camera tracking sideways, low angle shot, */\ndust blowing across red desert dunes, distant mountains, lens flare, bright sunny day, highly detailed, 4k resolution\n# alternative camera movements:\n// slow zoom in on helmet visor, static camera",
+        "negative": "blurry, jitter, morphing, low quality, distortion, static, cartoon, worst quality, watermark",
+        "category_filter": "--all categories--",
+        "saved_prompt": "--select prompt--",
+        "prompt_category": "",
+        "Save Prompt": null,
+        "Update Selected": null,
+        "Refresh List": null
+      }
+    },
+    {
+      "id": 544,
+      "type": "ModusFlowLoraLoader",
+      "pos": [
+        700,
+        80
+      ],
+      "size": [
+        470,
+        1020
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 1105
+        },
+        {
+          "name": "model",
+          "shape": 7,
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "name": "clip",
+          "shape": 7,
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1110
+        },
+        {
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 1109
+        },
+        {
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": []
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "links": []
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": []
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": []
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            1195
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "ver": "6e17ff3e25b9aa707bd785eaa854d7ad7b117d76",
+        "Node name for S&R": "ModusFlowLoraLoader"
+      },
+      "widgets_values": [
+        "[{\"name\": \"example_wan_camera_motion.safetensors\", \"strength\": 0.8, \"enabled\": false}]",
+        "wan",
+        "",
+        "",
+        ""
+      ],
+      "widgets_values_named": {
+        "lora_stack": "[{\"name\": \"example_wan_camera_motion.safetensors\", \"strength\": 0.8, \"enabled\": false}]",
+        "base_model_name": "wan",
+        "lora_filter": "",
+        "civitai_api_key": "",
+        "advanced_list": ""
+      }
+    },
+    {
+      "id": 619,
+      "type": "ModusFlowTextEditor",
+      "pos": [
+        -230,
+        80
+      ],
+      "size": [
+        580,
+        710
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive_input",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "negative_input",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "positive_embedding",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "negative_embedding",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "STRING",
+          "links": [
+            1193
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "STRING",
+          "links": [
+            1194
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "ver": "aa93e6dbc4797c5bc97ec424d6eaba0587c1b9a7",
+        "Node name for S&R": "ModusFlowTextEditor"
+      },
+      "widgets_values": [
+        "cinematic photorealistic video of an astronaut walking across the Martian landscape,\n/* smooth cinematic camera tracking sideways, low angle shot, */\ndust blowing across red desert dunes, distant mountains, lens flare, bright sunny day, highly detailed, 4k resolution\n# alternative camera movements:\n// slow zoom in on helmet visor, static camera",
+        "blurry, jitter, morphing, low quality, distortion, static, cartoon, worst quality, watermark",
+        "--all categories--",
+        "--select prompt--",
+        "",
+        null,
+        null,
+        null
+      ],
+      "widgets_values_named": {
+        "positive": "cinematic photorealistic video of an astronaut walking across the Martian landscape,\n/* smooth cinematic camera tracking sideways, low angle shot, */\ndust blowing across red desert dunes, distant mountains, lens flare, bright sunny day, highly detailed, 4k resolution\n# alternative camera movements:\n// slow zoom in on helmet visor, static camera",
+        "negative": "blurry, jitter, morphing, low quality, distortion, static, cartoon, worst quality, watermark",
+        "category_filter": "--all categories--",
+        "saved_prompt": "--select prompt--",
+        "prompt_category": "",
+        "Save Prompt": null,
+        "Update Selected": null,
+        "Refresh List": null
+      }
+    },
+    {
+      "id": 620,
+      "type": "ModusDynamicGuidance",
+      "pos": [
+        1180.961356393982,
+        849.7608882268361
+      ],
+      "size": [
+        329.6288604001887,
+        174
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 1195
+        },
+        {
+          "name": "model",
+          "shape": 7,
+          "type": "MODEL",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            1196
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "ver": "0989dad862e261586ff98024f8c4f4b539227e5a",
+        "Node name for S&R": "ModusDynamicGuidance"
+      },
+      "widgets_values": [
+        5.0,
+        2.5,
+        1.0,
+        "cosine",
+        "CFG Scale (Chroma / SDXL / SD1.5)"
+      ],
+      "widgets_values_named": {
+        "scale_start": 5.0,
+        "scale_end": 2.5,
+        "decay_power": 1.0,
+        "decay_profile": "cosine",
+        "guidance_mode": "CFG Scale (Chroma / SDXL / SD1.5)"
+      }
+    },
+    {
+      "id": 622,
+      "type": "LoadImage",
+      "pos": [
+        360,
+        480
+      ],
+      "size": [
+        315,
+        314
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1201
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "example_start_frame.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "example_start_frame.png",
+        "upload": "image"
+      }
+    }
+  ],
+  "links": [
+    [
+      1105,
+      556,
+      7,
+      544,
+      0,
+      "PIPE"
+    ],
+    [
+      1106,
+      583,
+      0,
+      554,
+      6,
+      "LATENT"
+    ],
+    [
+      1107,
+      556,
+      2,
+      580,
+      0,
+      "CLIP"
+    ],
+    [
+      1108,
+      556,
+      2,
+      581,
+      0,
+      "CLIP"
+    ],
+    [
+      1109,
+      581,
+      0,
+      544,
+      4,
+      "CONDITIONING"
+    ],
+    [
+      1110,
+      580,
+      0,
+      544,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      1193,
+      619,
+      0,
+      580,
+      1,
+      "STRING"
+    ],
+    [
+      1194,
+      619,
+      1,
+      581,
+      1,
+      "STRING"
+    ],
+    [
+      1123,
+      554,
+      3,
+      593,
+      1,
+      "INT"
+    ],
+    [
+      1195,
+      544,
+      5,
+      620,
+      0,
+      "PIPE"
+    ],
+    [
+      1196,
+      620,
+      1,
+      554,
+      0,
+      "PIPE"
+    ],
+    [
+      1201,
+      622,
+      0,
+      583,
+      0,
+      "IMAGE"
+    ],
+    [
+      1202,
+      554,
+      1,
+      593,
+      0,
+      "IMAGE"
+    ],
+    [
+      1203,
+      554,
+      3,
+      593,
+      1,
+      "INT"
+    ],
+    [
+      1204,
+      556,
+      6,
+      583,
+      2,
+      "VAE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1.553522046476897,
+      "offset": [
+        -863.9731481314576,
+        -248.95028200132066
+      ]
+    },
+    "frontendVersion": "1.53.10",
+    "workflowRendererVersion": "LG",
+    "ue_links": [],
+    "node_versions": {
+      "comfy-core": "0.3.14",
+      "ComfyUI_tinyterraNodes": "b292f8e88314637aac96a3979831fd6b4f3862ac",
+      "efficiency-nodes-comfyui": "3ead4afd120833f3bffdefeca0d6545df8051798"
+    },
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "extensions": {
+    "seed_widgets": {
+      "554": 0,
+      "593": 5,
+      "594": 5,
+      "595": 1
+    }
+  },
+  "version": 0.4,
+  "seed_widgets": {
+    "554": 0,
+    "593": 5,
+    "594": 5,
+    "595": 1
+  }
+}

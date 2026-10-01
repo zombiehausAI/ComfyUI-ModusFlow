@@ -118,6 +118,7 @@ Edit `config.json` to configure:
 - [KSampler](docs/ksampler.md)
 - [Batch KSampler](docs/batch-ksampler.md)
 - [Latent Preset](docs/latent-preset.md)
+- [Video Latent Preset](docs/video-latent.md)
 - [Modus Dynamic Guidance](docs/dynamic-guidance.md)
 
 **Image Enhancement & Post-Processing**
@@ -126,7 +127,8 @@ Edit `config.json` to configure:
 - [Restormer](docs/restormer.md)
 - [Modus De-Wax Texture Restore](docs/dewax-texture-restore.md)
 
-**Audio**
+**Video & Audio**
+- [Save Video](docs/save-video.md)
 - [Save Audio](docs/save-audio.md)
 - [ACE Step Audio 1.5](docs/ace-step-audio.md)
 
@@ -142,6 +144,7 @@ Edit `config.json` to configure:
 ### 📂 Example Workflows
 
 Pre-configured sample workflows with optimal defaults and pipe-driven architecture are provided in the [`workflows/`](workflows/) directory:
+- **[Wan2.1 (ModusFlow).json](workflows/Wan2.1%20(ModusFlow).json)**: Wan 2.1 Video Diffusion workflow with unified Text-to-Video (T2V) and Image-to-Video (I2V) toggle, spatio-temporal latents, and in-house video encoding.
 - **[Chroma (ModusFlow).json](workflows/Chroma%20(ModusFlow).json)**: Chroma 1-HD de-distilled Flux with CFG scale decay and anti-waxing pipe.
 - **[Flux1.Dev (ModusFlow).json](workflows/Flux1.Dev%20(ModusFlow).json)**: Flux.1-dev with dual CLIP (T5 + CLIP-L) and distilled guidance decay.
 - **[SD3.5 (ModusFlow).json](workflows/SD3.5%20(ModusFlow).json)**: Stable Diffusion 3.5 Large with SGM Uniform scheduler and distilled guidance decay.
