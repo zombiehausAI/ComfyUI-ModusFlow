@@ -139,6 +139,17 @@ Edit `config.json` to configure:
 - [Image Gallery](docs/image-gallery.md)
 - [Save Image](docs/save-image.md)
 
+### 📂 Example Workflows
+
+Pre-configured sample workflows with optimal defaults and pipe-driven architecture are provided in the [`workflows/`](workflows/) directory:
+- **[Chroma (ModusFlow).json](workflows/Chroma%20(ModusFlow).json)**: Chroma 1-HD de-distilled Flux with CFG scale decay and anti-waxing pipe.
+- **[Flux1.Dev (ModusFlow).json](workflows/Flux1.Dev%20(ModusFlow).json)**: Flux.1-dev with dual CLIP (T5 + CLIP-L) and distilled guidance decay.
+- **[SD3.5 (ModusFlow).json](workflows/SD3.5%20(ModusFlow).json)**: Stable Diffusion 3.5 Large with SGM Uniform scheduler and distilled guidance decay.
+- **[SDXL (ModusFlow).json](workflows/SDXL%20(ModusFlow).json)**: SDXL base workflow with DPM++ 2M Karras, true CFG decay, and micro-texture restore.
+- **[SD1.5 (ModusFlow).json](workflows/SD1.5%20(ModusFlow).json)**: SD 1.5 checkpoint workflow with 512x512 latent preset and full detailing pass.
+- **[Pony V6 (ModusFlow).json](workflows/Pony%20V6%20(ModusFlow).json)**: Pony Diffusion V6 XL with CLIP skip -2, score prompt tags, and Euler Ancestral.
+- **[Illustrious (ModusFlow).json](workflows/Illustrious%20(ModusFlow).json)**: Illustrious-XL with CLIP skip -2, Danbooru anime tags, and Euler Normal.
+
 ---
 
 ## 🎯 Quick Start
