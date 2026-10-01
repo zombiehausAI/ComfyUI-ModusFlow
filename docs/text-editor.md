@@ -9,10 +9,12 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 ## Features
 
 - **Dual Editor**: Separate Positive and Negative text areas
-- **Save/Load System**: Persistent storage as JSON files (`category`, `positive`, `negative`)
+- **Save/Load System**: Persistent storage as JSON files (`type`, `category`, `positive`, `negative`)
+- **Type & Category Filtering**: Filter by Type (`Prompts`, `Songs`, `All`) and Category (`Portraits`, `Landscapes`, `Song`, etc.)
+- **Cross-Node Interoperability**: Can load prompts or songs created across ModusFlow text nodes (Song Writer, ACE Audio, Ollama Refiner)
 - **File Browser**: Browse and load saved prompts from a dropdown
 - **Update in Place**: Overwrite an existing prompt with current text
-- **Custom Directory**: Configure save location via `config.json`
+- **Custom Directory**: Configure save location via `config.json` or ComfyUI Settings
 - **Pass-through Outputs**: Both positive and negative text are available as outputs
 
 ## Inputs

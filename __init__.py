@@ -358,7 +358,7 @@ async def save_prompt_endpoint(request):
 
         # Save as JSON
         file_path = os.path.join(prompts_dir, filename)
-        prompt_data = {"category": category, "positive": positive, "negative": negative}
+        prompt_data = {"type": data.get("type", "prompt") or "prompt", "category": category, "positive": positive, "negative": negative}
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(prompt_data, f, ensure_ascii=False, indent=2)
 
@@ -442,14 +442,16 @@ async def list_prompts_endpoint(request):
         if os.path.isdir(prompts_dir):
             for filename in sorted(f for f in os.listdir(prompts_dir) if f.endswith('.json')):
                 category = ""
+                file_type = "prompt"
                 try:
                     file_path = os.path.join(prompts_dir, filename)
                     with open(file_path, 'r', encoding='utf-8') as f:
                         data = json.load(f)
                     category = data.get('category', '') or ''
+                    file_type = data.get('type', 'prompt') or 'prompt'
                 except Exception:
                     pass
-                prompts.append({"filename": filename, "category": category})
+                prompts.append({"filename": filename, "category": category, "type": file_type})
 
         return web.json_response({"success": True, "data": prompts})
     except Exception as e:

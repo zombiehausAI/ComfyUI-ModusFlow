@@ -54,24 +54,35 @@ app.registerExtension({
                 node._allPrompts    = [];
                 node._savedCategory = undefined;
 
+                // ── Type filter combo (All vs Prompts vs Songs) ──────────────────
+                const typeWidget = node.addWidget(
+                    "combo",
+                    "type_filter",
+                    "--all types--",
+                    () => applyFilter(node),
+                    { values: ["--all types--", "prompts", "songs"] }
+                );
+                typeWidget.label = "Type";
+
                 // ── Category filter combo ─────────────────────────────────────────
-                // Add it first, then splice it before saved_prompt so it appears above.
                 const categoryWidget = node.addWidget(
                     "combo",
                     "category_filter",
                     "--all categories--",
-                    (v) => applyFilter(node, v),
+                    () => applyFilter(node),
                     { values: ["--all categories--"] }
                 );
                 categoryWidget.label = "Category";
 
-                // Move category_filter to just before saved_prompt in the widget list
+                // Move type_filter and category_filter to appear right before saved_prompt
                 if (dropdownWidget) {
                     const dropIdx = node.widgets.indexOf(dropdownWidget);
+                    const typeIdx = node.widgets.indexOf(typeWidget);
                     const catIdx  = node.widgets.indexOf(categoryWidget);
-                    if (dropIdx >= 0 && catIdx > dropIdx) {
+                    if (dropIdx >= 0) {
                         node.widgets.splice(catIdx, 1);
-                        node.widgets.splice(dropIdx, 0, categoryWidget);
+                        node.widgets.splice(typeIdx, 1);
+                        node.widgets.splice(dropIdx, 0, typeWidget, categoryWidget);
                     }
                 }
 
@@ -110,41 +121,22 @@ app.registerExtension({
             };
 
             // ── onConfigure (workflow load / paste) ───────────────────────────────
-            // Called AFTER onNodeCreated when a saved workflow is restored.
-            // widgets_values layout (matches onSerialize below):
-            //   [0] positive  [1] negative  [2] category_filter  [3] saved_prompt  [4] prompt_category
             const onConfigure = nodeType.prototype.onConfigure;
             nodeType.prototype.onConfigure = function(config) {
                 if (onConfigure) onConfigure.apply(this, arguments);
                 const vals = config?.widgets_values;
-                // Stash saved category so refreshPrompts can restore it after
-                // the async API call rebuilds options.values.
-                if (vals?.[2] !== undefined) {
-                    this._savedCategory = vals[2];
-                }
-                // Restore prompt_category text widget directly (plain string, no async needed).
-                if (vals?.[4] !== undefined) {
-                    const cw = this.widgets?.find(w => w.name === "prompt_category");
-                    if (cw) { cw.value = vals[4]; if (cw.inputEl) cw.inputEl.value = vals[4]; }
+                if (!vals) return;
+                const cw = this.widgets?.find(w => w.name === "prompt_category");
+                if (cw && vals[4] !== undefined) {
+                    cw.value = vals[4];
+                    if (cw.inputEl) cw.inputEl.value = vals[4];
                 }
             };
 
             // ── onSerialize ───────────────────────────────────────────────────────
-            // Widget order:  positive, negative, category_filter, saved_prompt, prompt_category, btns
             const onSerialize = nodeType.prototype.onSerialize;
             nodeType.prototype.onSerialize = function(o) {
                 if (onSerialize) onSerialize.apply(this, arguments);
-                const pw  = this.widgets?.find(w => w.name === "positive");
-                const nw  = this.widgets?.find(w => w.name === "negative");
-                const cfw = this.widgets?.find(w => w.name === "category_filter");
-                const dw  = this.widgets?.find(w => w.name === "saved_prompt");
-                const pcw = this.widgets?.find(w => w.name === "prompt_category");
-                if (!o.widgets_values) o.widgets_values = [];
-                if (pw)  o.widgets_values[0] = pw.value;
-                if (nw)  o.widgets_values[1] = nw.value;
-                if (cfw) o.widgets_values[2] = cfw.value;
-                if (dw)  o.widgets_values[3] = dw.value;
-                if (pcw) o.widgets_values[4] = pcw.value;
             };
 
             // ── Helper: set widget value AND update the visible textarea ──────────
@@ -263,14 +255,32 @@ app.registerExtension({
                 .catch(err => console.error("[ModusFlow] Load error:", err.message));
             }
 
-            // ── Filter saved_prompt dropdown by category ──────────────────────────
-            function applyFilter(node, category) {
+            // ── Filter saved_prompt dropdown by type AND category ─────────────────
+            function applyFilter(node) {
                 const dw = node.widgets?.find(w => w.name === "saved_prompt");
+                const cw = node.widgets?.find(w => w.name === "category_filter");
+                const tw = node.widgets?.find(w => w.name === "type_filter");
                 if (!dw) return;
+
+                const category = cw ? cw.value : "--all categories--";
+                const selectedType = tw ? tw.value : "--all types--";
                 const all = node._allPrompts || [];
-                const filenames = (!category || category === "--all categories--")
-                    ? all.map(p => p.filename)
-                    : all.filter(p => (p.category || "") === category).map(p => p.filename);
+
+                let filtered = all;
+
+                // 1. Filter by Type
+                if (selectedType === "prompts") {
+                    filtered = filtered.filter(p => !p.type || p.type === "prompt");
+                } else if (selectedType === "songs") {
+                    filtered = filtered.filter(p => p.type === "song" || p.type === "ace_song");
+                }
+
+                // 2. Filter by Category
+                if (category && category !== "--all categories--") {
+                    filtered = filtered.filter(p => (p.category || "") === category);
+                }
+
+                const filenames = filtered.map(p => p.filename);
 
                 dw.options.values = filenames.length
                     ? ["--select prompt--", ...filenames]
@@ -307,7 +317,7 @@ app.registerExtension({
                             cw.options.values = ["--all categories--", ...cats];
                             cw.value = cw.options.values.includes(target) ? target : "--all categories--";
                         }
-                        applyFilter(node, cw ? cw.value : "--all categories--");
+                        applyFilter(node);
                     })
                     .catch(err => console.error("[ModusFlow] Refresh error:", err.message));
             }
@@ -328,6 +338,7 @@ app.registerExtension({
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         filename: filename.trim(),
+                        type: "prompt",
                         category: category,
                         positive: pw.value || "",
                         negative: nw?.value || ""
@@ -361,7 +372,7 @@ app.registerExtension({
                 fetch("/modusflow/save_prompt", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ filename: base, category, positive: pw?.value || "", negative: nw?.value || "" })
+                    body: JSON.stringify({ filename: base, type: "prompt", category, positive: pw?.value || "", negative: nw?.value || "" })
                 })
                 .then(r => r.json())
                 .then(data => {
