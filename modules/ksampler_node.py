@@ -149,6 +149,10 @@ class ModusFlowKSampler:
                 audio_output = {"waveform": raw, "sample_rate": sample_rate}
             else:
                 image = vae.decode(latent_out["samples"])
+                if hasattr(image, "ndim") and image.ndim == 5:
+                    if image.shape[1] in (1, 3, 4) and image.shape[-1] not in (1, 3, 4):
+                        image = image.permute(0, 2, 3, 4, 1)
+                    image = image.reshape(-1, image.shape[-3], image.shape[-2], image.shape[-1])
                 audio_output = None
         finally:
             # Restore CUDNN settings

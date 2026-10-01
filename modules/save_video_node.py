@@ -119,6 +119,12 @@ class ModusFlowSaveVideo:
         # If [B, H, W, C] with 1 image, treat as single frame
         if frames.ndim == 3:
             frames = frames[np.newaxis, ...]
+        elif frames.ndim == 5:
+            # Handle 5D video tensors [B, T, H, W, C] or [B, C, T, H, W]
+            if frames.shape[1] in (1, 3, 4) and frames.shape[-1] not in (1, 3, 4):
+                frames = np.transpose(frames, (0, 2, 3, 4, 1))
+            b, t, h, w, c = frames.shape
+            frames = frames.reshape(b * t, h, w, c)
 
         num_frames, height, width, channels = frames.shape
 

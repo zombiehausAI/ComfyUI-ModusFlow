@@ -22,6 +22,7 @@ class ModusFlowVideoLatent:
     def INPUT_TYPES(cls):
         model_types = [
             "Wan 2.1 (16ch, 4x time)",
+            "Wan 2.2 (48ch, 4x time)",
             "HunyuanVideo (16ch, 4x time)",
             "LTX-Video (128ch, 8x time)",
             "Standard / SVD (4ch, 1x time)",
@@ -115,7 +116,7 @@ class ModusFlowVideoLatent:
             vae_spatial_scale = None
 
         if "Wan" in model_type:
-            if vae_latent_ch == 48:
+            if "2.2" in model_type or vae_latent_ch == 48:
                 channels = 48
                 spatial_scale = 16
             else:
