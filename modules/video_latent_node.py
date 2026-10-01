@@ -133,43 +133,58 @@ class ModusFlowVideoLatent:
 
         # 5. Image-to-Video (I2V) vs Text-to-Video (T2V)
         use_i2v = (mode == "Image to Video (I2V)") and (image is not None)
+        concat_latent_image = None
+        concat_mask = None
 
         if use_i2v:
-            # Resize image to target (height, width)
+            # 1. Resize image to target (height, width)
             # image is [B, H, W, C]
             img_tensor = image
             if img_tensor.shape[1] != height or img_tensor.shape[2] != width:
-                # Permute to [B, C, H, W] for interpolate
                 permuted = img_tensor.permute(0, 3, 1, 2)
                 resized = F.interpolate(permuted, size=(height, width), mode="bilinear", align_corners=False)
                 img_tensor = resized.permute(0, 2, 3, 1)
 
-            # Encode start frame with VAE if available
-            img_latent = None
-            if resolved_vae is not None:
+            # 2. Wan 2.1 & HunyuanVideo use conditioning concat_latent_image with temporal padding
+            if ("Wan" in model_type or "Hunyuan" in model_type) and resolved_vae is not None:
                 try:
-                    # ComfyUI VAE encode expects [B, H, W, C]
-                    first_frame = img_tensor[:1]
-                    encoded = resolved_vae.encode(first_frame[:, :, :, :3])
-                    img_latent = encoded
-                except Exception as e:
-                    print(f"[ModusFlow VideoLatent] VAE encode warning: {e}. Falling back to clean latent.")
+                    # Pad sequence to `length` frames with 0.5 gray background
+                    seq = torch.ones((length, height, width, 3), device=img_tensor.device, dtype=img_tensor.dtype) * 0.5
+                    num_start = min(img_tensor.shape[0], length)
+                    seq[:num_start] = img_tensor[:num_start, :, :, :3]
 
+                    # Encode full sequence through Wan 3D causal VAE
+                    concat_latent_image = resolved_vae.encode(seq[:, :, :, :3])
+
+                    # Build temporal mask: 0.0 for starting frames (fixed), 1.0 for remainder (generated)
+                    mask_t = latent_t
+                    mask = torch.ones((1, 1, mask_t, concat_latent_image.shape[-2], concat_latent_image.shape[-1]), device=img_tensor.device, dtype=img_tensor.dtype)
+                    mask[:, :, :((num_start - 1) // 4) + 1] = 0.0
+                    concat_mask = mask
+                except Exception as e:
+                    print(f"[ModusFlow VideoLatent] Wan VAE sequence encode warning: {e}")
+
+            # 3. Clean spatio-temporal noise latent
             if is_5d:
-                # Build 5D video latent [B, C, T, H, W]
                 samples = torch.zeros((batch_size, channels, latent_t, latent_h, latent_w))
-                if img_latent is not None:
-                    # Align shapes
-                    if img_latent.dim() == 4:
-                        # [B, C, H, W] -> inject into frame 0
-                        samples[:, :, :1, :, :] = img_latent[:, :, None, :latent_h, :latent_w]
-                    elif img_latent.dim() == 5:
-                        samples[:, :, :1, :, :] = img_latent[:, :, :1, :latent_h, :latent_w]
+                # For non-Wan models that inject directly into latent (e.g. SVD/LTX)
+                if concat_latent_image is None and resolved_vae is not None:
+                    try:
+                        encoded = resolved_vae.encode(img_tensor[:1, :, :, :3])
+                        if encoded.dim() == 4:
+                            samples[:, :, :1, :, :] = encoded[:, :, None, :latent_h, :latent_w]
+                        elif encoded.dim() == 5:
+                            samples[:, :, :1, :, :] = encoded[:, :, :1, :latent_h, :latent_w]
+                    except Exception as e:
+                        print(f"[ModusFlow VideoLatent] Fallback encode warning: {e}")
             else:
-                # Build 4D latent batch [T * B, C, H, W]
                 samples = torch.zeros((length * batch_size, channels, latent_h, latent_w))
-                if img_latent is not None:
-                    samples[:batch_size, :, :, :] = img_latent[:batch_size, :, :latent_h, :latent_w]
+                if resolved_vae is not None:
+                    try:
+                        encoded = resolved_vae.encode(img_tensor[:1, :, :, :3])
+                        samples[:batch_size, :, :, :] = encoded[:batch_size, :, :latent_h, :latent_w]
+                    except Exception as e:
+                        print(f"[ModusFlow VideoLatent] 4D encode warning: {e}")
         else:
             # Clean T2V empty latent
             if is_5d:
@@ -183,6 +198,28 @@ class ModusFlowVideoLatent:
             "height": height,
             "length": length,
         }
+        if concat_latent_image is not None:
+            out_latent["concat_latent_image"] = concat_latent_image
+            out_latent["concat_mask"] = concat_mask
+
+        # If pipe is provided, also inject concat conditioning into pipe
+        if pipe is not None and len(pipe) >= 5 and concat_latent_image is not None:
+            try:
+                import node_helpers
+                new_pos = node_helpers.conditioning_set_values(pipe[3], {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask})
+                new_neg = node_helpers.conditioning_set_values(pipe[4], {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask})
+            except Exception:
+                new_pos, new_neg = [], []
+                vals = {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask}
+                for t, d in (pipe[3] or []):
+                    nd = d.copy()
+                    nd.update(vals)
+                    new_pos.append([t, nd])
+                for t, d in (pipe[4] or []):
+                    nd = d.copy()
+                    nd.update(vals)
+                    new_neg.append([t, nd])
+            pipe = (pipe[0], pipe[1], pipe[2], new_pos, new_neg) + tuple(pipe[5:])
 
         return (out_latent, pipe, width, height, length,)
 

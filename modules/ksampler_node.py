@@ -80,7 +80,26 @@ class ModusFlowKSampler:
         if vae is None:
             raise ValueError("VAE is required (provide via pipe or individual input)")
         
-        
+        # Inject video conditioning (Wan / Hunyuan I2V) from latent if present
+        if isinstance(latent_image, dict) and "concat_latent_image" in latent_image:
+            concat_vals = {"concat_latent_image": latent_image["concat_latent_image"]}
+            if "concat_mask" in latent_image:
+                concat_vals["concat_mask"] = latent_image["concat_mask"]
+            try:
+                import node_helpers
+                positive = node_helpers.conditioning_set_values(positive, concat_vals)
+                negative = node_helpers.conditioning_set_values(negative, concat_vals)
+            except Exception:
+                new_pos, new_neg = [], []
+                for t, d in positive:
+                    nd = d.copy()
+                    nd.update(concat_vals)
+                    new_pos.append([t, nd])
+                for t, d in negative:
+                    nd = d.copy()
+                    nd.update(concat_vals)
+                    new_neg.append([t, nd])
+                positive, negative = new_pos, new_neg
         # Apply latent operation to model's CFG denoising loop if provided
         if latent_operation is not None:
             model = model.clone()
