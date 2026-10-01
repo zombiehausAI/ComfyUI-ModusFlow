@@ -87,6 +87,7 @@ app.registerExtension({
                 post("/modusflow/ace_audio/save", {
                     filename,
                     title:  rawTitle,
+                    category: "Song",
                     tags:   tagsWidget   ? tagsWidget.value   : "",
                     lyrics: lyricsWidget ? lyricsWidget.value : "",
                 }).then(data => {
@@ -108,6 +109,7 @@ app.registerExtension({
                 post("/modusflow/ace_audio/save", {
                     filename: selected.replace(/\.json$/, ""),
                     title:  titleWidget  ? titleWidget.value  : "",
+                    category: "Song",
                     tags:   tagsWidget   ? tagsWidget.value   : "",
                     lyrics: lyricsWidget ? lyricsWidget.value : "",
                 }).then(data => {

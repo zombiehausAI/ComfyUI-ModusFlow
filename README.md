@@ -38,8 +38,8 @@ ComfyUI-ModusFlow provides 22 custom nodes organized into six categories:
 
 **🔊 Audio & Video**
 - Save Audio - Multi-format audio export (flac, wav, mp3, ogg) with filename variables
-- ACE Step Audio 1.5 - TextEncodeAceStepAudio1.5 with song save/load for tags and lyrics
-- Song Writer & Lyric Studio - Structured lyric composition and musical style tags for vocal AI models (DiffRhythm, YuE)
+- ACE Step Audio 1.5 - TextEncodeAceStepAudio1.5 with song save/load for tags and lyrics into unified library
+- Song Writer & Lyric Studio - Structured lyric composition, templates, and musical style tags with unified save/load library
 - Audio Mixer & Video Sync - Blends sound effects (MMAudio) with background music tracks for video muxing
 - Video Latent Preset - Wan 2.1 & Wan 2.2 spatio-temporal video latent generator with native I2V/T2V
 - Save Video - Multi-format video export (H.264, HEVC, VP9) with AAC audio muxing and interactive preview
@@ -47,9 +47,10 @@ ComfyUI-ModusFlow provides 22 custom nodes organized into six categories:
 **⚙️ Conditioning**
 - Conditioning Concat - Encode text and concatenate onto existing conditioning
 
-**️ Utilities**
+**🛠️ Utilities & Prompting**
 - Show Text - Simple text display for prompts and debugging
-- Text Editor - Interactive text editor with save/load functionality
+- Text Editor - Interactive text editor with category-filtered save/load to unified prompts library
+- Ollama Prompt Refiner - Prompt enhancement with category-filtered save/load to unified prompts library
 - Image Gallery - Browse output directory with metadata viewing
 - Save Image - Save images in PNG/JPEG/WebP with filename variables and metadata embedding
 

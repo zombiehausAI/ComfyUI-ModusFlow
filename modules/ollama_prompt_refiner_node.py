@@ -14,7 +14,27 @@ from .modusflow_utils import get_ollama_models, sanitize_llm_output
 
 class OllamaPromptRefinerNode:
     @classmethod
+    def get_saved_prompts(cls):
+        """Get list of saved prompts from the configured unified prompts directory."""
+        try:
+            from ..config import settings, BASE_DIR
+            prompts_dir = settings.get('prompts_save_directory', '').strip()
+            if not prompts_dir:
+                prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
+
+            if os.path.isdir(prompts_dir):
+                files = [f for f in os.listdir(prompts_dir) if f.endswith('.json')]
+                files.sort()
+                if files:
+                    return ["--select prompt--"] + files
+        except Exception as e:
+            print(f"[ModusFlow PromptRefiner] Error loading prompts list: {e}")
+
+        return ["--no prompts found--"]
+
+    @classmethod
     def INPUT_TYPES(cls):
+        saved_prompts = cls.get_saved_prompts()
         return {
             "required": {
                 "refiner_status": (["enabled", "bypassed"], {"default": "enabled"}),
@@ -45,6 +65,7 @@ class OllamaPromptRefinerNode:
                 "flux_guidance": ("FLOAT", {"default": 3.5, "min": 0.0, "max": 100.0, "step": 0.1, "display": "slider"}),
             },
             "optional": {
+                "saved_prompt": (saved_prompts, {"default": saved_prompts[0] if saved_prompts else ""}),
                 "pipe": ("PIPE",),
                 "model": ("MODEL",),
                 "clip": ("CLIP",),
@@ -86,7 +107,7 @@ class OllamaPromptRefinerNode:
                       pipe=None, model=None, clip=None,
                       positive_conditioning=None, negative_conditioning=None,
                       width=1024, height=1024, use_image_dimensions="defined", image_usage="vision_guidance",
-                      seed_override=-1, image=None, latent=None):
+                      seed_override=-1, image=None, latent=None, saved_prompt=None, **kwargs):
         
         # Extract from pipe or use individual inputs
         vae = None  # Initialize VAE

@@ -10,7 +10,28 @@ DEFAULT_SYSTEM_PROMPT = (
 
 class OllamaTextRefinerNode:
     @classmethod
+    def get_saved_prompts(cls):
+        """Get list of saved prompts from the configured unified prompts directory."""
+        try:
+            import os
+            from ..config import settings, BASE_DIR
+            prompts_dir = settings.get('prompts_save_directory', '').strip()
+            if not prompts_dir:
+                prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
+
+            if os.path.isdir(prompts_dir):
+                files = [f for f in os.listdir(prompts_dir) if f.endswith('.json')]
+                files.sort()
+                if files:
+                    return ["--select prompt--"] + files
+        except Exception as e:
+            print(f"[ModusFlow TextRefiner] Error loading prompts list: {e}")
+
+        return ["--no prompts found--"]
+
+    @classmethod
     def INPUT_TYPES(cls):
+        saved_prompts = cls.get_saved_prompts()
         return {
             "required": {
                 "text": ("STRING", {"multiline": True, "default": "A beautiful painting of a cat"}),
@@ -23,6 +44,9 @@ class OllamaTextRefinerNode:
                 "max_tokens": ("INT", {"default": 200, "min": 50, "max": 4096, "step": 1}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
             },
+            "optional": {
+                "saved_prompt": (saved_prompts, {"default": saved_prompts[0] if saved_prompts else ""}),
+            },
         }
 
     RETURN_TYPES = ("STRING",)
@@ -30,7 +54,7 @@ class OllamaTextRefinerNode:
     FUNCTION = "refine_text"
     CATEGORY = "ModusFlow/Refine"
 
-    def refine_text(self, text, ollama_model, system_prompt, temperature, max_tokens, seed):
+    def refine_text(self, text, ollama_model, system_prompt, temperature, max_tokens, seed, saved_prompt=None, **kwargs):
         if ollama_model.startswith("ollama-not-running") or ollama_model.startswith("ollama-no-models-found"):
             print("[OllamaTextRefiner] Ollama unavailable, returning input unchanged.")
             return (text,)

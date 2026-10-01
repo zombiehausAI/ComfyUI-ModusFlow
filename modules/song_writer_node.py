@@ -169,10 +169,31 @@ class ModusFlowSongWriter:
     """
     ModusFlow Song Writer & Lyric Studio.
     Formats structured lyrics and stylistic prompts for AI singing/song generation models.
+    Supports saving and loading songs to the unified prompts directory as JSON files.
     """
 
     @classmethod
+    def get_saved_songs(cls):
+        """Get list of saved songs from the configured unified prompts directory."""
+        try:
+            from ..config import settings, BASE_DIR
+            prompts_dir = settings.get('prompts_save_directory', '').strip()
+            if not prompts_dir:
+                prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
+
+            if os.path.isdir(prompts_dir):
+                files = [f for f in os.listdir(prompts_dir) if f.endswith('.json')]
+                files.sort()
+                if files:
+                    return ["--select song--"] + files
+        except Exception as e:
+            print(f"[ModusFlow SongWriter] Error loading songs list: {e}")
+
+        return ["--no songs found--"]
+
+    @classmethod
     def INPUT_TYPES(cls):
+        saved_songs = cls.get_saved_songs()
         template_names = ["Custom"] + list(SONG_TEMPLATES.keys())
         return {
             "required": {
@@ -185,6 +206,7 @@ class ModusFlowSongWriter:
                     "default": SONG_TEMPLATES["Standard Pop/Rock"],
                     "multiline": True
                 }),
+                "saved_song": (saved_songs, {"default": saved_songs[0] if saved_songs else ""}),
             },
             "optional": {
                 "additional_style": ("STRING", {
@@ -197,6 +219,10 @@ class ModusFlowSongWriter:
                     "multiline": False
                 }),
             },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
+                "extra_pnginfo": "EXTRA_PNGINFO",
+            },
         }
 
     RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING",)
@@ -205,7 +231,8 @@ class ModusFlowSongWriter:
     CATEGORY = "ModusFlow/Audio"
 
     def compose_song(self, title, genre, vocal_style, mood, template, lyrics,
-                     additional_style="", negative_style=""):
+                     saved_song=None, additional_style="", negative_style="",
+                     unique_id=None, extra_pnginfo=None):
         # 1. Resolve lyrics: if user selected a template and lyrics were empty or default, use template
         active_lyrics = lyrics.strip()
         if not active_lyrics and template in SONG_TEMPLATES:
@@ -220,13 +247,21 @@ class ModusFlowSongWriter:
         else:
             style_parts.append("instrumental, no vocals")
         style_parts.append(mood)
-        if additional_style.strip():
+        if additional_style and additional_style.strip():
             style_parts.append(additional_style.strip())
 
         full_style_prompt = ", ".join(style_parts)
 
         # 3. Clean and format lyrics with standard section headers
         cleaned_lyrics = active_lyrics.replace("\r\n", "\n")
+
+        # 4. Update workflow metadata if available
+        if unique_id is not None and extra_pnginfo is not None:
+            if isinstance(extra_pnginfo, dict) and "workflow" in extra_pnginfo:
+                workflow = extra_pnginfo["workflow"]
+                node = next((x for x in workflow.get("nodes", []) if str(x.get("id")) == str(unique_id)), None)
+                if node:
+                    node["widgets_values"] = [title, genre, vocal_style, mood, template, lyrics, saved_song, additional_style, negative_style]
 
         print(f"[ModusFlow SongWriter] Composed '{title}' | Style: {full_style_prompt[:60]}... | Lyrics: {len(cleaned_lyrics.splitlines())} lines")
 

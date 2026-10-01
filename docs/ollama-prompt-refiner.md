@@ -16,6 +16,7 @@ The Ollama Prompt Refiner node enhances prompts using a locally running Ollama m
 - **Bypass Mode**: `refiner_status = "bypassed"` skips Ollama and encodes the original text unchanged
 - **Graceful Degradation**: If Ollama is unavailable the node continues normally, encoding the original input text
 - **Custom System Prompts**: Separate system prompt fields for refine, generate, and pose reference modes
+- **Unified Prompt Save & Load**: Save, update, and load prompt JSON files directly from the unified `saved_prompts/` directory with category filtering, fully interoperable with ModusFlow Text Editor
 
 ## Inputs
 
@@ -37,6 +38,15 @@ The Ollama Prompt Refiner node enhances prompts using a locally running Ollama m
 - **seed** (INT): Seed for the LLM call
 - **use_flux_guidance** (COMBO): `enabled` or `disabled` — adds guidance metadata to conditioning
 - **flux_guidance** (FLOAT): Flux guidance scale (0.0–100.0, default: 3.5)
+
+### Interactive UI Buttons & Controls
+- **saved_prompt** (dropdown): Select and load any prompt JSON file from the unified `saved_prompts/` directory.
+- **Category Filter**: Filter saved prompts by category.
+- **Prompt Category** (text): Specify or edit the category for saving.
+- **💾 Save Prompt**: Save the current `text_input` and `negative_prompt` as a JSON file in `saved_prompts/`.
+- **✏️ Update Selected**: Overwrite the currently selected prompt file.
+- **🔄 Refresh Prompts**: Refresh the list of saved prompts from disk.
+- **🔄 Refresh Models**: Refresh the list of running Ollama models.
 
 ### Optional
 - **pipe** (PIPE): Carries `(model, clip, vae, positive, negative)` — individual inputs override pipe

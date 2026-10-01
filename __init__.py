@@ -395,13 +395,29 @@ async def load_prompt_endpoint(request):
         with open(file_path, 'r', encoding='utf-8') as f:
             prompt_data = json.load(f)
 
+        # Seamlessly support all text node JSON formats
+        positive_val = prompt_data.get("positive", "")
+        if not positive_val:
+            if "lyrics" in prompt_data and "tags" in prompt_data:
+                positive_val = f"{prompt_data.get('tags', '')}\n\n{prompt_data.get('lyrics', '')}".strip()
+            elif "lyrics" in prompt_data:
+                positive_val = prompt_data.get("lyrics", "")
+            elif "text" in prompt_data:
+                positive_val = prompt_data.get("text", "")
+
+        negative_val = prompt_data.get("negative", "")
+        if not negative_val and "negative_style" in prompt_data:
+            negative_val = prompt_data.get("negative_style", "")
+
         print(f"[ModusFlow TextEditor] Loaded prompt from: {file_path}")
         return web.json_response({
             "success": True,
             "data": {
                 "category": prompt_data.get("category", ""),
-                "positive": prompt_data.get("positive", ""),
-                "negative": prompt_data.get("negative", ""),
+                "positive": positive_val,
+                "negative": negative_val,
+                "type": prompt_data.get("type", "prompt"),
+                **prompt_data
             }
         })
     except Exception as e:
@@ -442,13 +458,109 @@ async def list_prompts_endpoint(request):
         return web.json_response({"success": False, "message": msg})
 
 def _get_songs_dir():
-    """Return the songs save directory, creating it if needed."""
+    """Return the songs save directory, creating it if needed. Defaults to unified prompts save directory."""
     from .config import settings, BASE_DIR
     songs_dir = settings.get("songs_save_directory", "").strip()
     if not songs_dir:
-        songs_dir = os.path.join(BASE_DIR, "saved_songs")
+        songs_dir = settings.get("prompts_save_directory", "").strip()
+        if not songs_dir:
+            songs_dir = os.path.join(BASE_DIR, "saved_prompts")
     os.makedirs(songs_dir, exist_ok=True)
     return songs_dir
+
+# ── Song Writer routes ─────────────────────────────────────────────────────────
+
+@server.PromptServer.instance.routes.get("/modusflow/song/list")
+async def song_writer_list(request):
+    """API endpoint to list all saved songs with their category and title."""
+    try:
+        songs_dir = _get_songs_dir()
+        songs = []
+        if os.path.isdir(songs_dir):
+            for filename in sorted(f for f in os.listdir(songs_dir) if f.endswith(".json")):
+                category = "Song"
+                title = ""
+                try:
+                    file_path = os.path.join(songs_dir, filename)
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    category = data.get("category", "") or "Song"
+                    title = data.get("title", "")
+                    is_song = data.get("type") in ("song", "ace_song") or "lyrics" in data
+                    if not is_song:
+                        continue
+                except Exception:
+                    pass
+                songs.append({"filename": filename, "category": category, "title": title})
+        return web.json_response({"success": True, "data": songs})
+    except Exception as e:
+        msg = f"Error listing songs: {e}"
+        print(f"[ModusFlow SongWriter] {msg}")
+        return web.json_response({"success": False, "message": msg})
+
+@server.PromptServer.instance.routes.post("/modusflow/song/save")
+async def song_writer_save(request):
+    """API endpoint to save a song JSON file into the unified prompts directory."""
+    try:
+        data = await request.json()
+        filename = data.get("filename", "").strip()
+        if not filename:
+            return web.json_response({"success": False, "message": "Filename cannot be empty."})
+
+        filename = os.path.basename(filename)
+        if not filename.endswith(".json"):
+            filename += ".json"
+
+        songs_dir = _get_songs_dir()
+        file_path = os.path.join(songs_dir, filename)
+
+        song_payload = {
+            "type": "song",
+            "category": data.get("category", "Song") or "Song",
+            "title": data.get("title", ""),
+            "genre": data.get("genre", ""),
+            "vocal_style": data.get("vocal_style", ""),
+            "mood": data.get("mood", ""),
+            "template": data.get("template", ""),
+            "lyrics": data.get("lyrics", ""),
+            "additional_style": data.get("additional_style", ""),
+            "negative_style": data.get("negative_style", "")
+        }
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(song_payload, f, ensure_ascii=False, indent=2)
+
+        print(f"[ModusFlow SongWriter] Saved song to: {file_path}")
+        return web.json_response({"success": True, "message": f"Song saved as {filename}"})
+    except Exception as e:
+        msg = f"Error saving song: {e}"
+        print(f"[ModusFlow SongWriter] {msg}")
+        return web.json_response({"success": False, "message": msg})
+
+@server.PromptServer.instance.routes.post("/modusflow/song/load")
+async def song_writer_load(request):
+    """API endpoint to load a song JSON file from the unified prompts directory."""
+    try:
+        data = await request.json()
+        filename = data.get("filename", "").strip()
+        if not filename:
+            return web.json_response({"success": False, "message": "Filename cannot be empty."})
+
+        filename = os.path.basename(filename)
+        songs_dir = _get_songs_dir()
+        file_path = os.path.join(songs_dir, filename)
+
+        if not os.path.exists(file_path):
+            return web.json_response({"success": False, "message": f"Song file '{filename}' not found."})
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            song_data = json.load(f)
+
+        return web.json_response({"success": True, "data": song_data})
+    except Exception as e:
+        msg = f"Error loading song: {e}"
+        print(f"[ModusFlow SongWriter] {msg}")
+        return web.json_response({"success": False, "message": msg})
 
 @server.PromptServer.instance.routes.get("/modusflow/ace_audio/list")
 async def ace_audio_list(request):
@@ -471,6 +583,7 @@ async def ace_audio_save(request):
         title = data.get("title", "")
         tags = data.get("tags", "")
         lyrics = data.get("lyrics", "")
+        category = data.get("category", "Song") or "Song"
 
         if not filename:
             return web.json_response({"success": False, "message": "Filename cannot be empty."})
@@ -483,7 +596,7 @@ async def ace_audio_save(request):
         file_path = os.path.join(songs_dir, filename)
 
         with open(file_path, "w", encoding="utf-8") as f:
-            json.dump({"title": title, "tags": tags, "lyrics": lyrics}, f, ensure_ascii=False, indent=2)
+            json.dump({"type": "ace_song", "category": category, "title": title, "tags": tags, "lyrics": lyrics}, f, ensure_ascii=False, indent=2)
 
         print(f"[ModusFlow AceStepAudio] Saved song to: {file_path}")
         return web.json_response({"success": True, "message": f"Song saved as {filename}"})

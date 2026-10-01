@@ -14,14 +14,16 @@ import os
 
 
 def _get_songs_dir():
-    """Return the root songs directory (does NOT create subdirs)."""
+    """Return the root songs directory (does NOT create subdirs). Defaults to unified prompts directory."""
     try:
         from ..config import settings, BASE_DIR
         songs_dir = settings.get("songs_save_directory", "").strip()
         if not songs_dir:
-            songs_dir = os.path.join(BASE_DIR, "saved_songs")
+            songs_dir = settings.get("prompts_save_directory", "").strip()
+            if not songs_dir:
+                songs_dir = os.path.join(BASE_DIR, "saved_prompts")
     except Exception:
-        songs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "saved_songs")
+        songs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "saved_prompts")
     return songs_dir
 
 
