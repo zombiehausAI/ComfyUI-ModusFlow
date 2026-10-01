@@ -48,13 +48,15 @@ class ModusFlowVideoLatent:
         ]
 
         modes = [
+            "Auto (I2V if image connected)",
             "Image to Video (I2V)",
             "Text to Video (T2V)",
+            "Text to Video (T2V - ignore image)",
         ]
 
         return {
             "required": {
-                "mode": (modes, {"default": "Image to Video (I2V)"}),
+                "mode": (modes, {"default": "Auto (I2V if image connected)"}),
                 "model_type": (model_types, {"default": "Wan 2.1 (16ch, 4x time)"}),
                 "resolution": (resolution_presets, {"default": "832x480 (16:9 Landscape)"}),
                 "width": ("INT", {"default": 832, "min": 64, "max": 4096, "step": 16}),
@@ -149,7 +151,16 @@ class ModusFlowVideoLatent:
         latent_w = (width + spatial_scale - 1) // spatial_scale
 
         # 5. Image-to-Video (I2V) vs Text-to-Video (T2V)
-        use_i2v = (mode == "Image to Video (I2V)") and (image is not None)
+        if mode == "Image to Video (I2V)":
+            use_i2v = True
+            if image is None:
+                raise ValueError("[ModusFlow Video Latent] 'Image to Video (I2V)' mode is selected, but no IMAGE is connected to the node! Please connect an image into the 'image' input or switch mode.")
+        elif mode == "Text to Video (T2V - ignore image)":
+            use_i2v = False
+        else:
+            # For "Auto" or existing "Text to Video (T2V)" workflows: if an image is plugged in, seamlessly use it!
+            use_i2v = (image is not None)
+
         concat_latent_image = None
         concat_mask = None
         concat_mask_index = None
@@ -159,6 +170,7 @@ class ModusFlowVideoLatent:
             if resolved_vae is None:
                 raise ValueError("[ModusFlow Video Latent] VAE is required for Image to Video (I2V) mode! Please connect the VAE (or PIPE) from ModusFlow Model Loader into the ModusFlow Video Latent node so it can encode your starting image.")
 
+            img_tensor = image
             # 1. Resize image to target (height, width)
             try:
                 import comfy.utils
@@ -168,11 +180,18 @@ class ModusFlowVideoLatent:
                 resized = F.interpolate(permuted, size=(height, width), mode="bilinear", align_corners=False)
                 start_img = resized.permute(0, 2, 3, 1)
 
-            # 2. Wan 2.2 (48 channels) native Image-to-Video
-            if channels == 48 and resolved_vae is not None:
-                latent_temp = resolved_vae.encode(start_img[:, :, :, :3])
-                dev = latent_temp.device
-                dtyp = latent_temp.dtype
+            # 2. Encode starting frame with VAE and inspect channels dynamically
+            latent_temp = resolved_vae.encode(start_img[:1, :, :, :3])
+            dev = latent_temp.device
+            dtyp = latent_temp.dtype
+            enc_channels = latent_temp.shape[1]
+
+            # Wan 2.2 (48 channels) native Image-to-Video
+            if enc_channels == 48 or "2.2" in model_type or channels == 48:
+                channels = 48
+                spatial_scale = 16
+                latent_h = (height + 15) // 16
+                latent_w = (width + 15) // 16
                 latent = torch.zeros([1, 48, latent_t, latent_h, latent_w], device=dev, dtype=dtyp)
                 mask = torch.ones([1, 1, latent_t, latent_h, latent_w], device=dev, dtype=dtyp)
 
@@ -189,15 +208,20 @@ class ModusFlowVideoLatent:
                         latent = latent_format.process_out(latent) * mask + latent * (1.0 - mask)
                     else:
                         latent = latent_format.process_out(latent)
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"[ModusFlow VideoLatent] Wan 2.2 latent format scaling notice: {e}")
 
                 samples = latent.repeat((batch_size, ) + (1,) * (latent.ndim - 1))
                 if mask is not None:
                     noise_mask = mask.repeat((batch_size, ) + (1,) * (mask.ndim - 1))
+                print(f"[ModusFlow VideoLatent] Wan 2.2 I2V encoded starting image {tuple(start_img.shape)} -> latent {tuple(latent_temp.shape)} (noise_mask active: {noise_mask is not None})")
 
-            # 3. Wan 2.1 (16 channels) & HunyuanVideo I2V conditioning
-            elif ("Wan" in model_type or "Hunyuan" in model_type) and resolved_vae is not None:
+            # Wan 2.1 (16 channels) & HunyuanVideo I2V conditioning
+            elif enc_channels == 16 or ("Wan" in model_type or "Hunyuan" in model_type):
+                channels = 16
+                spatial_scale = 8
+                latent_h = (height + 7) // 8
+                latent_w = (width + 7) // 8
                 try:
                     # Pad sequence to length frames with 0.5 gray background
                     seq = torch.ones((length, height, width, 3), device=img_tensor.device, dtype=img_tensor.dtype) * 0.5
@@ -213,29 +237,20 @@ class ModusFlowVideoLatent:
                     mask[:, :, :((num_start - 1) // 4) + 1] = 0.0
                     concat_mask = mask
                 except Exception as e:
-                    print(f"[ModusFlow VideoLatent] Wan VAE sequence encode warning: {e}")
+                    print(f"[ModusFlow VideoLatent] Wan 2.1 VAE sequence encode warning: {e}")
                 samples = torch.zeros((batch_size, channels, latent_t, latent_h, latent_w))
+                print(f"[ModusFlow VideoLatent] Wan 2.1 I2V encoded sequence -> concat_latent_image {tuple(concat_latent_image.shape)}")
 
-            # 4. Fallback for other models (e.g. SVD/LTX)
+            # Fallback for other models (e.g. SVD/LTX)
             elif is_5d:
                 samples = torch.zeros((batch_size, channels, latent_t, latent_h, latent_w))
-                if resolved_vae is not None:
-                    try:
-                        encoded = resolved_vae.encode(start_img[:1, :, :, :3])
-                        if encoded.dim() == 4:
-                            samples[:, :, :1, :, :] = encoded[:, :, None, :latent_h, :latent_w]
-                        elif encoded.dim() == 5:
-                            samples[:, :, :1, :, :] = encoded[:, :, :1, :latent_h, :latent_w]
-                    except Exception as e:
-                        print(f"[ModusFlow VideoLatent] Fallback encode warning: {e}")
+                if latent_temp.dim() == 4:
+                    samples[:, :, :1, :, :] = latent_temp[:, :, None, :latent_h, :latent_w]
+                elif latent_temp.dim() == 5:
+                    samples[:, :, :1, :, :] = latent_temp[:, :, :1, :latent_h, :latent_w]
             else:
                 samples = torch.zeros((length * batch_size, channels, latent_h, latent_w))
-                if resolved_vae is not None:
-                    try:
-                        encoded = resolved_vae.encode(start_img[:1, :, :, :3])
-                        samples[:batch_size, :, :, :] = encoded[:batch_size, :, :latent_h, :latent_w]
-                    except Exception as e:
-                        print(f"[ModusFlow VideoLatent] 4D encode warning: {e}")
+                samples[:batch_size, :, :, :] = latent_temp[:batch_size, :, :latent_h, :latent_w]
         else:
             # Clean T2V empty latent
             if is_5d:
