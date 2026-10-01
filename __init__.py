@@ -326,8 +326,105 @@ async def save_config_endpoint(request):
     except Exception as e:
         return web.json_response({"success": False, "message": str(e)})
 
+import shutil
+
+_auto_migration_done = False
+
+def _auto_migrate_saved_directories():
+    """
+    Automatically creates subdirectories:
+      saved_prompts/prompts/
+      saved_prompts/songs/
+      saved_prompts/songs/tags/
+      saved_prompts/songs/lyrics/
+    And migrates any existing files from root saved_prompts/ and legacy saved_songs/
+    into their dedicated subdirectories.
+    """
+    global _auto_migration_done
+    if _auto_migration_done:
+        return
+    _auto_migration_done = True
+
+    try:
+        from .config import settings, BASE_DIR
+        prompts_dir = settings.get('prompts_save_directory', '').strip()
+        if not prompts_dir:
+            prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
+
+        prompts_subdir = os.path.join(prompts_dir, 'prompts')
+        songs_subdir = os.path.join(prompts_dir, 'songs')
+        tags_subdir = os.path.join(songs_subdir, 'tags')
+        lyrics_subdir = os.path.join(songs_subdir, 'lyrics')
+
+        # Ensure all subdirectories exist
+        os.makedirs(prompts_subdir, exist_ok=True)
+        os.makedirs(songs_subdir, exist_ok=True)
+        os.makedirs(tags_subdir, exist_ok=True)
+        os.makedirs(lyrics_subdir, exist_ok=True)
+
+        # 1. Migrate loose files directly in saved_prompts/
+        if os.path.isdir(prompts_dir):
+            for item in os.listdir(prompts_dir):
+                item_path = os.path.join(prompts_dir, item)
+                if not os.path.isfile(item_path):
+                    continue
+
+                if item.endswith('.json'):
+                    is_song = False
+                    try:
+                        with open(item_path, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                        if data.get('type') in ('song', 'ace_song') or 'lyrics' in data:
+                            is_song = True
+                    except Exception:
+                        pass
+
+                    dest_dir = songs_subdir if is_song else prompts_subdir
+                    dest_file = os.path.join(dest_dir, item)
+                    if not os.path.exists(dest_file):
+                        shutil.move(item_path, dest_file)
+                        print(f"[ModusFlow] Auto-migrated {item} -> {os.path.basename(dest_dir)}/")
+
+        # 2. Migrate legacy saved_songs/ if present
+        legacy_songs_dir = os.path.join(BASE_DIR, 'saved_songs')
+        if os.path.isdir(legacy_songs_dir):
+            # Songs JSONs
+            for item in os.listdir(legacy_songs_dir):
+                item_path = os.path.join(legacy_songs_dir, item)
+                if os.path.isfile(item_path) and item.endswith('.json'):
+                    dest_file = os.path.join(songs_subdir, item)
+                    if not os.path.exists(dest_file):
+                        shutil.move(item_path, dest_file)
+                        print(f"[ModusFlow] Auto-migrated legacy song {item} -> songs/")
+
+            # Legacy tags
+            legacy_tags = os.path.join(legacy_songs_dir, 'tags')
+            if os.path.isdir(legacy_tags):
+                for item in os.listdir(legacy_tags):
+                    item_path = os.path.join(legacy_tags, item)
+                    if os.path.isfile(item_path) and item.endswith('.txt'):
+                        dest_file = os.path.join(tags_subdir, item)
+                        if not os.path.exists(dest_file):
+                            shutil.move(item_path, dest_file)
+                            print(f"[ModusFlow] Auto-migrated legacy tag {item} -> songs/tags/")
+
+            # Legacy lyrics
+            legacy_lyrics = os.path.join(legacy_songs_dir, 'lyrics')
+            if os.path.isdir(legacy_lyrics):
+                for item in os.listdir(legacy_lyrics):
+                    item_path = os.path.join(legacy_lyrics, item)
+                    if os.path.isfile(item_path) and item.endswith('.txt'):
+                        dest_file = os.path.join(lyrics_subdir, item)
+                        if not os.path.exists(dest_file):
+                            shutil.move(item_path, dest_file)
+                            print(f"[ModusFlow] Auto-migrated legacy lyric {item} -> songs/lyrics/")
+
+    except Exception as e:
+        print(f"[ModusFlow] Error during auto-migration: {e}")
+
 def _get_base_prompts_dir():
-    """Return the root prompts save directory."""
+    """Return the root prompts save directory, running auto-migration first."""
+    _auto_migrate_saved_directories()
     from .config import settings, BASE_DIR
     prompts_dir = settings.get('prompts_save_directory', '').strip()
     if not prompts_dir:
@@ -1049,5 +1146,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 }
 
 WEB_DIRECTORY = "./web"
+
+# Initialize and auto-migrate saved directory structure
+_auto_migrate_saved_directories()
 
 print("✅ ModusFlow Ollama Prompt Refiner: Custom node loaded.")
