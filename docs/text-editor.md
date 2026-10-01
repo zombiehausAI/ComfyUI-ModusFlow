@@ -67,7 +67,7 @@ Files are automatically organized into subdirectories by type:
   - `saved_prompts/songs/tags/`: Individual tag text files (`.txt`)
   - `saved_prompts/songs/lyrics/`: Individual lyric text files (`.txt`)
 
-> Legacy files saved directly in the root of `saved_prompts/` are automatically scanned and remain fully loadable.
+> **Auto-Migration:** On server startup or first access, existing prompt files in the root of `saved_prompts/` are automatically migrated into `saved_prompts/prompts/` (or `saved_prompts/songs/` if song metadata is detected), and all subdirectories are automatically initialized. Legacy `saved_songs/` items are also migrated seamlessly.
 
 ## JSON File Format
 
