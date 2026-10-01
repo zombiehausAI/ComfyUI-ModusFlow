@@ -13,4 +13,4 @@ examples/
 .vs/
 allinone_detailer_prompt_v2.md
 working/
-scratch/convert_chroma_to_wan_image.py
+scratch/
