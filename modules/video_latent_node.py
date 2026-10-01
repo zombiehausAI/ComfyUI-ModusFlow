@@ -154,45 +154,52 @@ class ModusFlowVideoLatent:
         concat_mask = None
         concat_mask_index = None
 
+        noise_mask = None
         if use_i2v:
             # 1. Resize image to target (height, width)
-            # image is [B, H, W, C]
-            img_tensor = image
-            if img_tensor.shape[1] != height or img_tensor.shape[2] != width:
-                permuted = img_tensor.permute(0, 3, 1, 2)
+            try:
+                import comfy.utils
+                start_img = comfy.utils.common_upscale(img_tensor[:length].movedim(-1, 1), width, height, "bilinear", "center").movedim(1, -1)
+            except Exception:
+                permuted = img_tensor[:length].permute(0, 3, 1, 2)
                 resized = F.interpolate(permuted, size=(height, width), mode="bilinear", align_corners=False)
-                img_tensor = resized.permute(0, 2, 3, 1)
+                start_img = resized.permute(0, 2, 3, 1)
 
-            # 2. Wan 2.2 (48 channels) I2V conditioning
+            # 2. Wan 2.2 (48 channels) native Image-to-Video
             if channels == 48 and resolved_vae is not None:
+                latent_temp = resolved_vae.encode(start_img[:, :, :, :3])
+                dev = latent_temp.device
+                dtyp = latent_temp.dtype
+                latent = torch.zeros([1, 48, latent_t, latent_h, latent_w], device=dev, dtype=dtyp)
+                mask = torch.ones([1, 1, latent_t, latent_h, latent_w], device=dev, dtype=dtyp)
+
+                latent[:, :, :latent_temp.shape[-3]] = latent_temp
+                if latent_t > 1:
+                    mask[:, :, :latent_temp.shape[-3]] *= 0.0
+                else:
+                    mask = None
+
                 try:
-                    concat_latent = torch.zeros([batch_size, channels, latent_t, latent_h, latent_w], device=img_tensor.device)
-                    try:
-                        import comfy.latent_formats
-                        concat_latent = comfy.latent_formats.Wan22().process_out(concat_latent)
-                    except Exception:
-                        pass
-                    concat_latent = concat_latent.repeat(1, 2, 1, 1, 1)
-                    mask = torch.ones((1, 1, latent_t * 4, latent_h, latent_w), device=img_tensor.device)
+                    import comfy.latent_formats
+                    latent_format = comfy.latent_formats.Wan22()
+                    if mask is not None:
+                        latent = latent_format.process_out(latent) * mask + latent * (1.0 - mask)
+                    else:
+                        latent = latent_format.process_out(latent)
+                except Exception:
+                    pass
 
-                    encoded_img = resolved_vae.encode(img_tensor[:length, :, :, :3])
-                    concat_latent[:, channels:, :encoded_img.shape[2]] = encoded_img[:, :, :concat_latent.shape[2]]
-                    mask[:, :, :min(img_tensor.shape[0], length) + 3] = 0.0
-
-                    mask = mask.view(1, mask.shape[2] // 4, 4, mask.shape[3], mask.shape[4]).transpose(1, 2)
-                    concat_latent_image = concat_latent
-                    concat_mask = mask
-                    concat_mask_index = channels
-                except Exception as e:
-                    print(f"[ModusFlow VideoLatent] Wan 2.2 VAE encode warning: {e}")
+                samples = latent.repeat((batch_size, ) + (1,) * (latent.ndim - 1))
+                if mask is not None:
+                    noise_mask = mask.repeat((batch_size, ) + (1,) * (mask.ndim - 1))
 
             # 3. Wan 2.1 (16 channels) & HunyuanVideo I2V conditioning
             elif ("Wan" in model_type or "Hunyuan" in model_type) and resolved_vae is not None:
                 try:
-                    # Pad sequence to `length` frames with 0.5 gray background
+                    # Pad sequence to length frames with 0.5 gray background
                     seq = torch.ones((length, height, width, 3), device=img_tensor.device, dtype=img_tensor.dtype) * 0.5
-                    num_start = min(img_tensor.shape[0], length)
-                    seq[:num_start] = img_tensor[:num_start, :, :, :3]
+                    num_start = min(start_img.shape[0], length)
+                    seq[:num_start] = start_img[:num_start, :, :, :3]
 
                     # Encode full sequence through Wan 3D causal VAE
                     concat_latent_image = resolved_vae.encode(seq[:, :, :, :3])
@@ -204,14 +211,14 @@ class ModusFlowVideoLatent:
                     concat_mask = mask
                 except Exception as e:
                     print(f"[ModusFlow VideoLatent] Wan VAE sequence encode warning: {e}")
-
-            # 4. Clean spatio-temporal noise latent
-            if is_5d:
                 samples = torch.zeros((batch_size, channels, latent_t, latent_h, latent_w))
-                # For non-Wan models that inject directly into latent (e.g. SVD/LTX)
-                if concat_latent_image is None and resolved_vae is not None:
+
+            # 4. Fallback for other models (e.g. SVD/LTX)
+            elif is_5d:
+                samples = torch.zeros((batch_size, channels, latent_t, latent_h, latent_w))
+                if resolved_vae is not None:
                     try:
-                        encoded = resolved_vae.encode(img_tensor[:1, :, :, :3])
+                        encoded = resolved_vae.encode(start_img[:1, :, :, :3])
                         if encoded.dim() == 4:
                             samples[:, :, :1, :, :] = encoded[:, :, None, :latent_h, :latent_w]
                         elif encoded.dim() == 5:
@@ -222,7 +229,7 @@ class ModusFlowVideoLatent:
                 samples = torch.zeros((length * batch_size, channels, latent_h, latent_w))
                 if resolved_vae is not None:
                     try:
-                        encoded = resolved_vae.encode(img_tensor[:1, :, :, :3])
+                        encoded = resolved_vae.encode(start_img[:1, :, :, :3])
                         samples[:batch_size, :, :, :] = encoded[:batch_size, :, :latent_h, :latent_w]
                     except Exception as e:
                         print(f"[ModusFlow VideoLatent] 4D encode warning: {e}")
@@ -239,6 +246,8 @@ class ModusFlowVideoLatent:
             "height": height,
             "length": length,
         }
+        if noise_mask is not None:
+            out_latent["noise_mask"] = noise_mask
         if concat_latent_image is not None:
             out_latent["concat_latent_image"] = concat_latent_image
             out_latent["concat_mask"] = concat_mask
