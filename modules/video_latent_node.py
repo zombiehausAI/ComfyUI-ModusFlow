@@ -156,6 +156,9 @@ class ModusFlowVideoLatent:
 
         noise_mask = None
         if use_i2v:
+            if resolved_vae is None:
+                raise ValueError("[ModusFlow Video Latent] VAE is required for Image to Video (I2V) mode! Please connect the VAE (or PIPE) from ModusFlow Model Loader into the ModusFlow Video Latent node so it can encode your starting image.")
+
             # 1. Resize image to target (height, width)
             try:
                 import comfy.utils
