@@ -1165,30 +1165,6 @@
       }
     },
     {
-      "id": 579,
-      "type": "ModusFlowImageGallery",
-      "pos": [
-        -870,
-        80.82118797446795
-      ],
-      "size": [
-        530,
-        1050
-      ],
-      "flags": {
-        "collapsed": true
-      },
-      "order": 2,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {
-        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
-        "ver": "f34e6afba4acaddd61a25b49fbad0d35928e2128",
-        "Node name for S&R": "ModusFlowImageGallery"
-      }
-    },
-    {
       "id": 601,
       "type": "ModusFlowDetailerSlot",
       "pos": [
@@ -1740,98 +1716,6 @@
         "vae_name": "sdxl_vae.safetensors",
         "t5_min_length": 0,
         "t5_min_padding": 0
-      }
-    },
-    {
-      "id": 589,
-      "type": "ModusFlowTextEditor",
-      "pos": [
-        -1264.146732268531,
-        81.03668306713274
-      ],
-      "size": [
-        750,
-        720
-      ],
-      "flags": {
-        "collapsed": true
-      },
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "positive_input",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        },
-        {
-          "name": "negative_input",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        },
-        {
-          "name": "positive_embedding",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        },
-        {
-          "name": "negative_embedding",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        },
-        {
-          "name": "text_input",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        },
-        {
-          "name": "embedding",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "positive",
-          "type": "STRING",
-          "links": null
-        },
-        {
-          "name": "negative",
-          "type": "STRING",
-          "links": null
-        }
-      ],
-      "properties": {
-        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
-        "ver": "2e1e3e9deb5a6c9c6ae74658b89de843fbe83bee",
-        "Node name for S&R": "ModusFlowTextEditor"
-      },
-      "widgets_values": [
-        "score_9, score_8_up, score_7_up, source_anime, rating_safe,\n1girl, solo, elegant anime heroine standing on an open balcony overlooking a fantasy sky city,\n/* windblown long silver hair, detailed blue eyes, */\nornate flowing white dress with gold filigree, sunset glow, floating islands, dramatic clouds, masterpiece\n# additional tags:\n// cinematic lighting, particle effects",
-        "score_4, score_5, score_6, source_pony, simple background, ugly, deformed, bad anatomy, bad hands, missing fingers, extra digits, blurry, low quality, watermark, signature",
-        "--all categories--",
-        "--select prompt--",
-        "",
-        null,
-        null,
-        null
-      ],
-      "widgets_values_named": {
-        "positive": "score_9, score_8_up, score_7_up, source_anime, rating_safe,\n1girl, solo, elegant anime heroine standing on an open balcony overlooking a fantasy sky city,\n/* windblown long silver hair, detailed blue eyes, */\nornate flowing white dress with gold filigree, sunset glow, floating islands, dramatic clouds, masterpiece\n# additional tags:\n// cinematic lighting, particle effects",
-        "negative": "score_4, score_5, score_6, source_pony, simple background, ugly, deformed, bad anatomy, bad hands, missing fingers, extra digits, blurry, low quality, watermark, signature",
-        "category_filter": "--all categories--",
-        "saved_prompt": "--select prompt--",
-        "prompt_category": "",
-        "Save Prompt": null,
-        "Update Selected": null,
-        "Refresh List": null
       }
     },
     {

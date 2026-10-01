@@ -1165,30 +1165,6 @@
       }
     },
     {
-      "id": 579,
-      "type": "ModusFlowImageGallery",
-      "pos": [
-        -870,
-        80.82118797446795
-      ],
-      "size": [
-        530,
-        1050
-      ],
-      "flags": {
-        "collapsed": true
-      },
-      "order": 2,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {
-        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
-        "ver": "f34e6afba4acaddd61a25b49fbad0d35928e2128",
-        "Node name for S&R": "ModusFlowImageGallery"
-      }
-    },
-    {
       "id": 601,
       "type": "ModusFlowDetailerSlot",
       "pos": [
@@ -1740,98 +1716,6 @@
         "vae_name": "ae.safetensors",
         "t5_min_length": 256,
         "t5_min_padding": 0
-      }
-    },
-    {
-      "id": 589,
-      "type": "ModusFlowTextEditor",
-      "pos": [
-        -1264.146732268531,
-        81.03668306713274
-      ],
-      "size": [
-        750,
-        720
-      ],
-      "flags": {
-        "collapsed": true
-      },
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "positive_input",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        },
-        {
-          "name": "negative_input",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        },
-        {
-          "name": "positive_embedding",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        },
-        {
-          "name": "negative_embedding",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        },
-        {
-          "name": "text_input",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        },
-        {
-          "name": "embedding",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "positive",
-          "type": "STRING",
-          "links": null
-        },
-        {
-          "name": "negative",
-          "type": "STRING",
-          "links": null
-        }
-      ],
-      "properties": {
-        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
-        "ver": "2e1e3e9deb5a6c9c6ae74658b89de843fbe83bee",
-        "Node name for S&R": "ModusFlowTextEditor"
-      },
-      "widgets_values": [
-        "masterpiece, high quality, photorealistic 8k portrait of an elegant character in a sunlit architectural conservatory,\n/* dramatic atmospheric haze, */\nnatural skin texture, soft diffused morning sunlight, 85mm portrait photography, cinematic composition, shallow depth of field, sharp focus, hyperrealistic\n# alternative style notes:\n// vintage film grain, warm color grading",
-        "ugly, deformed, bad anatomy, blurry, low quality, distortion, extra limbs, watermark, signature",
-        "--all categories--",
-        "--select prompt--",
-        "",
-        null,
-        null,
-        null
-      ],
-      "widgets_values_named": {
-        "positive": "masterpiece, high quality, photorealistic 8k portrait of an elegant character in a sunlit architectural conservatory,\n/* dramatic atmospheric haze, */\nnatural skin texture, soft diffused morning sunlight, 85mm portrait photography, cinematic composition, shallow depth of field, sharp focus, hyperrealistic\n# alternative style notes:\n// vintage film grain, warm color grading",
-        "negative": "ugly, deformed, bad anatomy, blurry, low quality, distortion, extra limbs, watermark, signature",
-        "category_filter": "--all categories--",
-        "saved_prompt": "--select prompt--",
-        "prompt_category": "",
-        "Save Prompt": null,
-        "Update Selected": null,
-        "Refresh List": null
       }
     },
     {

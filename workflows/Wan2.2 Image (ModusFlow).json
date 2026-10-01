@@ -2459,41 +2459,6 @@
       }
     },
     {
-      "id": 579,
-      "type": "ModusFlowImageGallery",
-      "pos": [
-        -870,
-        80.82118797446795
-      ],
-      "size": [
-        530,
-        1050
-      ],
-      "flags": {
-        "collapsed": true
-      },
-      "order": 2,
-      "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "refresh_trigger",
-          "name": "refresh_trigger",
-          "shape": 7,
-          "type": "INT",
-          "widget": {
-            "name": "refresh_trigger"
-          },
-          "link": null
-        }
-      ],
-      "outputs": [],
-      "properties": {
-        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
-        "ver": "f34e6afba4acaddd61a25b49fbad0d35928e2128",
-        "Node name for S&R": "ModusFlowImageGallery"
-      }
-    },
-    {
       "id": 601,
       "type": "ModusFlowDetailerSlot",
       "pos": [

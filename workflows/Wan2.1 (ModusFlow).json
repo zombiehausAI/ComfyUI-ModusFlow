@@ -230,30 +230,6 @@
       }
     },
     {
-      "id": 579,
-      "type": "ModusFlowImageGallery",
-      "pos": [
-        -870,
-        80.82118797446795
-      ],
-      "size": [
-        530,
-        1050
-      ],
-      "flags": {
-        "collapsed": true
-      },
-      "order": 2,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [],
-      "properties": {
-        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
-        "ver": "f34e6afba4acaddd61a25b49fbad0d35928e2128",
-        "Node name for S&R": "ModusFlowImageGallery"
-      }
-    },
-    {
       "id": 554,
       "type": "ModusFlowKSampler",
       "pos": [
@@ -517,98 +493,6 @@
         "vae_name": "wan_2.1_vae.safetensors",
         "t5_min_length": 512,
         "t5_min_padding": 0
-      }
-    },
-    {
-      "id": 589,
-      "type": "ModusFlowTextEditor",
-      "pos": [
-        -1264.146732268531,
-        81.03668306713274
-      ],
-      "size": [
-        750,
-        720
-      ],
-      "flags": {
-        "collapsed": true
-      },
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "positive_input",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        },
-        {
-          "name": "negative_input",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        },
-        {
-          "name": "positive_embedding",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        },
-        {
-          "name": "negative_embedding",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        },
-        {
-          "name": "text_input",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        },
-        {
-          "name": "embedding",
-          "shape": 7,
-          "type": "STRING",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "positive",
-          "type": "STRING",
-          "links": null
-        },
-        {
-          "name": "negative",
-          "type": "STRING",
-          "links": null
-        }
-      ],
-      "properties": {
-        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
-        "ver": "2e1e3e9deb5a6c9c6ae74658b89de843fbe83bee",
-        "Node name for S&R": "ModusFlowTextEditor"
-      },
-      "widgets_values": [
-        "cinematic photorealistic video of an astronaut walking across the Martian landscape,\n/* smooth cinematic camera tracking sideways, low angle shot, */\ndust blowing across red desert dunes, distant mountains, lens flare, bright sunny day, highly detailed, 4k resolution\n# alternative camera movements:\n// slow zoom in on helmet visor, static camera",
-        "blurry, jitter, morphing, low quality, distortion, static, cartoon, worst quality, watermark",
-        "--all categories--",
-        "--select prompt--",
-        "",
-        null,
-        null,
-        null
-      ],
-      "widgets_values_named": {
-        "positive": "cinematic photorealistic video of an astronaut walking across the Martian landscape,\n/* smooth cinematic camera tracking sideways, low angle shot, */\ndust blowing across red desert dunes, distant mountains, lens flare, bright sunny day, highly detailed, 4k resolution\n# alternative camera movements:\n// slow zoom in on helmet visor, static camera",
-        "negative": "blurry, jitter, morphing, low quality, distortion, static, cartoon, worst quality, watermark",
-        "category_filter": "--all categories--",
-        "saved_prompt": "--select prompt--",
-        "prompt_category": "",
-        "Save Prompt": null,
-        "Update Selected": null,
-        "Refresh List": null
       }
     },
     {
