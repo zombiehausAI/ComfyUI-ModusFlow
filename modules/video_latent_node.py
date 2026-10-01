@@ -64,6 +64,7 @@ class ModusFlowVideoLatent:
                 "frames": (frame_presets, {"default": "81 frames (~5 sec @ 16fps)"}),
                 "length": ("INT", {"default": 81, "min": 1, "max": 1000, "step": 4}),
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 16, "step": 1}),
+                "fps": ("FLOAT", {"default": 16.0, "min": 1.0, "max": 120.0, "step": 1.0}),
             },
             "optional": {
                 "image": ("IMAGE",),
@@ -72,13 +73,13 @@ class ModusFlowVideoLatent:
             },
         }
 
-    RETURN_TYPES = ("LATENT", "PIPE", "INT", "INT", "INT",)
-    RETURN_NAMES = ("latent", "pipe", "width", "height", "length",)
+    RETURN_TYPES = ("LATENT", "PIPE", "INT", "INT", "INT", "FLOAT", "FLOAT",)
+    RETURN_NAMES = ("latent", "pipe", "width", "height", "length", "duration", "fps",)
     FUNCTION = "generate_latent"
     CATEGORY = "ModusFlow/Latent"
 
     def generate_latent(self, mode, model_type, resolution, width, height, frames, length, batch_size,
-                        image=None, pipe=None, vae=None):
+                        fps=16.0, image=None, pipe=None, vae=None):
         # 1. Resolve resolution preset
         preset_map = {
             "832x480 (16:9 Landscape)": (832, 480),
@@ -258,11 +259,16 @@ class ModusFlowVideoLatent:
             else:
                 samples = torch.zeros((length * batch_size, channels, latent_h, latent_w))
 
+        fps_val = float(fps) if fps else 16.0
+        duration = round(float(length) / max(fps_val, 0.001), 3)
+
         out_latent = {
             "samples": samples,
             "width": width,
             "height": height,
             "length": length,
+            "fps": fps_val,
+            "duration": duration,
         }
         if noise_mask is not None:
             out_latent["noise_mask"] = noise_mask
@@ -293,7 +299,7 @@ class ModusFlowVideoLatent:
                     new_neg.append([t, nd])
             pipe = (pipe[0], pipe[1], pipe[2], new_pos, new_neg) + tuple(pipe[5:])
 
-        return (out_latent, pipe, width, height, length,)
+        return (out_latent, pipe, width, height, length, duration, fps_val)
 
 
 NODE_CLASS_MAPPINGS = {
