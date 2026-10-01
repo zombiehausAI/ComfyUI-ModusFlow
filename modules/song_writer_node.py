@@ -7,6 +7,15 @@ Outputs formatted lyrics and style prompts ready for music models and ModusFlow 
 """
 
 import os
+import json
+import re
+from ..config import settings
+from .modusflow_utils import (
+    get_ollama_models,
+    query_llm,
+    perform_web_search,
+    sanitize_llm_output,
+)
 
 # Standard song structure templates
 SONG_TEMPLATES = {
@@ -165,11 +174,59 @@ MOOD_TAGS = [
 ]
 
 
+DEFAULT_STRUCTURE_GUIDE = (
+    "[Song Structure Guide]\n"
+    "[intro] - (Atmospheric instrumentation description in parentheses)\n"
+    "[verse 1] - 4 lines establishing the narrative, setting the scene with vivid imagery\n"
+    "[pre-chorus] - 2 lines building harmonic tension and emotional anticipation\n"
+    "[chorus] - 4 anthemic lines with strong meter and memorable vocal hooks\n"
+    "[verse 2] - 4 lines advancing the story or changing perspective\n"
+    "[pre-chorus] - 2 lines building back up\n"
+    "[chorus] - Full energetic chorus\n"
+    "[bridge] - 2-4 lines providing a melodic or thematic twist / climax\n"
+    "[chorus] - Final soaring chorus\n"
+    "[outro] - 2-4 lines with fading vocal resonance and instrumental cues"
+)
+
+AI_MODES = ["disabled", "generate_new", "refine_existing"]
+AI_PROVIDERS = [
+    "Ollama (Local)",
+    "Ollama (Cloud)",
+    "Cloud (OpenAI / OpenRouter / Groq / DeepSeek)",
+]
+
+def _parse_song_llm_json(raw_text: str) -> dict:
+    """Parses JSON output from LLM, with fallback handling for markdown codeblocks or raw text."""
+    text = (raw_text or "").strip()
+    if not text:
+        return {}
+
+    match = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```', text)
+    if match:
+        try:
+            return json.loads(match.group(1))
+        except Exception:
+            pass
+
+    match = re.search(r'(\{[\s\S]*\})', text)
+    if match:
+        try:
+            return json.loads(match.group(1))
+        except Exception:
+            pass
+
+    try:
+        return json.loads(text)
+    except Exception:
+        return {"lyrics": text}
+
+
 class ModusFlowSongWriter:
     """
     ModusFlow Song Writer & Lyric Studio.
     Formats structured lyrics and stylistic prompts for AI singing/song generation models.
-    Supports saving and loading songs to the unified prompts directory as JSON files.
+    Supports saving and loading songs to the unified prompts directory as JSON files,
+    plus full AI generation and refinement via local Ollama, cloud Ollama, or OpenAI-compatible cloud models.
     """
 
     @classmethod
@@ -216,6 +273,25 @@ class ModusFlowSongWriter:
                 "saved_song": (saved_songs, {"default": saved_songs[0] if saved_songs else ""}),
             },
             "optional": {
+                "ai_mode": (AI_MODES, {"default": "disabled"}),
+                "ai_provider": (AI_PROVIDERS, {"default": "Ollama (Local)"}),
+                "ollama_model": (get_ollama_models(settings.get('ollama_url')),),
+                "cloud_model": ("STRING", {
+                    "default": settings.get("cloud_model", "deepseek/deepseek-chat"),
+                    "multiline": False
+                }),
+                "topic_or_subject": ("STRING", {
+                    "default": "",
+                    "multiline": True,
+                    "placeholder": "Subject, story, theme, or revision instructions..."
+                }),
+                "web_search": (["disabled", "enabled"], {"default": "disabled"}),
+                "structure_guide": ("STRING", {
+                    "default": DEFAULT_STRUCTURE_GUIDE,
+                    "multiline": True
+                }),
+                "temperature": ("FLOAT", {"default": 0.75, "min": 0.0, "max": 2.0, "step": 0.05, "display": "slider"}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
                 "additional_style": ("STRING", {
                     "default": "",
                     "multiline": False,
@@ -238,41 +314,144 @@ class ModusFlowSongWriter:
     CATEGORY = "ModusFlow/Audio"
 
     def compose_song(self, title, genre, vocal_style, mood, template, lyrics,
-                     saved_song=None, additional_style="", negative_style="",
+                     saved_song=None, ai_mode="disabled", ai_provider="Ollama (Local)",
+                     ollama_model="", cloud_model="", topic_or_subject="",
+                     web_search="disabled", structure_guide="", temperature=0.75,
+                     seed=0, additional_style="", negative_style="",
                      unique_id=None, extra_pnginfo=None):
-        # 1. Resolve lyrics: if user selected a template and lyrics were empty or default, use template
+        active_title = title.strip()
+        active_genre = genre
+        active_vocal = vocal_style
+        active_mood = mood
         active_lyrics = lyrics.strip()
+        active_additional = additional_style.strip()
+
+        # 1. AI Generation / Refinement if enabled
+        if ai_mode in ("generate_new", "refine_existing"):
+            model_name = ""
+            if ai_provider == "Cloud (OpenAI / OpenRouter / Groq / DeepSeek)":
+                model_name = (cloud_model or "").strip() or settings.get("cloud_model", "deepseek/deepseek-chat")
+            else:
+                model_name = (ollama_model or "").strip()
+
+            search_context = ""
+            if web_search == "enabled" and topic_or_subject.strip():
+                print(f"[ModusFlow SongWriter] Searching web for topic: '{topic_or_subject.strip()}'...")
+                search_context = perform_web_search(topic_or_subject.strip())
+                if search_context:
+                    print(f"[ModusFlow SongWriter] Found web research context to ground lyrics.")
+
+            system_prompt = (
+                "You are an acclaimed songwriter, lyricist, and music producer. "
+                "Produce a complete, cohesive song package with structured lyrics and musical descriptors "
+                "tailored for AI singing and music generation models (such as ACE-Step, DiffRhythm, YuE).\n\n"
+                "You MUST output your response strictly as a single JSON object with the following keys:\n"
+                "{\n"
+                '  "title": "Evocative, memorable song title",\n'
+                '  "genre": "Genre styling tags (e.g. 80s Synthwave, Indie Folk Ballad, etc.)",\n'
+                '  "vocal_style": "Vocal delivery tags (e.g. Female vocal, clear tone / Male gritty baritone)",\n'
+                '  "mood": "Emotional mood description",\n'
+                '  "additional_style": "Specific instrumentation, BPM, key, texture tags",\n'
+                '  "lyrics": "Full song lyrics formatted with section tags like [intro], [verse 1], [pre-chorus], [chorus], [verse 2], [bridge], [outro], with instrumental and vocal cues in parentheses (e.g. (acoustic guitar picking), (soaring vocals))."\n'
+                "}\n"
+                "Strict rule: Output ONLY the valid JSON object. Do not include any greeting, preamble, or commentary outside the JSON."
+            )
+
+            guide_text = structure_guide.strip() or DEFAULT_STRUCTURE_GUIDE
+
+            if ai_mode == "generate_new":
+                user_prompt = (
+                    "Compose a brand new original song based on the following creative direction.\n"
+                    f"Subject / Story / Theme: {topic_or_subject.strip() or active_title or 'An epic cinematic journey'}\n"
+                    f"Desired Genre Style: {active_genre}\n"
+                    f"Desired Vocal Style: {active_vocal}\n"
+                    f"Desired Mood: {active_mood}\n"
+                )
+            else:  # refine_existing
+                user_prompt = (
+                    "Refine, polish, and elevate this existing song. Tighten rhyme schemes, enhance rhythmic meter, "
+                    "deepen imagery, and optimize structure while honoring the core intent.\n"
+                    f"Current Title: {active_title}\n"
+                    f"Current Genre: {active_genre}\n"
+                    f"Current Vocal Style: {active_vocal}\n"
+                    f"Current Mood: {active_mood}\n"
+                    f"Current Additional Descriptors: {active_additional}\n"
+                    f"Current Lyrics:\n{active_lyrics}\n"
+                )
+                if topic_or_subject.strip():
+                    user_prompt += f"\nSpecific User Refinement Instructions:\n{topic_or_subject.strip()}\n"
+
+            if search_context:
+                user_prompt += f"\n[Factual Research Context]:\n{search_context}\n"
+
+            user_prompt += f"\n[Song Structure & Formatting Guide]:\n{guide_text}\n"
+
+            print(f"[ModusFlow SongWriter] Querying {ai_provider} ({model_name}) for song {ai_mode}...")
+            try:
+                raw_response = query_llm(
+                    provider=ai_provider,
+                    model=model_name,
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    temperature=temperature,
+                    max_tokens=3000,
+                    seed=seed
+                )
+                parsed = _parse_song_llm_json(raw_response)
+                if parsed.get("title"):
+                    active_title = str(parsed["title"]).strip()
+                if parsed.get("genre"):
+                    active_genre = str(parsed["genre"]).strip()
+                if parsed.get("vocal_style"):
+                    active_vocal = str(parsed["vocal_style"]).strip()
+                if parsed.get("mood"):
+                    active_mood = str(parsed["mood"]).strip()
+                if parsed.get("additional_style"):
+                    active_additional = str(parsed["additional_style"]).strip()
+                if parsed.get("lyrics"):
+                    active_lyrics = str(parsed["lyrics"]).strip()
+
+                print(f"[ModusFlow SongWriter] Successfully generated/refined song '{active_title}'!")
+            except Exception as e:
+                print(f"[ModusFlow SongWriter] AI generation error: {e}. Falling back to input values.")
+
+        # 2. Resolve fallback lyrics if empty
         if not active_lyrics and template in SONG_TEMPLATES:
             active_lyrics = SONG_TEMPLATES[template]
 
-        # 2. Build complete style prompt
+        # 3. Build complete style prompt
         style_parts = []
-        if genre != "Custom / Manual":
-            style_parts.append(genre)
-        if vocal_style != "Instrumental only (no vocals)":
-            style_parts.append(vocal_style)
+        if active_genre != "Custom / Manual":
+            style_parts.append(active_genre)
+        if active_vocal != "Instrumental only (no vocals)":
+            style_parts.append(active_vocal)
         else:
             style_parts.append("instrumental, no vocals")
-        style_parts.append(mood)
-        if additional_style and additional_style.strip():
-            style_parts.append(additional_style.strip())
+        style_parts.append(active_mood)
+        if active_additional:
+            style_parts.append(active_additional)
 
         full_style_prompt = ", ".join(style_parts)
 
-        # 3. Clean and format lyrics with standard section headers
+        # 4. Clean and format lyrics with standard section headers
         cleaned_lyrics = active_lyrics.replace("\r\n", "\n")
 
-        # 4. Update workflow metadata if available
+        # 5. Update workflow metadata if available
         if unique_id is not None and extra_pnginfo is not None:
             if isinstance(extra_pnginfo, dict) and "workflow" in extra_pnginfo:
                 workflow = extra_pnginfo["workflow"]
                 node = next((x for x in workflow.get("nodes", []) if str(x.get("id")) == str(unique_id)), None)
                 if node:
-                    node["widgets_values"] = [title, genre, vocal_style, mood, template, lyrics, saved_song, additional_style, negative_style]
+                    node["widgets_values"] = [
+                        active_title, active_genre, active_vocal, active_mood, template,
+                        cleaned_lyrics, saved_song, ai_mode, ai_provider, ollama_model,
+                        cloud_model, topic_or_subject, web_search, structure_guide,
+                        temperature, seed, active_additional, negative_style
+                    ]
 
-        print(f"[ModusFlow SongWriter] Composed '{title}' | Style: {full_style_prompt[:60]}... | Lyrics: {len(cleaned_lyrics.splitlines())} lines")
+        print(f"[ModusFlow SongWriter] Composed '{active_title}' | Style: {full_style_prompt[:60]}... | Lyrics: {len(cleaned_lyrics.splitlines())} lines")
 
-        return (full_style_prompt, cleaned_lyrics, title, negative_style)
+        return (full_style_prompt, cleaned_lyrics, active_title, negative_style)
 
 
 NODE_CLASS_MAPPINGS = {

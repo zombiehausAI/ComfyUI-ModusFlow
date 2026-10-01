@@ -24,9 +24,103 @@ app.registerExtension({
                 const addStyleWidget   = node.widgets?.find(w => w.name === "additional_style");
                 const negStyleWidget   = node.widgets?.find(w => w.name === "negative_style");
 
+                // Locate AI widgets
+                const aiModeWidget        = node.widgets?.find(w => w.name === "ai_mode");
+                const aiProviderWidget    = node.widgets?.find(w => w.name === "ai_provider");
+                const ollamaModelWidget   = node.widgets?.find(w => w.name === "ollama_model");
+                const cloudModelWidget    = node.widgets?.find(w => w.name === "cloud_model");
+                const topicWidget         = node.widgets?.find(w => w.name === "topic_or_subject");
+                const webSearchWidget     = node.widgets?.find(w => w.name === "web_search");
+                const structureWidget     = node.widgets?.find(w => w.name === "structure_guide");
+                const tempWidget          = node.widgets?.find(w => w.name === "temperature");
+                const seedWidget          = node.widgets?.find(w => w.name === "seed");
+
                 // Song list cache
                 node._allSongs       = [];
                 node._savedCategory  = undefined;
+
+                // ── Refresh Ollama Models Button ──────────────────────────────
+                const refreshModelsBtn = node.addWidget("button", "🔄 Refresh Models", null, async () => {
+                    try {
+                        const res = await fetch("/modusflow/refresh_ollama_models").then(r => r.json());
+                        if (res.success && Array.isArray(res.data) && ollamaModelWidget) {
+                            ollamaModelWidget.options.values = res.data;
+                            if (!res.data.includes(ollamaModelWidget.value)) {
+                                ollamaModelWidget.value = res.data[0] || "";
+                            }
+                            app.graph.setDirtyCanvas(true, true);
+                        }
+                    } catch (e) {
+                        console.error("[ModusFlow SongWriter] Refresh models error:", e);
+                    }
+                });
+
+                // Move refreshModelsBtn right after ollama_model
+                if (ollamaModelWidget && refreshModelsBtn) {
+                    const mIdx = node.widgets.indexOf(ollamaModelWidget);
+                    const bIdx = node.widgets.indexOf(refreshModelsBtn);
+                    if (mIdx >= 0 && bIdx > mIdx) {
+                        node.widgets.splice(bIdx, 1);
+                        node.widgets.splice(mIdx + 1, 0, refreshModelsBtn);
+                    }
+                }
+
+                // ── Dynamic AI Widget Visibility ──────────────────────────────
+                const aiControls = [
+                    aiProviderWidget,
+                    topicWidget,
+                    webSearchWidget,
+                    structureWidget,
+                    tempWidget,
+                    seedWidget
+                ].filter(Boolean);
+
+                const toggleAiWidgets = () => {
+                    const isAiEnabled = aiModeWidget && aiModeWidget.value !== "disabled";
+                    const provider = aiProviderWidget ? aiProviderWidget.value : "Ollama (Local)";
+                    const isCloud = provider.startsWith("Cloud");
+
+                    aiControls.forEach(w => {
+                        if (!w.originalType) w.originalType = w.type;
+                        w.type = isAiEnabled ? w.originalType : "hidden";
+                    });
+
+                    if (ollamaModelWidget) {
+                        if (!ollamaModelWidget.originalType) ollamaModelWidget.originalType = ollamaModelWidget.type;
+                        ollamaModelWidget.type = (isAiEnabled && !isCloud) ? ollamaModelWidget.originalType : "hidden";
+                    }
+
+                    if (refreshModelsBtn) {
+                        if (!refreshModelsBtn.originalType) refreshModelsBtn.originalType = refreshModelsBtn.type;
+                        refreshModelsBtn.type = (isAiEnabled && !isCloud) ? refreshModelsBtn.originalType : "hidden";
+                    }
+
+                    if (cloudModelWidget) {
+                        if (!cloudModelWidget.originalType) cloudModelWidget.originalType = cloudModelWidget.type;
+                        cloudModelWidget.type = (isAiEnabled && isCloud) ? cloudModelWidget.originalType : "hidden";
+                    }
+
+                    node.computeSize?.();
+                    app.graph?.setDirtyCanvas(true, true);
+                };
+
+                if (aiModeWidget) {
+                    const origModeCb = aiModeWidget.callback;
+                    aiModeWidget.callback = function() {
+                        origModeCb?.apply(this, arguments);
+                        toggleAiWidgets();
+                    };
+                }
+
+                if (aiProviderWidget) {
+                    const origProvCb = aiProviderWidget.callback;
+                    aiProviderWidget.callback = function() {
+                        origProvCb?.apply(this, arguments);
+                        toggleAiWidgets();
+                    };
+                }
+
+                setTimeout(toggleAiWidgets, 50);
 
                 // ── Category filter combo ─────────────────────────────────────────
                 const categoryWidget = node.addWidget(
@@ -73,7 +167,7 @@ app.registerExtension({
                 node.addWidget("button", "🔄 Refresh List",    null, () => refreshSongs(node));
 
                 // ── Initial size & responsiveness ─────────────────────────────────
-                node.size = [540, 720];
+                node.size = [560, 760];
                 node.resizable = true;
 
                 // Auto-populate song list on first creation

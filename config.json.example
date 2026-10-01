@@ -1,6 +1,11 @@
 {
   "ollama_url": "http://127.0.0.1:11434",
   "ollama_timeout": 120,
+  "ollama_cloud_url": "",
+  "ollama_cloud_api_key": "",
+  "cloud_api_url": "https://openrouter.ai/api/v1",
+  "cloud_api_key": "",
+  "cloud_model": "deepseek/deepseek-chat",
   "civitai_api_key": "",
   "prompts_save_directory": "",
   "base_model_definitions": [

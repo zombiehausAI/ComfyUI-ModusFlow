@@ -9,6 +9,11 @@ CONFIG_FILE_PATH = os.path.join(BASE_DIR, 'config.json')
 DEFAULT_CONFIG = {
     "ollama_url": "http://127.0.0.1:11434",
     "ollama_timeout": 120,
+    "ollama_cloud_url": "",
+    "ollama_cloud_api_key": "",
+    "cloud_api_url": "https://openrouter.ai/api/v1",
+    "cloud_api_key": "",
+    "cloud_model": "deepseek/deepseek-chat",
     "civitai_api_key": "",
     "prompts_save_directory": "",  # Empty string means use default: BASE_DIR/saved_prompts
     "base_model_definitions": [
@@ -44,6 +49,16 @@ def get_config():
             print(f"[ModusFlow Config] Loaded Ollama timeout from environment variable: {config['ollama_timeout']}s")
         except ValueError:
             print("[ModusFlow Config] Invalid MODUSFLOW_OLLAMA_TIMEOUT value; must be an integer. Using default.")
+    if 'MODUSFLOW_OLLAMA_CLOUD_URL' in os.environ:
+        config['ollama_cloud_url'] = os.environ['MODUSFLOW_OLLAMA_CLOUD_URL']
+    if 'MODUSFLOW_OLLAMA_CLOUD_API_KEY' in os.environ:
+        config['ollama_cloud_api_key'] = os.environ['MODUSFLOW_OLLAMA_CLOUD_API_KEY']
+    if 'MODUSFLOW_CLOUD_API_URL' in os.environ:
+        config['cloud_api_url'] = os.environ['MODUSFLOW_CLOUD_API_URL']
+    if 'MODUSFLOW_CLOUD_API_KEY' in os.environ:
+        config['cloud_api_key'] = os.environ['MODUSFLOW_CLOUD_API_KEY']
+    if 'MODUSFLOW_CLOUD_MODEL' in os.environ:
+        config['cloud_model'] = os.environ['MODUSFLOW_CLOUD_MODEL']
     if 'MODUSFLOW_CIVITAI_API_KEY' in os.environ:
         config['civitai_api_key'] = os.environ['MODUSFLOW_CIVITAI_API_KEY']
         print("[ModusFlow Config] Loaded Civitai API key from environment variable.")
