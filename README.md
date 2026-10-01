@@ -39,9 +39,9 @@ ComfyUI-ModusFlow provides 22 custom nodes organized into six categories:
 **🔊 Audio & Video**
 - Save Audio - Multi-format audio export (flac, wav, mp3, ogg) with filename variables
 - ACE Step Audio 1.5 - TextEncodeAceStepAudio1.5 with song save/load for tags and lyrics into unified library
-- Song Writer & Lyric Studio - Structured lyric composition, templates, and musical style tags with unified save/load library
+- Song Writer & Lyric Studio - Interactive AI lyric studio (Ollama local/cloud, OpenAI-compatible cloud LLMs, DuckDuckGo web research grounding), structured lyric templates, musical styles, and unified save/load library
 - Audio Mixer & Video Sync - Blends sound effects (MMAudio) with background music tracks for video muxing
-- Video Latent Preset - Wan 2.1 & Wan 2.2 spatio-temporal video latent generator with native I2V/T2V
+- Video Latent Preset - Wan 2.1 & Wan 2.2 spatio-temporal video latent generator with native I2V/T2V, plus `duration` and `fps` outputs for automated MMAudio synchronization
 - Save Video - Multi-format video export (H.264, HEVC, VP9) with AAC audio muxing and interactive preview
 
 **⚙️ Conditioning**
@@ -85,7 +85,16 @@ ComfyUI-ModusFlow provides 22 custom nodes organized into six categories:
 You can configure ModusFlow directly within ComfyUI without editing any files:
 1. Click the **⚙️ Settings** icon in ComfyUI (top bar or sidebar).
 2. Locate the **ModusFlow** category.
-3. Configure your **Ollama URL**, **Ollama Timeout**, **Civitai API Key**, and **Prompts Directory Override**. Changes apply immediately in real time.
+3. Configure your settings directly:
+   - **Ollama URL**: Local Ollama server address (default: `http://127.0.0.1:11434`)
+   - **Ollama Cloud URL**: Remote Ollama endpoint URL
+   - **Ollama Cloud API Key**: Bearer token for authenticated remote Ollama servers
+   - **Cloud API URL**: OpenAI-compatible endpoint (default: `https://openrouter.ai/api/v1`, Groq, DeepSeek, OpenAI)
+   - **Cloud API Key**: API key for cloud LLM providers
+   - **Cloud Models**: Comma-separated list of cloud models for dropdowns
+   - **Civitai API Key**: For LoRA preview images and metadata
+   - **Prompts Directory Override**: Custom path for saved prompts and song libraries
+   Changes apply immediately in real time.
 
 ### Option B: `config.json` File
 Alternatively, create a `config.json` file in the node directory:
@@ -96,6 +105,12 @@ cp config.json.example config.json
 
 Edit `config.json` to configure:
 - `ollama_url` - Ollama API endpoint (default: `http://127.0.0.1:11434`)
+- `ollama_cloud_url` - Remote/cloud Ollama endpoint
+- `ollama_cloud_api_key` - Remote Ollama authentication token
+- `cloud_api_url` - OpenAI-compatible chat completions endpoint
+- `cloud_api_key` - Cloud LLM API key
+- `cloud_model` - Default cloud model identifier
+- `cloud_models` - List of pre-populated cloud models
 - `ollama_timeout` - Timeout in seconds for LLM requests (default: `120`)
 - `civitai_api_key` - For LoRA preview images and metadata
 - `prompts_save_directory` - Custom path for saved prompts (optional)

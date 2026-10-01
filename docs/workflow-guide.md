@@ -139,6 +139,42 @@ Generate smooth, high-fidelity videos with seamless switching between Text-to-Vi
 
 ---
 
+### Workflow G: Automated Video-to-Audio Foley Synchronization (MMAudio)
+
+Generate matching Foley sound effects and ambient sound synchronized to Wan 2.1 / Wan 2.2 video generation:
+
+1. **Setup Video Latents with `ModusFlow Video Latent Preset`**:
+   - Choose frame preset (e.g. `81 frames` @ `16.0` fps = 5.062s).
+   - Notice the **`duration`** and **`fps`** output pins.
+2. **Configure MMAudio Sampler**:
+   - Add **MMAudio Video-to-Audio Sampler**.
+   - Right-click the node and select **Convert Widget to Input** $\rightarrow$ **duration**.
+   - Connect the **`duration`** output from `ModusFlow Video Latent Preset` directly into MMAudio's `duration` input slot.
+   - Connect decoded video frames from `VAE Decode` into MMAudio's `video_frames` or `image` input.
+3. **Mux Audio with Video**:
+   - Pass MMAudio's generated `audio` into **`ModusFlow Audio Mixer & Video Sync`** or directly into **`ModusFlow Save Video`**'s `audio` input.
+   - `Save Video` multiplexes the synchronized AAC audio track directly into the rendered MP4/MKV video container.
+
+---
+
+### Workflow H: AI Lyric Studio & Vocal Song Production
+
+Compose original structured songs or refine existing lyrics with web research grounding for ACE-Step or DiffRhythm:
+
+1. **Add `ModusFlow Song Writer & Lyric Studio`**:
+   - Set **ai_mode** to `generate_new` (to create a track from scratch) or `refine_existing` (to enhance rhyming and meter).
+   - Select **ai_provider**: `Ollama (Local)`, `Ollama (Cloud)`, or `Cloud (OpenAI / OpenRouter / Groq / DeepSeek)`.
+   - Set **topic_or_subject**: Describe your song concept, story, or specific adjustments.
+   - Set **web_search** to `enabled` to automatically fetch authentic lore and thematic facts via DuckDuckGo.
+2. **Execute & Review**:
+   - The node generates or refines the title, genre descriptors, vocal delivery style, and formatted lyrics (`[verse]`, `[chorus]`, `[bridge]`).
+   - Save the song to your unified library using **💾 Save Song** in the node UI.
+3. **Connect to Vocal Generator**:
+   - Connect `style_prompt` and `lyrics` into **ACE Step Audio 1.5** or DiffRhythm.
+   - Route generated audio into **`ModusFlow Save Audio`** with `%title%` in the filename pattern for automatic naming and tag metadata.
+
+---
+
 ## 3. Recommended Node Pairings
 
 | Task | Primary Node | Complementary Nodes |
@@ -149,6 +185,8 @@ Generate smooth, high-fidelity videos with seamless switching between Text-to-Vi
 | Dynamic Guidance / Anti-Waxing | `Modus Dynamic Guidance` | `ModusFlow KSampler`, `Modus De-Wax Texture Restore` |
 | Generation | `ModusFlow KSampler` | `ModusFlow Batch KSampler` |
 | Video Latent Generation (T2V & I2V) | `ModusFlow Video Latent Preset` | `ModusFlow Model Loader`, `ModusFlow Save Video` |
+| Video-to-Audio Foley Sync | `ModusFlow Video Latent Preset` | `MMAudio Video-to-Audio Sampler`, `Audio Mixer & Video Sync` |
+| AI Songwriting & Lyrics | `ModusFlow Song Writer & Lyric Studio` | `ACE Step Audio 1.5`, `ModusFlow Save Audio` |
 | Texture & Micro-Detail Restore | `Modus De-Wax Texture Restore` | `Modus Dynamic Guidance`, `ModusFlow All-in-One Detailer` |
 | Inpainting & detailing | `ModusFlow All-in-One Detailer` | `ModusFlow Detailer Slot` |
 | Upscaling & cleanup | `ModusFlow Upscaler` | `ModusFlow Restormer` |
@@ -160,5 +198,6 @@ Generate smooth, high-fidelity videos with seamless switching between Text-to-Vi
 
 - **Zero-Wire Reordering**: In the LoRA Loader, drag LoRAs in the stack to reorder execution or toggle their checkbox to disable without deleting.
 - **Pipe Passthrough**: Nodes that accept a `pipe` also emit the updated `pipe`, allowing clean linear chains: `Model Loader -> Dynamic Guidance -> KSampler -> De-Wax Restore -> Detailer`.
+- **MMAudio Duration Sync**: By converting MMAudio's `duration` widget to an input and connecting it from `ModusFlow Video Latent Preset`, your Foley audio length always dynamically matches your frame count and FPS.
 - **YOLO Models**: Run `python utilities/download_models.py` to populate `models/ultralytics/` with face, hand, and person detector models.
 - **Video Memory Optimization**: For Wan 2.1 14B or 720p 81-frame videos, enable `clean_vram` on `ModusFlow Save Video` to purge PyTorch CUDA cache immediately upon rendering.

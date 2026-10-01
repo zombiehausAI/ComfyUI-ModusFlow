@@ -14,7 +14,7 @@ Production-grade audio mixing and video synchronization node. Blends sound effec
 ### Required
 - **track1_volume** (FLOAT, default: 1.0): Gain multiplier for Track 1 (usually Foley / Sound Effects).
 - **track2_volume** (FLOAT, default: 0.8): Gain multiplier for Track 2 (usually Background Music).
-- **target_duration** (FLOAT, default: 0.0): Desired duration in seconds (`0.0` automatically matches the longest input track).
+- **target_duration** (FLOAT, default: 0.0): Desired duration in seconds (`0.0` automatically matches the longest input track). Can be connected directly from the `duration` output of **ModusFlow Video Latent Preset** to automatically conform audio length to the video.
 - **normalize_output** (BOOLEAN, default: true): Prevents digital clipping when tracks sum above peak threshold.
 
 ### Optional

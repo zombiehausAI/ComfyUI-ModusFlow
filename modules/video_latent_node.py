@@ -73,7 +73,7 @@ class ModusFlowVideoLatent:
             },
         }
 
-    RETURN_TYPES = ("LATENT", "PIPE", "INT", "INT", "INT", "FLOAT", "FLOAT",)
+    RETURN_TYPES = ("LATENT", "PIPE", "INT", "INT", "INT,FLOAT", "FLOAT,INT", "FLOAT,INT",)
     RETURN_NAMES = ("latent", "pipe", "width", "height", "length", "duration", "fps",)
     FUNCTION = "generate_latent"
     CATEGORY = "ModusFlow/Latent"
