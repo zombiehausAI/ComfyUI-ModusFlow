@@ -85,6 +85,8 @@ class ModusFlowKSampler:
             concat_vals = {"concat_latent_image": latent_image["concat_latent_image"]}
             if "concat_mask" in latent_image:
                 concat_vals["concat_mask"] = latent_image["concat_mask"]
+            if "concat_mask_index" in latent_image:
+                concat_vals["concat_mask_index"] = latent_image["concat_mask_index"]
             try:
                 import node_helpers
                 positive = node_helpers.conditioning_set_values(positive, concat_vals)

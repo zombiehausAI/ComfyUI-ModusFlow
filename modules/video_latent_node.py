@@ -99,10 +99,28 @@ class ModusFlowVideoLatent:
         if frames != "Manual" and frames in frame_map:
             length = frame_map[frames]
 
-        # 3. Model Architecture Parameters
+        # 4. Resolve VAE from input or pipe
+        resolved_vae = vae
+        if resolved_vae is None and pipe is not None and len(pipe) > 2:
+            resolved_vae = pipe[2]
+
+        # 3. Model Architecture Parameters (auto-detects 16ch Wan2.1 vs 48ch Wan2.2 if VAE is provided)
+        vae_latent_ch = getattr(resolved_vae, "latent_channels", None) if resolved_vae is not None else None
+        if hasattr(resolved_vae, "spacial_compression_encode"):
+            try:
+                vae_spatial_scale = resolved_vae.spacial_compression_encode()
+            except Exception:
+                vae_spatial_scale = None
+        else:
+            vae_spatial_scale = None
+
         if "Wan" in model_type:
-            channels = 16
-            spatial_scale = 8
+            if vae_latent_ch == 48:
+                channels = 48
+                spatial_scale = 16
+            else:
+                channels = 16
+                spatial_scale = 8
             # Wan temporal compression: (T - 1) // 4 + 1
             latent_t = (length - 1) // 4 + 1
             is_5d = True
@@ -123,18 +141,17 @@ class ModusFlowVideoLatent:
             latent_t = length
             is_5d = False
 
+        if vae_spatial_scale is not None:
+            spatial_scale = vae_spatial_scale
+
         latent_h = (height + spatial_scale - 1) // spatial_scale
         latent_w = (width + spatial_scale - 1) // spatial_scale
-
-        # 4. Resolve VAE from input or pipe
-        resolved_vae = vae
-        if resolved_vae is None and pipe is not None and len(pipe) > 2:
-            resolved_vae = pipe[2]
 
         # 5. Image-to-Video (I2V) vs Text-to-Video (T2V)
         use_i2v = (mode == "Image to Video (I2V)") and (image is not None)
         concat_latent_image = None
         concat_mask = None
+        concat_mask_index = None
 
         if use_i2v:
             # 1. Resize image to target (height, width)
@@ -145,8 +162,31 @@ class ModusFlowVideoLatent:
                 resized = F.interpolate(permuted, size=(height, width), mode="bilinear", align_corners=False)
                 img_tensor = resized.permute(0, 2, 3, 1)
 
-            # 2. Wan 2.1 & HunyuanVideo use conditioning concat_latent_image with temporal padding
-            if ("Wan" in model_type or "Hunyuan" in model_type) and resolved_vae is not None:
+            # 2. Wan 2.2 (48 channels) I2V conditioning
+            if channels == 48 and resolved_vae is not None:
+                try:
+                    concat_latent = torch.zeros([batch_size, channels, latent_t, latent_h, latent_w], device=img_tensor.device)
+                    try:
+                        import comfy.latent_formats
+                        concat_latent = comfy.latent_formats.Wan22().process_out(concat_latent)
+                    except Exception:
+                        pass
+                    concat_latent = concat_latent.repeat(1, 2, 1, 1, 1)
+                    mask = torch.ones((1, 1, latent_t * 4, latent_h, latent_w), device=img_tensor.device)
+
+                    encoded_img = resolved_vae.encode(img_tensor[:length, :, :, :3])
+                    concat_latent[:, channels:, :encoded_img.shape[2]] = encoded_img[:, :, :concat_latent.shape[2]]
+                    mask[:, :, :min(img_tensor.shape[0], length) + 3] = 0.0
+
+                    mask = mask.view(1, mask.shape[2] // 4, 4, mask.shape[3], mask.shape[4]).transpose(1, 2)
+                    concat_latent_image = concat_latent
+                    concat_mask = mask
+                    concat_mask_index = channels
+                except Exception as e:
+                    print(f"[ModusFlow VideoLatent] Wan 2.2 VAE encode warning: {e}")
+
+            # 3. Wan 2.1 (16 channels) & HunyuanVideo I2V conditioning
+            elif ("Wan" in model_type or "Hunyuan" in model_type) and resolved_vae is not None:
                 try:
                     # Pad sequence to `length` frames with 0.5 gray background
                     seq = torch.ones((length, height, width, 3), device=img_tensor.device, dtype=img_tensor.dtype) * 0.5
@@ -164,7 +204,7 @@ class ModusFlowVideoLatent:
                 except Exception as e:
                     print(f"[ModusFlow VideoLatent] Wan VAE sequence encode warning: {e}")
 
-            # 3. Clean spatio-temporal noise latent
+            # 4. Clean spatio-temporal noise latent
             if is_5d:
                 samples = torch.zeros((batch_size, channels, latent_t, latent_h, latent_w))
                 # For non-Wan models that inject directly into latent (e.g. SVD/LTX)
@@ -201,23 +241,27 @@ class ModusFlowVideoLatent:
         if concat_latent_image is not None:
             out_latent["concat_latent_image"] = concat_latent_image
             out_latent["concat_mask"] = concat_mask
+            if concat_mask_index is not None:
+                out_latent["concat_mask_index"] = concat_mask_index
 
         # If pipe is provided, also inject concat conditioning into pipe
         if pipe is not None and len(pipe) >= 5 and concat_latent_image is not None:
+            cond_vals = {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask}
+            if concat_mask_index is not None:
+                cond_vals["concat_mask_index"] = concat_mask_index
             try:
                 import node_helpers
-                new_pos = node_helpers.conditioning_set_values(pipe[3], {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask})
-                new_neg = node_helpers.conditioning_set_values(pipe[4], {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask})
+                new_pos = node_helpers.conditioning_set_values(pipe[3], cond_vals)
+                new_neg = node_helpers.conditioning_set_values(pipe[4], cond_vals)
             except Exception:
                 new_pos, new_neg = [], []
-                vals = {"concat_latent_image": concat_latent_image, "concat_mask": concat_mask}
                 for t, d in (pipe[3] or []):
                     nd = d.copy()
-                    nd.update(vals)
+                    nd.update(cond_vals)
                     new_pos.append([t, nd])
                 for t, d in (pipe[4] or []):
                     nd = d.copy()
-                    nd.update(vals)
+                    nd.update(cond_vals)
                     new_neg.append([t, nd])
             pipe = (pipe[0], pipe[1], pipe[2], new_pos, new_neg) + tuple(pipe[5:])
 
