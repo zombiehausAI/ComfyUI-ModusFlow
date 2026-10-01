@@ -1,8 +1,8 @@
 {
   "id": "a3ed6c1c-ec20-4494-b8fb-62f0a7afe468",
   "revision": 0,
-  "last_node_id": 621,
-  "last_link_id": 1200,
+  "last_node_id": 622,
+  "last_link_id": 1202,
   "nodes": [
     {
       "id": 596,
@@ -2090,7 +2090,7 @@
         {
           "name": "image",
           "type": "IMAGE",
-          "link": null
+          "link": 1201
         },
         {
           "name": "pipe",
@@ -2100,7 +2100,7 @@
         {
           "name": "vae",
           "type": "VAE",
-          "link": null
+          "link": 1202
         }
       ],
       "outputs": [
@@ -2136,7 +2136,7 @@
         "length": 1,
         "batch_size": 1
       },
-      "title": "ModusFlow Latent (Wan 2.2 Image)"
+      "title": "ModusFlow Latent (Wan 2.2 Image / T2V / I2V)"
     },
     {
       "id": 580,
@@ -3412,7 +3412,9 @@
           "localized_name": "vae",
           "name": "vae",
           "type": "VAE",
-          "links": null
+          "links": [
+            1202
+          ]
         },
         {
           "localized_name": "pipe",
@@ -3965,6 +3967,48 @@
         "grain_intensity": 0.06,
         "blur_radius": 3
       }
+    },
+    {
+      "id": 622,
+      "type": "LoadImage",
+      "pos": [
+        360,
+        480
+      ],
+      "size": [
+        315,
+        314
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1201
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "example_reference_image.png",
+        "image"
+      ],
+      "widgets_values_named": {
+        "image": "example_reference_image.png",
+        "upload": "image"
+      },
+      "title": "Starting Image (for Image-to-Image / I2V)"
     }
   ],
   "links": [
@@ -4423,6 +4467,22 @@
       595,
       0,
       "PIPE"
+    ],
+    [
+      1201,
+      622,
+      0,
+      583,
+      0,
+      "IMAGE"
+    ],
+    [
+      1202,
+      556,
+      6,
+      583,
+      2,
+      "VAE"
     ]
   ],
   "groups": [],
