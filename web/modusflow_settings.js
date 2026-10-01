@@ -18,6 +18,11 @@ app.registerExtension({
         let serverConfig = {
             ollama_url: "http://127.0.0.1:11434",
             ollama_timeout: 120,
+            ollama_cloud_url: "",
+            ollama_cloud_api_key: "",
+            cloud_api_url: "https://openrouter.ai/api/v1",
+            cloud_api_key: "",
+            cloud_model: "deepseek/deepseek-chat",
             civitai_api_key: "",
             prompts_save_directory: ""
         };
@@ -62,15 +67,15 @@ app.registerExtension({
             saveTimeout = setTimeout(commitChanges, 400);
         };
 
-        // 1. Ollama Server URL
+        // 1. Ollama Server URL (Local)
         app.ui.settings.addSetting({
             id: "ModusFlow.OllamaURL",
-            category: ["ModusFlow", "Server & API", "OllamaURL"],
-            name: "ModusFlow: Ollama Server URL",
+            category: ["ModusFlow", "Local Ollama", "OllamaURL"],
+            name: "ModusFlow: Local Ollama URL",
             type: "text",
             defaultValue: serverConfig.ollama_url || "http://127.0.0.1:11434",
             tooltip: "Endpoint for local Ollama instance (default: http://127.0.0.1:11434)",
-            sortOrder: 30,
+            sortOrder: 50,
             onChange: (newVal, oldVal) => {
                 if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
                     queueSave("ollama_url", newVal);
@@ -81,12 +86,12 @@ app.registerExtension({
         // 2. Ollama Request Timeout
         app.ui.settings.addSetting({
             id: "ModusFlow.OllamaTimeout",
-            category: ["ModusFlow", "Server & API", "OllamaTimeout"],
+            category: ["ModusFlow", "Local Ollama", "OllamaTimeout"],
             name: "ModusFlow: Ollama Timeout (seconds)",
             type: "number",
             defaultValue: serverConfig.ollama_timeout || 120,
             tooltip: "Timeout in seconds for Ollama requests (default: 120)",
-            sortOrder: 20,
+            sortOrder: 40,
             onChange: (newVal, oldVal) => {
                 if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
                     queueSave("ollama_timeout", Number(newVal) || 120);
@@ -94,15 +99,95 @@ app.registerExtension({
             }
         });
 
-        // 3. Civitai API Key
+        // 3. Ollama Cloud URL
+        app.ui.settings.addSetting({
+            id: "ModusFlow.OllamaCloudURL",
+            category: ["ModusFlow", "Ollama Cloud", "OllamaCloudURL"],
+            name: "ModusFlow: Ollama Cloud URL",
+            type: "text",
+            defaultValue: serverConfig.ollama_cloud_url || "",
+            tooltip: "Endpoint for remote/cloud Ollama server (e.g. https://ollama.yourdomain.com)",
+            sortOrder: 35,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
+                    queueSave("ollama_cloud_url", newVal);
+                }
+            }
+        });
+
+        // 4. Ollama Cloud API Key / Token
+        app.ui.settings.addSetting({
+            id: "ModusFlow.OllamaCloudKey",
+            category: ["ModusFlow", "Ollama Cloud", "OllamaCloudKey"],
+            name: "ModusFlow: Ollama Cloud API Key / Token",
+            type: "text",
+            defaultValue: serverConfig.ollama_cloud_api_key || "",
+            tooltip: "Bearer token or API key for remote/cloud Ollama instance",
+            sortOrder: 34,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
+                    queueSave("ollama_cloud_api_key", newVal);
+                }
+            }
+        });
+
+        // 5. Cloud LLM API URL (OpenAI / OpenRouter / Groq / DeepSeek)
+        app.ui.settings.addSetting({
+            id: "ModusFlow.CloudAPIURL",
+            category: ["ModusFlow", "Cloud LLMs", "CloudAPIURL"],
+            name: "ModusFlow: Cloud LLM Base URL",
+            type: "text",
+            defaultValue: serverConfig.cloud_api_url || "https://openrouter.ai/api/v1",
+            tooltip: "OpenAI-compatible chat completions base URL (default: https://openrouter.ai/api/v1)",
+            sortOrder: 30,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
+                    queueSave("cloud_api_url", newVal);
+                }
+            }
+        });
+
+        // 6. Cloud LLM API Key
+        app.ui.settings.addSetting({
+            id: "ModusFlow.CloudAPIKey",
+            category: ["ModusFlow", "Cloud LLMs", "CloudAPIKey"],
+            name: "ModusFlow: Cloud LLM API Key",
+            type: "text",
+            defaultValue: serverConfig.cloud_api_key || "",
+            tooltip: "API key for OpenAI, OpenRouter, Groq, or DeepSeek cloud models",
+            sortOrder: 29,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
+                    queueSave("cloud_api_key", newVal);
+                }
+            }
+        });
+
+        // 7. Default Cloud Model
+        app.ui.settings.addSetting({
+            id: "ModusFlow.CloudModel",
+            category: ["ModusFlow", "Cloud LLMs", "CloudModel"],
+            name: "ModusFlow: Default Cloud Model",
+            type: "text",
+            defaultValue: serverConfig.cloud_model || "deepseek/deepseek-chat",
+            tooltip: "Default cloud model ID (e.g. deepseek/deepseek-chat, anthropic/claude-3.5-sonnet, openai/gpt-4o-mini)",
+            sortOrder: 28,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
+                    queueSave("cloud_model", newVal);
+                }
+            }
+        });
+
+        // 8. Civitai API Key
         app.ui.settings.addSetting({
             id: "ModusFlow.CivitaiKey",
-            category: ["ModusFlow", "Server & API", "CivitaiKey"],
+            category: ["ModusFlow", "Civitai", "CivitaiKey"],
             name: "ModusFlow: Civitai API Key",
             type: "text",
             defaultValue: serverConfig.civitai_api_key || "",
             tooltip: "API key for fetching Civitai LoRA preview images and metadata",
-            sortOrder: 10,
+            sortOrder: 20,
             onChange: (newVal, oldVal) => {
                 if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
                     queueSave("civitai_api_key", newVal);
@@ -110,7 +195,7 @@ app.registerExtension({
             }
         });
 
-        // 4. Prompts Save Directory Override
+        // 9. Prompts Save Directory Override
         app.ui.settings.addSetting({
             id: "ModusFlow.PromptsSaveDirectory",
             category: ["ModusFlow", "Storage", "PromptsSaveDirectory"],

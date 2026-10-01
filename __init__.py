@@ -292,6 +292,11 @@ async def get_config_endpoint(request):
         config_data = {
             "ollama_url": settings.get("ollama_url", DEFAULT_CONFIG.get("ollama_url", "http://127.0.0.1:11434")),
             "ollama_timeout": settings.get("ollama_timeout", DEFAULT_CONFIG.get("ollama_timeout", 120)),
+            "ollama_cloud_url": settings.get("ollama_cloud_url", ""),
+            "ollama_cloud_api_key": settings.get("ollama_cloud_api_key", ""),
+            "cloud_api_url": settings.get("cloud_api_url", DEFAULT_CONFIG.get("cloud_api_url", "https://openrouter.ai/api/v1")),
+            "cloud_api_key": settings.get("cloud_api_key", ""),
+            "cloud_model": settings.get("cloud_model", DEFAULT_CONFIG.get("cloud_model", "deepseek/deepseek-chat")),
             "civitai_api_key": settings.get("civitai_api_key", ""),
             "prompts_save_directory": settings.get("prompts_save_directory", ""),
         }
@@ -307,7 +312,10 @@ async def save_config_endpoint(request):
         from .config import settings, save_config
 
         current_config = settings.copy()
-        for key in ("ollama_url", "ollama_timeout", "civitai_api_key", "prompts_save_directory"):
+        for key in (
+            "ollama_url", "ollama_timeout", "ollama_cloud_url", "ollama_cloud_api_key",
+            "cloud_api_url", "cloud_api_key", "cloud_model", "civitai_api_key", "prompts_save_directory"
+        ):
             if key in data:
                 val = data[key]
                 if key == "ollama_timeout":
