@@ -18,8 +18,14 @@ app.registerExtension({
                 const negativeWidget  = node.widgets?.find(w => w.name === "negative");
                 const dropdownWidget  = node.widgets?.find(w => w.name === "saved_prompt");
 
-                if (positiveWidget) positiveWidget.label = "Positive";
-                if (negativeWidget)  negativeWidget.label  = "Negative";
+                if (positiveWidget) {
+                    positiveWidget.label = "Positive";
+                    attachCommentShortcuts(positiveWidget);
+                }
+                if (negativeWidget) {
+                    negativeWidget.label = "Negative";
+                    attachCommentShortcuts(negativeWidget);
+                }
 
                 // ── Negative widget height control ────────────────────────────────
                 // ComfyUI's new frontend uses _arrangeWidgets() which checks:
@@ -146,6 +152,94 @@ app.registerExtension({
                 if (!widget) return;
                 widget.value = value;
                 if (widget.inputEl) widget.inputEl.value = value;
+            }
+
+            // ── Helper: Attach comment keyboard shortcuts (Ctrl+/, Ctrl+Shift+/, Shift+Alt+A) ──
+            function attachCommentShortcuts(widget) {
+                if (!widget) return;
+                const bindEl = (ta) => {
+                    if (!ta || ta._hasCommentHandler) return;
+                    ta._hasCommentHandler = true;
+
+                    ta.addEventListener("keydown", (e) => {
+                        const isMac = navigator.platform && navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+                        const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+
+                        // 1. Toggle Line Comment: Ctrl+/ or Cmd+/
+                        if (ctrlOrCmd && !e.shiftKey && !e.altKey && (e.key === "/" || e.code === "Slash")) {
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            const start = ta.selectionStart;
+                            const end = ta.selectionEnd;
+                            const text = ta.value;
+
+                            const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+                            let lineEnd = text.indexOf("\n", end);
+                            if (lineEnd === -1) lineEnd = text.length;
+
+                            const selectedBlock = text.slice(lineStart, lineEnd);
+                            const lines = selectedBlock.split("\n");
+
+                            const nonBlankLines = lines.filter(l => l.trim().length > 0);
+                            const allCommented = nonBlankLines.length > 0 && nonBlankLines.every(l => {
+                                const t = l.trim();
+                                return t.startsWith("#") || t.startsWith("//");
+                            });
+
+                            let newLines;
+                            if (allCommented) {
+                                newLines = lines.map(l => l.replace(/^(\s*)(?:#\s?|\/\/\s?)/, "$1"));
+                            } else {
+                                newLines = lines.map(l => l.length > 0 ? `# ${l}` : l);
+                            }
+
+                            const newBlock = newLines.join("\n");
+                            ta.setRangeText(newBlock, lineStart, lineEnd, "select");
+                            widget.value = ta.value;
+                            return;
+                        }
+
+                        // 2. Toggle Block Comment: Ctrl+Shift+/ or Shift+Alt+A or Cmd+Shift+/
+                        const isBlockShortcut = (ctrlOrCmd && e.shiftKey && (e.key === "/" || e.code === "Slash" || e.key === "?")) ||
+                                               (e.shiftKey && e.altKey && (e.key === "a" || e.key === "A" || e.code === "KeyA"));
+
+                        if (isBlockShortcut) {
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            const start = ta.selectionStart;
+                            const end = ta.selectionEnd;
+                            const text = ta.value;
+
+                            if (start === end) {
+                                ta.setRangeText("/*  */", start, end, "end");
+                                ta.selectionStart = start + 3;
+                                ta.selectionEnd = start + 3;
+                                widget.value = ta.value;
+                                return;
+                            }
+
+                            const selected = text.slice(start, end);
+                            const trimmed = selected.trim();
+
+                            if (trimmed.startsWith("/*") && trimmed.endsWith("*/")) {
+                                const unwrapped = selected.replace(/^\s*\/\*\s?/, "").replace(/\s?\*\/\s*$/, "");
+                                ta.setRangeText(unwrapped, start, end, "select");
+                            } else {
+                                const wrapped = `/* ${selected} */`;
+                                ta.setRangeText(wrapped, start, end, "select");
+                            }
+                            widget.value = ta.value;
+                        }
+                    });
+                };
+
+                if (widget.inputEl) bindEl(widget.inputEl);
+                requestAnimationFrame(() => {
+                    const ta = widget.inputEl || widget.element;
+                    if (ta) bindEl(ta);
+                });
             }
 
             // ── Load a JSON prompt file into the text boxes ───────────────────────

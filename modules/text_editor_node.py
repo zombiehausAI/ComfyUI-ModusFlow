@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import torch
 from nodes import CLIPTextEncode
 
@@ -58,11 +59,48 @@ class ModusFlowTextEditor:
     OUTPUT_NODE = False
     CATEGORY = "ModusFlow/Utilities"
 
+    @staticmethod
+    def filter_comments(text: str) -> str:
+        """Strip block comments (/* ... */) and line/inline comments (#, //), normalizing punctuation."""
+        if not text or not isinstance(text, str):
+            return ""
+
+        # 1. Strip block comments /* ... */ across single or multiple lines
+        text = re.sub(r'/\*[\s\S]*?\*/', '', text)
+
+        # 2. Strip full line comments starting with # or // (ignoring leading whitespace)
+        text = re.sub(r'^\s*(?:#|//).*$', '', text, flags=re.MULTILINE)
+
+        # 3. Strip inline // comments (ensuring not to match URLs like http:// or https://)
+        text = re.sub(r'(?<!https:)(?<!http:)\s+//.*$', '', text, flags=re.MULTILINE)
+
+        # 4. Strip inline # comments (preceded by whitespace and followed by space)
+        # Keeps hex color codes like #ff0000 intact
+        text = re.sub(r'\s+#\s+.*$', '', text, flags=re.MULTILINE)
+
+        # 5. Clean up duplicate commas and whitespace
+        text = re.sub(r',\s*,+', ', ', text)
+        text = re.sub(r'[ \t]+', ' ', text)
+
+        lines = []
+        for line in text.splitlines():
+            line = line.strip()
+            line = re.sub(r'^,\s*', '', line)
+            line = re.sub(r',\s*,+', ', ', line)
+            if line and line != ',':
+                lines.append(line)
+
+        return "\n".join(lines).strip()
+
     def process_text(self, positive, negative, saved_prompt, positive_input=None, negative_input=None, positive_embedding=None, negative_embedding=None, unique_id=None, extra_pnginfo=None):
         """Process positive and negative text inputs and return them as outputs."""
         # If connected inputs are provided, they take precedence over widget values
-        output_positive = positive_input if positive_input is not None else positive
-        output_negative = negative_input if negative_input is not None else negative
+        raw_positive = positive_input if positive_input is not None else positive
+        raw_negative = negative_input if negative_input is not None else negative
+
+        # Filter out comments from outputs
+        output_positive = self.filter_comments(raw_positive)
+        output_negative = self.filter_comments(raw_negative)
 
         # Append embeddings to respective outputs
         if positive_embedding is not None and positive_embedding.strip():
@@ -71,6 +109,7 @@ class ModusFlowTextEditor:
             output_negative = f"{output_negative}, {negative_embedding}".strip(", ")
 
         # Update the node's widget values in the workflow metadata if available
+        # Retain original raw text (with comments) in the saved workflow metadata
         if unique_id is not None and extra_pnginfo is not None:
             if isinstance(extra_pnginfo, dict) and "workflow" in extra_pnginfo:
                 workflow = extra_pnginfo["workflow"]
@@ -79,6 +118,6 @@ class ModusFlowTextEditor:
                     None,
                 )
                 if node:
-                    node["widgets_values"] = [output_positive, output_negative, saved_prompt]
+                    node["widgets_values"] = [positive, negative, saved_prompt]
 
         return (output_positive, output_negative,)

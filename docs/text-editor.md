@@ -158,11 +158,48 @@ Load template → Edit specific parts → Generate with conditioning output
 
 ## Keyboard Shortcuts
 
-- **Ctrl+A**: Select all text
-- **Ctrl+C**: Copy
-- **Ctrl+V**: Paste
-- **Ctrl+Z**: Undo
-- **Ctrl+Y**: Redo
+- **Ctrl + / (Cmd + /)**: Toggle line comment (`# `) on selected line(s)
+- **Ctrl + Shift + / (or Shift + Alt + A)**: Toggle block comment (`/* ... */`) around selection
+- **Ctrl + A**: Select all text
+- **Ctrl + C**: Copy
+- **Ctrl + V**: Paste
+- **Ctrl + Z**: Undo
+- **Ctrl + Y**: Redo
+
+## Commenting Out Prompts (Exclusion Engine)
+
+The editor allows you to comment out words, tags, or entire blocks so they are excluded from generation without losing your notes or having to delete text:
+
+### 1. Block Comments (`/* ... */`)
+Comment out phrases in the middle of a sentence or across multiple lines:
+- **Middle of prompt**:
+  ```text
+  masterpiece, portrait of a woman, /* wearing sunglasses, */ red dress, 85mm
+  ```
+  *Output sent to CLIP/KSampler:* `masterpiece, portrait of a woman, red dress, 85mm`
+- **Multi-line block**:
+  ```text
+  masterpiece, 8k,
+  /*
+  neon city street,
+  rainy reflections,
+  */
+  cozy indoor studio, warm rim light
+  ```
+
+### 2. Line Comments (`#` or `//`)
+Comment out entire lines or add notes at the end of a line:
+```text
+masterpiece, photorealistic portrait,
+# vintage 80s film grain,
+cinematic lighting, // test rim lighting later
+```
+
+### 3. Smart Comma Normalization
+When commenting out tags in the middle of a prompt (e.g. `tag1, /* tag2, */ tag3`), the engine automatically cleans up duplicate commas (`,\s*,`), leading/trailing commas, and excess whitespace so your output prompt remains cleanly formatted.
+
+### 4. Preserved in Saved Prompts & Workflows
+All comments remain preserved in your editor UI, in saved JSON files, and in workflow PNG metadata, allowing you to maintain rich notes and alternate prompt variations indefinitely.
 
 ## Troubleshooting
 
