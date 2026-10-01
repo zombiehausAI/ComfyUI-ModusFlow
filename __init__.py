@@ -22,6 +22,8 @@ from .modules.dynamic_guidance_node import ModusDynamicGuidance
 from .modules.dewax_texture_restore_node import ModusDeWaxTextureRestore
 from .modules.video_latent_node import ModusFlowVideoLatent
 from .modules.save_video_node import ModusFlowSaveVideo
+from .modules.song_writer_node import ModusFlowSongWriter
+from .modules.audio_mixer_node import ModusFlowAudioMixer
 import server
 from aiohttp import web
 import folder_paths
@@ -869,6 +871,8 @@ NODE_CLASS_MAPPINGS = {
     "ModusDeWaxTextureRestore": ModusDeWaxTextureRestore,
     "ModusFlowVideoLatent": ModusFlowVideoLatent,
     "ModusFlowSaveVideo": ModusFlowSaveVideo,
+    "ModusFlowSongWriter": ModusFlowSongWriter,
+    "ModusFlowAudioMixer": ModusFlowAudioMixer,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -896,6 +900,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ModusDeWaxTextureRestore": "Modus De-Wax Texture Restore",
     "ModusFlowVideoLatent": "ModusFlow Video Latent Preset",
     "ModusFlowSaveVideo": "ModusFlow Save Video",
+    "ModusFlowSongWriter": "ModusFlow Song Writer & Lyric Studio",
+    "ModusFlowAudioMixer": "ModusFlow Audio Mixer & Video Sync",
 }
 
 WEB_DIRECTORY = "./web"

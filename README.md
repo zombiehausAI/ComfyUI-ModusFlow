@@ -36,9 +36,13 @@ ComfyUI-ModusFlow provides 22 custom nodes organized into six categories:
 - Restormer - Deep learning image restoration (motion deblur, defocus, denoising)
 - Modus De-Wax Texture Restore - Post-decode micro-texture reconstruction and organic sensor grain restoration
 
-**🔊 Audio**
+**🔊 Audio & Video**
 - Save Audio - Multi-format audio export (flac, wav, mp3, ogg) with filename variables
 - ACE Step Audio 1.5 - TextEncodeAceStepAudio1.5 with song save/load for tags and lyrics
+- Song Writer & Lyric Studio - Structured lyric composition and musical style tags for vocal AI models (DiffRhythm, YuE)
+- Audio Mixer & Video Sync - Blends sound effects (MMAudio) with background music tracks for video muxing
+- Video Latent Preset - Wan 2.1 & Wan 2.2 spatio-temporal video latent generator with native I2V/T2V
+- Save Video - Multi-format video export (H.264, HEVC, VP9) with AAC audio muxing and interactive preview
 
 **⚙️ Conditioning**
 - Conditioning Concat - Encode text and concatenate onto existing conditioning
@@ -130,6 +134,8 @@ Edit `config.json` to configure:
 **Video & Audio**
 - [Save Video](docs/save-video.md)
 - [Save Audio](docs/save-audio.md)
+- [Song Writer & Lyric Studio](docs/song-writer.md)
+- [Audio Mixer & Video Sync](docs/audio-mixer.md)
 - [ACE Step Audio 1.5](docs/ace-step-audio.md)
 
 **Conditioning**
@@ -144,6 +150,9 @@ Edit `config.json` to configure:
 ### 📂 Example Workflows
 
 Pre-configured sample workflows with optimal defaults and pipe-driven architecture are provided in the [`workflows/`](workflows/) directory:
+- **[Wan2.2 (ModusFlow).json](workflows/Wan2.2%20(ModusFlow).json)**: Production Wan 2.2 Video Diffusion workflow with native 48-channel latent masking for Image-to-Video (I2V) and Text-to-Video (T2V).
+- **[Wan2.2 + MMAudio (ModusFlow).json](workflows/Wan2.2%20%2B%20MMAudio%20(ModusFlow).json)**: Wan 2.2 video generation with automated video-to-audio Foley synchronization via MMAudio, muxed into final MP4.
+- **[DiffRhythm Song Studio (ModusFlow).json](workflows/DiffRhythm%20Song%20Studio%20(ModusFlow).json)**: Complete full-song vocal music studio with structured lyrics, style prompts, and 320kbps MP3 audio export.
 - **[Wan2.1 (ModusFlow).json](workflows/Wan2.1%20(ModusFlow).json)**: Wan 2.1 Video Diffusion workflow with unified Text-to-Video (T2V) and Image-to-Video (I2V) toggle, spatio-temporal latents, and in-house video encoding.
 - **[Wan2.2 Image (ModusFlow).json](workflows/Wan2.2%20Image%20(ModusFlow).json)**: Wan 2.2 Still Image Generation workflow with 48-channel 5D latents, Dynamic Guidance decay, full 12-slot detailing pipeline, and Restormer / 4x Remacri upscaling.
 - **[Chroma (ModusFlow).json](workflows/Chroma%20(ModusFlow).json)**: Chroma 1-HD de-distilled Flux with CFG scale decay and anti-waxing pipe.
