@@ -1,20 +1,25 @@
 # Modus De-Wax Texture Restore
 
-Post-decode micro-texture reconstruction and organic sensor grain restoration node to eliminate plastic, waxy skin.
+Post-decode micro-texture reconstruction and organic sensor grain restoration node to eliminate plastic, waxy skin tones without LoRAs.
 
 ## Overview
 
-The **Modus De-Wax Texture Restore** node operates in post-processing directly on decoded RGB image tensors. By applying PyTorch-accelerated frequency separation and ITU-R BT.709 relative luminance analysis, it separates coarse skin tones from high-frequency micro-relief, boosts fine pore detail, and synthesizes subtle procedural sensor grain specifically weighted towards skin mid-tones.
+The **Modus De-Wax Texture Restore** node operates in post-processing directly on decoded RGB image tensors (`[B, H, W, C]`). By combining PyTorch-accelerated frequency separation with ITU-R BT.709 relative luminance analysis, it separates broad skin tone gradients from fine micro-relief, boosts realistic epidermal pore structure, and synthesizes subtle procedural sensor grain specifically weighted towards skin mid-tones.
 
-It works entirely in PyTorch on the GPU without costly round-trips to CPU, NumPy, or PIL.
+The entire processing pipeline runs natively on GPU tensors without converting to NumPy or PIL, ensuring high speed and zero memory transfer overhead.
+
+---
 
 ## Features
 
-- **Frequency Separation**: Extracts high-frequency micro-relief from low-frequency color masses using a separable Gaussian blur kernel.
-- **Pore & Micro-Texture Boost**: Enhances fine epidermal texture (`micro_texture`) without exaggerating blemishes or macro lines.
-- **Mid-tone Luminance Weighting**: Uses the parabolic curve `4.0 * luma * (1.0 - luma)` so procedural grain concentrates realistically on skin mid-tones while falling off in deep shadows and specular highlights.
-- **Masking Support**: Optional single-channel mask (`[B, H, W]` or `[H, W]`) with automatic bilinear alignment for targeted face or skin restoration.
-- **Pure Tensor GPU Pipeline**: Zero CPU transfers, strict `[0.0, 1.0]` clamping, and high performance.
+- **GPU Frequency Separation**: Uses a separable 2D Gaussian blur kernel with reflection padding to extract fine surface detail (`high_freq = image - low_freq`).
+- **Selective Pore & Texture Boost**: Amplifies genuine skin micro-relief (`micro_texture`) without exaggerating blemishes or creating harsh contour edges.
+- **Mid-Tone Weighted Grain**: Applies procedural sensor grain using the luminance curve $4.0 \times \text{luma} \times (1.0 - \text{luma})$. Grain concentrates naturally on skin mid-tones while gracefully tapering off in specular highlights and deep shadow blacks.
+- **Native ModusFlow Pipe Support**: Accepts and passes through ModusFlow's 5-tuple `PIPE` stream `(model, clip, vae, positive, negative)` so it can sit inline between KSampler and downstream detailers or upscalers.
+- **Masking Support**: Accepts optional 2D or 3D masks (`[H, W]` or `[B, H, W]`) with automatic bilinear scaling and linear interpolation (`torch.lerp`) to constrain restoration strictly to skin or face regions.
+- **Strict Clamping**: Guarantees output tensors remain clamped strictly between `0.0` and `1.0`.
+
+---
 
 ## Inputs
 
@@ -34,6 +39,8 @@ It works entirely in PyTorch on the GPU without costly round-trips to CPU, NumPy
 | mask | MASK | None | Optional single-channel mask to restrict texture restoration to specific regions |
 | pipe | PIPE | None | Optional ModusFlow pipe tuple `(model, clip, vae, positive, negative)` for passthrough |
 
+---
+
 ## Outputs
 
 | Output | Type | Description |
@@ -41,35 +48,45 @@ It works entirely in PyTorch on the GPU without costly round-trips to CPU, NumPy
 | image | IMAGE | Restored image tensor with recovered micro-texture and natural grain |
 | pipe | PIPE | Passthrough ModusFlow pipe forwarded directly to downstream nodes |
 
-## Technical Details
+---
 
-1. **Separable Gaussian Filter**: Employs horizontal and vertical 1D convolutions with reflection padding to eliminate edge artifacts.
-2. **ITU-R BT.709 Luminance**: Computes relative luminance via `0.2126*R + 0.7152*G + 0.0722*B`.
-3. **Mid-Tone Easing**: Procedural grain scales according to `4.0 * luma * (1.0 - luma)`, preventing noisy specular highlights and muddy crushed blacks.
-4. **Mask Interpolation**: When a mask is connected, linear interpolation (`torch.lerp`) blends between original and restored tensors.
+## Tuning Guide
 
-## Typical Workflow
+Different portrait styles benefit from tailored balance between `micro_texture` and `grain_intensity`:
 
-### Standalone Wiring
+| Desired Look | `grain_intensity` | `micro_texture` | `blur_radius` | Best For |
+|---|---|---|---|---|
+| **Silky Smooth / Editorial** | **`0.00`** – **`0.04`** | **`0.15`** – **`0.20`** | `3` | Studio portraits, glamour, beauty shots where visible grain is unwanted |
+| **Natural Photorealism** *(Recommended)* | **`0.05`** – **`0.08`** | **`0.25`** – **`0.30`** | `3` | Realistic everyday camera photos, organic skin with soft filmic texture |
+| **High-Detail Macro Close-Up** | **`0.08`** – **`0.12`** | **`0.35`** – **`0.45`** | `3` | Close-up face crops, visible skin pores, authentic cinematic film look |
+
+---
+
+## Workflows
+
+### ModusFlow Inline Pipe Flow
+Place directly between **ModusFlow KSampler** and **ModusFlow All-in-One Detailer** or **Upscaler**:
+```text
+[ModusFlow KSampler] ──┬──► (image) ──► [Modus De-Wax Texture Restore] ──┬──► (image) ──► [All-in-One Detailer]
+                       └──► (pipe)  ──►                                  └──► (pipe)  ──►
 ```
-KSampler ──▶ image ──▶ Modus De-Wax Texture Restore ──▶ Save Image / Upscaler
-                            ▲ (optional mask)
-YOLO / SAM Face Mask ───────┘
+
+### Targeted Face/Skin Mask Workflow
+Use a YOLO face/skin detection mask from an inpaint/detailer node to limit grain and pore restoration exclusively to facial areas:
+```text
+[ModusFlow KSampler] ──► (image) ──┬──► [Modus De-Wax Texture Restore] ──► [Save Image]
+                                   │         ▲ (mask)
+[YOLO / SAM Detector] ─────────────┴─────────┘
 ```
 
-### ModusFlow Pipe Flow
-```
-ModusFlow KSampler ──┬──► image ──► Modus De-Wax Texture Restore ──┬──► image ──► Save Image
-                     └──► pipe  ──►                              └──► pipe  ──► All-in-One Detailer / Upscaler
-```
-
-## Tips
-
-- **Subtle Organic Feel**: Default values (`micro_texture = 0.30`, `grain_intensity = 0.12`, `blur_radius = 3`) provide a realistic filmic texture for portrait renders.
-- **Intense Macro Detail**: For close-up portraits, increase `micro_texture` to `0.45` - `0.60`.
-- **Targeted Application**: Feed a face/skin segmentation mask from a detailer or detector node into `mask` to apply texture only to skin areas, keeping background or cloth untouched.
+---
 
 ## Troubleshooting
 
-- **Image appears too grainy**: Reduce `grain_intensity` to `0.05` - `0.08`.
-- **High-contrast ringing**: Keep `blur_radius` at `3` (recommended) to target only fine micro-pores rather than broader facial contours.
+- **Image feels too grainy or rough**:
+  - Lower **`grain_intensity`** to `0.04` – `0.06` (or `0.0` for zero noise).
+  - Check that **`micro_texture`** is between `0.15` and `0.25`.
+- **Halo or ringing around high-contrast edges**:
+  - Ensure **`blur_radius`** is set to `3` (higher values like `7` or `9` isolate larger contours rather than fine micro-pores).
+- **Mask edges are visible**:
+  - Feather or blur your input mask slightly before connecting it to `mask`.

@@ -94,6 +94,25 @@ The **All-in-One Detailer** runs sequential YOLO detection and inpainting passes
 
 ---
 
+### Workflow E: Photorealistic Skin & Anti-Waxy Texture (No LoRAs)
+
+Overcome the plastic, synthetic look caused by constant guidance and aggressive smoothing without needing skin LoRAs:
+
+1. **Inline Sampling Guidance with `Modus Dynamic Guidance`**:
+   - Insert between `ModusFlow Model Loader` (or `LoRA Loader`) and `ModusFlow KSampler` using the `pipe` connection.
+   - For **Chroma 1-HD / SDXL / Pony**: Set `guidance_mode` to `CFG Scale (Chroma / SDXL / SD1.5)`, `scale_start: 4.5`, `scale_end: 1.8 - 2.0`, and `decay_profile: cosine`.
+   - For **Flux.1-dev / SD3**: Set `guidance_mode` to `Flux / SD3 (Distilled Guidance)`, `scale_start: 3.5`, `scale_end: 1.8`, and keep KSampler `cfg: 1.0`.
+2. **Decode Latent Image**:
+   - Pass through standard VAE Decode to obtain an RGB `image`.
+3. **Micro-Texture Reconstruction with `Modus De-Wax Texture Restore`**:
+   - Connect `image` and `pipe` into `Modus De-Wax Texture Restore`.
+   - Set `micro_texture` (`0.20` - `0.30`) to selectively amplify genuine skin pores and micro-relief.
+   - Set `grain_intensity` (`0.05` - `0.08` for natural photorealism, `0.00` - `0.04` for studio glamour) to inject organic sensor noise concentrated in skin mid-tones.
+4. **Continue Pipe Stream**:
+   - Forward the output `image` and `pipe` directly into `ModusFlow All-in-One Detailer` or `Upscaler`.
+
+---
+
 ## 3. Recommended Node Pairings
 
 | Task | Primary Node | Complementary Nodes |
@@ -101,7 +120,9 @@ The **All-in-One Detailer** runs sequential YOLO detection and inpainting passes
 | Model & LoRA setup | `ModusFlow Model Loader` | `ModusFlow LoRA Loader`, `ModusFlow Latent Preset` |
 | Prompting | `ModusFlow Text Editor` | `ModusFlow Ollama Prompt Refiner`, `ModusFlow ShowText` |
 | Multi-encoder models (Flux/SD3) | `ModusFlow Multi-CLIP Text Encode` | `ModusFlow Model Loader` |
+| Dynamic Guidance / Anti-Waxing | `Modus Dynamic Guidance` | `ModusFlow KSampler`, `Modus De-Wax Texture Restore` |
 | Generation | `ModusFlow KSampler` | `ModusFlow Batch KSampler` |
+| Texture & Micro-Detail Restore | `Modus De-Wax Texture Restore` | `Modus Dynamic Guidance`, `ModusFlow All-in-One Detailer` |
 | Inpainting & detailing | `ModusFlow All-in-One Detailer` | `ModusFlow Detailer Slot` |
 | Upscaling & cleanup | `ModusFlow Upscaler` | `ModusFlow Restormer` |
 | Export | `ModusFlow Save Image` | `ModusFlow Save Audio` |
@@ -111,5 +132,5 @@ The **All-in-One Detailer** runs sequential YOLO detection and inpainting passes
 ## 4. Tips & Best Practices
 
 - **Zero-Wire Reordering**: In the LoRA Loader, drag LoRAs in the stack to reorder execution or toggle their checkbox to disable without deleting.
-- **Pipe Passthrough**: Nodes that accept a `pipe` also emit the updated `pipe`, allowing clean linear chains: `Model Loader -> LoRA Loader -> KSampler -> Detailer`.
+- **Pipe Passthrough**: Nodes that accept a `pipe` also emit the updated `pipe`, allowing clean linear chains: `Model Loader -> Dynamic Guidance -> KSampler -> De-Wax Restore -> Detailer`.
 - **YOLO Models**: Run `python utilities/download_models.py` to populate `models/ultralytics/` with face, hand, and person detector models.

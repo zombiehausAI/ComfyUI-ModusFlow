@@ -148,6 +148,17 @@ Edit `config.json` to configure:
 Model Loader → Multi-CLIP Text Encode → KSampler → VAE Decode
 ```
 
+### Photorealism & Anti-Waxy Skin Pipeline (No LoRAs)
+Eliminate plastic, waxy skin tones and over-baked contrast through a two-stage process (sampling decay + post-decode texture restoration):
+```
+[Model Loader] ── PIPE ──► [Modus Dynamic Guidance] ── PIPE ──► [KSampler] ──┬── IMAGE ──► [Modus De-Wax Texture Restore] ──► [Save Image]
+                                                                             └── PIPE   ──►
+```
+- **Stage 1 (Sampling)**: **[Modus Dynamic Guidance](docs/dynamic-guidance.md)** dynamically decays guidance strength (e.g. `4.5` → `1.8` via `cosine` curve). Preserves composition and prompt adherence in early steps while eliminating the synthetic plastic gloss and harsh saturation caused by constant guidance.
+  - *Chroma 1-HD / SDXL / Pony*: Use `CFG Scale (Chroma / SDXL / SD1.5)` mode (`scale_start: 4.5`, `scale_end: 1.8-2.0`).
+  - *Flux.1-dev / SD3*: Use `Flux / SD3 (Distilled Guidance)` mode (`scale_start: 3.5`, `scale_end: 1.8`, KSampler `cfg: 1.0`).
+- **Stage 2 (Post-Processing)**: **[Modus De-Wax Texture Restore](docs/dewax-texture-restore.md)** uses GPU-accelerated frequency separation and ITU-R BT.709 relative luminance weighting to amplify genuine skin pores (`micro_texture: 0.20-0.30`) and inject subtle, organic sensor grain into skin mid-tones (`grain_intensity: 0.05-0.08`).
+
 ### AI Prompt Enhancement
 ```
 Text → Ollama Prompt Refiner → CLIP Text Encode → Generation
