@@ -401,6 +401,7 @@ class ModusFlowImg2ImgVAEEncode:
 
         return {
             "required": {
+                "image_upload": (files if files else ["none"], {"image_upload": True}),
                 "fidelity": ("FLOAT", {"default": 75.0, "min": 0.0, "max": 100.0, "step": 1.0, "display": "slider"}),
                 "preset": (presets, {"default": presets[0]}),
                 "target_model": (target_models, {"default": target_models[0]}),
@@ -414,7 +415,6 @@ class ModusFlowImg2ImgVAEEncode:
             },
             "optional": {
                 "image": ("IMAGE",),
-                "image_upload": (files if files else ["none"], {"image_upload": True}),
                 "vae": ("VAE",),
                 "pipe": ("PIPE",),
                 "mask": ("MASK",),
@@ -426,8 +426,8 @@ class ModusFlowImg2ImgVAEEncode:
     RETURN_NAMES = ("latent", "denoise", "steps", "image", "pipe", "summary")
     FUNCTION = "process"
 
-    def process(self, fidelity, preset, target_model, alignment, resize_mode, curve, base_steps, step_compensation,
-                min_denoise, max_denoise, image=None, image_upload="none", vae=None, pipe=None, mask=None):
+    def process(self, image_upload, fidelity, preset, target_model, alignment, resize_mode, curve, base_steps,
+                step_compensation, min_denoise, max_denoise, image=None, vae=None, pipe=None, mask=None):
 
         # Resolve VAE
         resolved_vae = vae
@@ -437,7 +437,7 @@ class ModusFlowImg2ImgVAEEncode:
         if resolved_vae is None:
             raise ValueError("[ModusFlow Img2Img VAE Encode] VAE is required (provide via 'vae' input or 'pipe').")
 
-        # Resolve Image
+        # Resolve Image: external image input takes priority over uploaded image
         img_tensor = image
         if img_tensor is None and image_upload and image_upload != "none":
             image_path = folder_paths.get_annotated_filepath(image_upload)

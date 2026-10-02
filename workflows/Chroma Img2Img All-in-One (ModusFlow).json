@@ -1,5 +1,5 @@
 {
-  "id": "7e0a7f2a-e98c-468f-920e-021ac2610334",
+  "id": "d2eb68b4-eb85-4586-b10c-38aa4ebee909",
   "revision": 0,
   "last_node_id": 631,
   "last_link_id": 1204,
@@ -43,12 +43,12 @@
       ],
       "title": "ModusFlow Detailer Slot (Face)",
       "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot",
         "aux_id": "ComfyUI-ModusFlow.git",
-        "ver": "2586e995c032d1eb2c578dc720293dfaaf32c465",
-        "Node name for S&R": "ModusFlowDetailerSlot"
+        "ver": "2586e995c032d1eb2c578dc720293dfaaf32c465"
       },
       "widgets_values": [
-        "face_yolov8n.pt",
+        "face-yolo8n.pt",
         20,
         4.5,
         0.3,
@@ -61,7 +61,7 @@
         true
       ],
       "widgets_values_named": {
-        "model": "face_yolov8n.pt",
+        "model": "face-yolo8n.pt",
         "steps": 20,
         "cfg": 4.5,
         "denoise": 0.3,
@@ -113,12 +113,12 @@
       ],
       "title": "ModusFlow Detailer Slot (Eyes)",
       "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot",
         "aux_id": "ComfyUI-ModusFlow.git",
-        "ver": "5c2b19fa5aefaa8099a9e474fcaed73906527a59",
-        "Node name for S&R": "ModusFlowDetailerSlot"
+        "ver": "5c2b19fa5aefaa8099a9e474fcaed73906527a59"
       },
       "widgets_values": [
-        "face_yolov8n.pt",
+        "PitEyeDetailer-v2-seg.pt",
         30,
         4.5,
         0.3,
@@ -131,7 +131,7 @@
         true
       ],
       "widgets_values_named": {
-        "model": "face_yolov8n.pt",
+        "model": "PitEyeDetailer-v2-seg.pt",
         "steps": 30,
         "cfg": 4.5,
         "denoise": 0.3,
@@ -181,14 +181,14 @@
           ]
         }
       ],
-      "title": "ModusFlow Detailer Slot (Optional)",
+      "title": "ModusFlow Detailer Slot (Breasts)",
       "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot",
         "aux_id": "ComfyUI-ModusFlow.git",
-        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8",
-        "Node name for S&R": "ModusFlowDetailerSlot"
+        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8"
       },
       "widgets_values": [
-        "dummy_detector.pt",
+        "adetailers_breasts.pt",
         20,
         4.5,
         0.3,
@@ -201,7 +201,7 @@
         true
       ],
       "widgets_values_named": {
-        "model": "dummy_detector.pt",
+        "model": "adetailers_breasts.pt",
         "steps": 20,
         "cfg": 4.5,
         "denoise": 0.3,
@@ -251,14 +251,14 @@
           ]
         }
       ],
-      "title": "ModusFlow Detailer Slot (Optional)",
+      "title": "ModusFlow Detailer Slot (Penis)",
       "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot",
         "aux_id": "ComfyUI-ModusFlow.git",
-        "ver": "5c2b19fa5aefaa8099a9e474fcaed73906527a59",
-        "Node name for S&R": "ModusFlowDetailerSlot"
+        "ver": "5c2b19fa5aefaa8099a9e474fcaed73906527a59"
       },
       "widgets_values": [
-        "dummy_detector.pt",
+        "CockAndBallYolo8x.pt",
         10,
         4.5,
         0.3,
@@ -271,7 +271,7 @@
         true
       ],
       "widgets_values_named": {
-        "model": "dummy_detector.pt",
+        "model": "CockAndBallYolo8x.pt",
         "steps": 10,
         "cfg": 4.5,
         "denoise": 0.3,
@@ -321,14 +321,14 @@
           ]
         }
       ],
-      "title": "ModusFlow Detailer Slot (Optional)",
+      "title": "ModusFlow Detailer Slot (Nipples)",
       "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot",
         "aux_id": "ComfyUI-ModusFlow.git",
-        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8",
-        "Node name for S&R": "ModusFlowDetailerSlot"
+        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8"
       },
       "widgets_values": [
-        "dummy_detector.pt",
+        "adetailers_nipples.pt",
         20,
         4.5,
         0.3,
@@ -341,7 +341,7 @@
         true
       ],
       "widgets_values_named": {
-        "model": "dummy_detector.pt",
+        "model": "adetailers_nipples.pt",
         "steps": 20,
         "cfg": 4.5,
         "denoise": 0.3,
@@ -391,14 +391,14 @@
           ]
         }
       ],
-      "title": "ModusFlow Detailer Slot (Optional)",
+      "title": "ModusFlow Detailer Slot (Vagina)",
       "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot",
         "aux_id": "ComfyUI-ModusFlow.git",
-        "ver": "2b740779f36af09f1226847fe22140c5e98fa27f",
-        "Node name for S&R": "ModusFlowDetailerSlot"
+        "ver": "2b740779f36af09f1226847fe22140c5e98fa27f"
       },
       "widgets_values": [
-        "dummy_detector.pt",
+        "adetailers_vagina.pt",
         25,
         4.5,
         0.3,
@@ -408,10 +408,10 @@
         32,
         "euler",
         "simple",
-        true
+        false
       ],
       "widgets_values_named": {
-        "model": "dummy_detector.pt",
+        "model": "adetailers_vagina.pt",
         "steps": 25,
         "cfg": 4.5,
         "denoise": 0.3,
@@ -421,7 +421,7 @@
         "context_pad": 32,
         "sampler": "euler",
         "scheduler": "simple",
-        "enabled": true
+        "enabled": false
       }
     },
     {
@@ -463,12 +463,12 @@
       ],
       "title": "ModusFlow Detailer Slot (Lips)",
       "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot",
         "aux_id": "ComfyUI-ModusFlow.git",
-        "ver": "2b740779f36af09f1226847fe22140c5e98fa27f",
-        "Node name for S&R": "ModusFlowDetailerSlot"
+        "ver": "2b740779f36af09f1226847fe22140c5e98fa27f"
       },
       "widgets_values": [
-        "face_yolov8n.pt",
+        "lips_v1.pt",
         20,
         4.5,
         0.3,
@@ -481,7 +481,7 @@
         true
       ],
       "widgets_values_named": {
-        "model": "face_yolov8n.pt",
+        "model": "lips_v1.pt",
         "steps": 20,
         "cfg": 4.5,
         "denoise": 0.3,
@@ -531,15 +531,15 @@
           ]
         }
       ],
-      "title": "ModusFlow Detailer Slot (Lips)",
+      "title": "ModusFlow Detailer Slot (Teeth)",
       "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot",
         "aux_id": "ComfyUI-ModusFlow.git",
-        "ver": "2b740779f36af09f1226847fe22140c5e98fa27f",
-        "Node name for S&R": "ModusFlowDetailerSlot"
+        "ver": "2b740779f36af09f1226847fe22140c5e98fa27f"
       },
       "widgets_values": [
-        "face_yolov8n.pt",
-        10,
+        "JTeethSeg.pt",
+        20,
         4.5,
         0.3,
         32,
@@ -551,8 +551,8 @@
         true
       ],
       "widgets_values_named": {
-        "model": "face_yolov8n.pt",
-        "steps": 10,
+        "model": "JTeethSeg.pt",
+        "steps": 20,
         "cfg": 4.5,
         "denoise": 0.3,
         "padding": 32,
@@ -603,9 +603,9 @@
       ],
       "title": "ModusFlow Detailer Slot (Hands)",
       "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot",
         "aux_id": "ComfyUI-ModusFlow.git",
-        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8",
-        "Node name for S&R": "ModusFlowDetailerSlot"
+        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8"
       },
       "widgets_values": [
         "hand_yolov8n.pt",
@@ -669,15 +669,15 @@
           "links": []
         }
       ],
-      "title": "ModusFlow Detailer Slot (Optional)",
+      "title": "ModusFlow Detailer Slot (Nails)",
       "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot",
         "aux_id": "ComfyUI-ModusFlow.git",
-        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8",
-        "Node name for S&R": "ModusFlowDetailerSlot"
+        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8"
       },
       "widgets_values": [
-        "dummy_detector.pt",
-        20,
+        "nails_seg_s_yolov8_v1.pt",
+        30,
         4.5,
         0.15,
         32,
@@ -689,8 +689,8 @@
         true
       ],
       "widgets_values_named": {
-        "model": "dummy_detector.pt",
-        "steps": 20,
+        "model": "nails_seg_s_yolov8_v1.pt",
+        "steps": 30,
         "cfg": 4.5,
         "denoise": 0.15,
         "padding": 32,
@@ -739,14 +739,14 @@
           ]
         }
       ],
-      "title": "ModusFlow Detailer Slot (Optional)",
+      "title": "ModusFlow Detailer Slot (Feet)",
       "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot",
         "aux_id": "ComfyUI-ModusFlow.git",
-        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8",
-        "Node name for S&R": "ModusFlowDetailerSlot"
+        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8"
       },
       "widgets_values": [
-        "dummy_detector.pt",
+        "adetailerFootYolov8x_v20.pt",
         20,
         4.5,
         0.3,
@@ -759,7 +759,7 @@
         true
       ],
       "widgets_values_named": {
-        "model": "dummy_detector.pt",
+        "model": "adetailerFootYolov8x_v20.pt",
         "steps": 20,
         "cfg": 4.5,
         "denoise": 0.3,
@@ -803,9 +803,9 @@
         }
       ],
       "properties": {
+        "Node name for S&R": "ModusFlowRestormer",
         "aux_id": "ComfyUI-ModusFlow.git",
-        "ver": "1e8ed331c3746ec1959496866b140bb65c1f5d89",
-        "Node name for S&R": "ModusFlowRestormer"
+        "ver": "1e8ed331c3746ec1959496866b140bb65c1f5d89"
       },
       "widgets_values": [
         "dual_pixel_defocus_deblurring.pth",
@@ -845,15 +845,15 @@
         }
       ],
       "properties": {
+        "Node name for S&R": "UpscaleModelLoader",
         "cnr_id": "comfy-core",
-        "ver": "0.11.1",
-        "Node name for S&R": "UpscaleModelLoader"
+        "ver": "0.11.1"
       },
       "widgets_values": [
-        "4x-UltraSharp.pth"
+        "4x_foolhardy_Remacri.pth"
       ],
       "widgets_values_named": {
-        "model_name": "4x-UltraSharp.pth"
+        "model_name": "4x_foolhardy_Remacri.pth"
       }
     },
     {
@@ -893,9 +893,9 @@
         }
       ],
       "properties": {
+        "Node name for S&R": "ImageUpscaleWithModel",
         "cnr_id": "comfy-core",
-        "ver": "0.11.1",
-        "Node name for S&R": "ImageUpscaleWithModel"
+        "ver": "0.11.1"
       }
     },
     {
@@ -940,9 +940,9 @@
       ],
       "title": "Postitive Encode",
       "properties": {
+        "Node name for S&R": "CLIPTextEncode",
         "cnr_id": "comfy-core",
-        "ver": "0.10.0",
-        "Node name for S&R": "CLIPTextEncode"
+        "ver": "0.10.0"
       },
       "widgets_values": [
         ""
@@ -985,9 +985,9 @@
       ],
       "outputs": [],
       "properties": {
+        "Node name for S&R": "ModusFlowSaveImage",
         "aux_id": "ComfyUI-ModusFlow.git",
-        "ver": "82721378f8b0c72b347131f9698c11d6344ae41d",
-        "Node name for S&R": "ModusFlowSaveImage"
+        "ver": "82721378f8b0c72b347131f9698c11d6344ae41d"
       },
       "widgets_values": [
         "%date%/Chroma_%seed%",
@@ -1050,9 +1050,9 @@
       ],
       "title": "Negative Encode",
       "properties": {
+        "Node name for S&R": "CLIPTextEncode",
         "cnr_id": "comfy-core",
-        "ver": "0.10.0",
-        "Node name for S&R": "CLIPTextEncode"
+        "ver": "0.10.0"
       },
       "widgets_values": [
         ""
@@ -1095,9 +1095,9 @@
       ],
       "outputs": [],
       "properties": {
+        "Node name for S&R": "ModusFlowSaveImage",
         "aux_id": "ComfyUI-ModusFlow.git",
-        "ver": "801f2346c50668984bc3a4c9c98743e40419445a",
-        "Node name for S&R": "ModusFlowSaveImage"
+        "ver": "801f2346c50668984bc3a4c9c98743e40419445a"
       },
       "widgets_values": [
         "%date:yyyy-MM-dd%\\Upscaled\\Chroma_Upscaled_%seed%",
@@ -1116,6 +1116,30 @@
         "clean_vram": true,
         "seed": 991316483615537,
         "control_after_generate": "randomize"
+      }
+    },
+    {
+      "id": 579,
+      "type": "ModusFlowImageGallery",
+      "pos": [
+        -870,
+        80.82118797446795
+      ],
+      "size": [
+        530,
+        1050
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "ModusFlowImageGallery",
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "ver": "f34e6afba4acaddd61a25b49fbad0d35928e2128"
       }
     },
     {
@@ -1157,9 +1181,9 @@
       ],
       "title": "ModusFlow Detailer Slot (Person)",
       "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot",
         "aux_id": "ComfyUI-ModusFlow.git",
-        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8",
-        "Node name for S&R": "ModusFlowDetailerSlot"
+        "ver": "3454e686f0bb7a30aee8096ec35ce870515d03f8"
       },
       "widgets_values": [
         "person_yolov8n-seg.pt",
@@ -1221,9 +1245,9 @@
         }
       ],
       "properties": {
+        "Node name for S&R": "easy imageScaleDownBy",
         "cnr_id": "comfyui-easy-use",
-        "ver": "d60b61d5759b020eff3356b3d395a1adb5456869",
-        "Node name for S&R": "easy imageScaleDownBy"
+        "ver": "d60b61d5759b020eff3356b3d395a1adb5456869"
       },
       "widgets_values": [
         0.5
@@ -1366,18 +1390,18 @@
         }
       ],
       "properties": {
+        "Node name for S&R": "ModusFlowAllInOneDetailer",
         "aux_id": "ComfyUI-ModusFlow.git",
-        "ver": "892a4d8f05f65971c085153e5e2f27446a8018de",
-        "Node name for S&R": "ModusFlowAllInOneDetailer"
+        "ver": "892a4d8f05f65971c085153e5e2f27446a8018de"
       },
       "widgets_values": [
         0.7,
-        740858537435556,
+        584051538078678,
         "randomize"
       ],
       "widgets_values_named": {
         "confidence": 0.7,
-        "seed": 740858537435556,
+        "seed": 584051538078678,
         "control_after_generate": "randomize"
       }
     },
@@ -1547,12 +1571,12 @@
         }
       ],
       "properties": {
+        "Node name for S&R": "ModusFlowKSampler",
         "aux_id": "ModusFlow/ComfyUI-ModusFlow",
-        "ver": "d2cd15aeabdd170b0a1f383a42cdf6ad12978d74",
-        "Node name for S&R": "ModusFlowKSampler"
+        "ver": "d2cd15aeabdd170b0a1f383a42cdf6ad12978d74"
       },
       "widgets_values": [
-        997677797210412,
+        478818482761180,
         "randomize",
         40,
         4.5,
@@ -1562,7 +1586,7 @@
         false
       ],
       "widgets_values_named": {
-        "seed": 997677797210412,
+        "seed": 478818482761180,
         "control_after_generate": "randomize",
         "steps": 40,
         "cfg": 4.5,
@@ -1637,12 +1661,12 @@
         }
       ],
       "properties": {
+        "Node name for S&R": "ModusFlowModelLoader",
         "aux_id": "ModusFlow/ComfyUI-ModusFlow",
-        "ver": "560fe307282f4464b31c72613460cf15af22f571",
-        "Node name for S&R": "ModusFlowModelLoader"
+        "ver": "560fe307282f4464b31c72613460cf15af22f571"
       },
       "widgets_values": [
-        "Chroma1-HD.safetensors",
+        "Chroma\\Chroma1-HD.safetensors",
         "fp8_e4m3fn",
         false,
         "flux",
@@ -1661,12 +1685,12 @@
         0,
         "None",
         0,
-        "ae.safetensors",
+        "Chroma\\ae.sft",
         256,
         0
       ],
       "widgets_values_named": {
-        "unet_name": "Chroma1-HD.safetensors",
+        "unet_name": "Chroma\\Chroma1-HD.safetensors",
         "weight_dtype": "fp8_e4m3fn",
         "use_dual_clip_loader": false,
         "dual_clip_type": "flux",
@@ -1685,9 +1709,103 @@
         "clip_skip": 0,
         "checkpoint_name": "None",
         "use_checkpoint_clip": 0,
-        "vae_name": "ae.safetensors",
+        "vae_name": "Chroma\\ae.sft",
         "t5_min_length": 256,
         "t5_min_padding": 0
+      }
+    },
+    {
+      "id": 589,
+      "type": "ModusFlowTextEditor",
+      "pos": [
+        -1263.6317812288705,
+        81.03668306713274
+      ],
+      "size": [
+        750,
+        720
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive_input",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "negative_input",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "positive_embedding",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "negative_embedding",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "text_input",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "embedding",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "negative",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModusFlowTextEditor",
+        "aux_id": "ModusFlow/ComfyUI-ModusFlow",
+        "ver": "2e1e3e9deb5a6c9c6ae74658b89de843fbe83bee"
+      },
+      "widgets_values": [
+        "aesthetic 9, aesthetic 8, aesthetic 7,\n\nmasterpiece, highest quality, incredibly absurdres, ultra hd, full body image, insanely detailed, ultra-sharp background, crystal clear depth, razor sharp focus, atmospheric, depth of field.\n\nrealistic, hyperrealistic, true to life, digital photo, realistic background.\n\nunderbutt, cleavage, fellatio, blowjob, deepthroat.\n\nA man and a woman in a television news studio. The woman is giving the man fellatio.\n\nShe has long, messy hair with some of it pulled back into a loose ponytail. Her tanned skin glistens in the light from light perspiration. \n\nShe is wearing a very short, very tight, black business skirt, a very tight, white, button down business shirt that exposes a lot of cleavage, very sheer, Wolford Fatal 15 seamless pantyhose, and a pair of Christian Louboutin Pigalle black stiletto high heels with pointed toes.\n\nHer body is decorated with light makeup and glistening, glossy red lipstick. She is extremely sexual and sultry. She is very turned on and aroused. \n\nThe man is wearing a nice business suit, with his pants unzipped and his very erect penis exposed. \n\nThe woman is squatting in front of the man with her legs apart, showing the viewer her vagina through her pantyhose, with his very erect penis in her mouth. \n\nIndoors, news, news studio, tables, chairs, television studio, scenery.\n\n",
+        "ugly, overexposed, deformed, low quality, unfinished, out of focus, disfigure, watermark, signature, tan lines, fake,  grainy, lotion bottle, pubic hair, bra, blurry, panties, underwear, gusset.",
+        "prompts",
+        "Chroma",
+        "Blowjob Office.json",
+        "Blowjob Office.json",
+        null,
+        null,
+        null
+      ],
+      "widgets_values_named": {
+        "positive": "aesthetic 9, aesthetic 8, aesthetic 7,\n\nmasterpiece, highest quality, incredibly absurdres, ultra hd, full body image, insanely detailed, ultra-sharp background, crystal clear depth, razor sharp focus, atmospheric, depth of field.\n\nrealistic, hyperrealistic, true to life, digital photo, realistic background.\n\nunderbutt, cleavage, fellatio, blowjob, deepthroat.\n\nA man and a woman in a television news studio. The woman is giving the man fellatio.\n\nShe has long, messy hair with some of it pulled back into a loose ponytail. Her tanned skin glistens in the light from light perspiration. \n\nShe is wearing a very short, very tight, black business skirt, a very tight, white, button down business shirt that exposes a lot of cleavage, very sheer, Wolford Fatal 15 seamless pantyhose, and a pair of Christian Louboutin Pigalle black stiletto high heels with pointed toes.\n\nHer body is decorated with light makeup and glistening, glossy red lipstick. She is extremely sexual and sultry. She is very turned on and aroused. \n\nThe man is wearing a nice business suit, with his pants unzipped and his very erect penis exposed. \n\nThe woman is squatting in front of the man with her legs apart, showing the viewer her vagina through her pantyhose, with his very erect penis in her mouth. \n\nIndoors, news, news studio, tables, chairs, television studio, scenery.\n\n",
+        "negative": "ugly, overexposed, deformed, low quality, unfinished, out of focus, disfigure, watermark, signature, tan lines, fake,  grainy, lotion bottle, pubic hair, bra, blurry, panties, underwear, gusset.",
+        "type_filter": "prompts",
+        "category_filter": "Chroma",
+        "saved_prompt": "Blowjob Office.json",
+        "prompt_category": "Blowjob Office.json",
+        "Save Prompt": null,
+        "Update Selected": null,
+        "Refresh List": null
       }
     },
     {
@@ -1783,19 +1901,19 @@
         }
       ],
       "properties": {
+        "Node name for S&R": "ModusFlowLoraLoader",
         "aux_id": "ModusFlow/ComfyUI-ModusFlow",
-        "ver": "6e17ff3e25b9aa707bd785eaa854d7ad7b117d76",
-        "Node name for S&R": "ModusFlowLoraLoader"
+        "ver": "6e17ff3e25b9aa707bd785eaa854d7ad7b117d76"
       },
       "widgets_values": [
-        "[{\"name\": \"example_lora_style.safetensors\", \"strength\": 0.8, \"enabled\": true}, {\"name\": \"example_lora_detail.safetensors\", \"strength\": 0.5, \"enabled\": false}]",
+        "[{\"name\":\"Chroma\\\\Amanda_Chroma_V3.safetensors\",\"strength\":1,\"enabled\":false},{\"name\":\"Chroma\\\\Amber_Chroma_V2.safetensors\",\"enabled\":false,\"strength\":1},{\"name\":\"Chroma\\\\Ariadna_Majewska_Chroma_V2.safetensors\",\"enabled\":false,\"strength\":1},{\"name\":\"Chroma\\\\Lydia_Violet_Chroma_V1.safetensors\",\"enabled\":false,\"strength\":1},{\"name\":\"Chroma\\\\Kelsey_Kernstine_Chroma_V1.safetensors\",\"strength\":1,\"enabled\":true},{\"name\":\"Chroma\\\\Evgenia Taranukhina_Chroma_V8.safetensors\",\"enabled\":false,\"strength\":1},{\"name\":\"Chroma\\\\Miku_Martineau_Chroma_V1.safetensors\",\"enabled\":false,\"strength\":1},{\"name\":\"Chroma\\\\Bridget_Regan_Chroma_V3.safetensors\",\"enabled\":false,\"strength\":1},{\"name\":\"Chroma\\\\Wolford_Fatal_15_Pantyhose_Chroma_V2.safetensors\",\"strength\":0.35000000000000003,\"enabled\":false},{\"name\":\"Chroma\\\\Cecilia_De_Rafael_Shiny_Pantyhose_Chroma_V3.safetensors\",\"enabled\":false,\"strength\":0.6},{\"name\":\"Chroma\\\\Christian_Louboutin_Pigalle_Black_Heels_Chroma_V2.safetensors\",\"strength\":0.6,\"enabled\":false},{\"name\":\"Chroma\\\\sultry-chroma.safetensors\",\"enabled\":true,\"strength\":0.8},{\"name\":\"Chroma\\\\- Chroma - profphotos_atmo_pref_s_m_4.0.safetensors\",\"enabled\":false,\"strength\":0.8999999999999999},{\"name\":\"Chroma\\\\RealisticAnime_Chroma-000003.safetensors\",\"enabled\":false,\"strength\":0.85},{\"name\":\"Chroma\\\\Real_Pussy_Chroma.safetensors\",\"enabled\":false,\"strength\":0.85},{\"name\":\"Chroma\\\\chroma_defluxer.safetensors\",\"enabled\":false,\"strength\":1.45}]",
         "flux",
         "",
         "",
         ""
       ],
       "widgets_values_named": {
-        "lora_stack": "[{\"name\": \"example_lora_style.safetensors\", \"strength\": 0.8, \"enabled\": true}, {\"name\": \"example_lora_detail.safetensors\", \"strength\": 0.5, \"enabled\": false}]",
+        "lora_stack": "[{\"name\":\"Chroma\\\\Amanda_Chroma_V3.safetensors\",\"strength\":1,\"enabled\":false},{\"name\":\"Chroma\\\\Amber_Chroma_V2.safetensors\",\"enabled\":false,\"strength\":1},{\"name\":\"Chroma\\\\Ariadna_Majewska_Chroma_V2.safetensors\",\"enabled\":false,\"strength\":1},{\"name\":\"Chroma\\\\Lydia_Violet_Chroma_V1.safetensors\",\"enabled\":false,\"strength\":1},{\"name\":\"Chroma\\\\Kelsey_Kernstine_Chroma_V1.safetensors\",\"strength\":1,\"enabled\":true},{\"name\":\"Chroma\\\\Evgenia Taranukhina_Chroma_V8.safetensors\",\"enabled\":false,\"strength\":1},{\"name\":\"Chroma\\\\Miku_Martineau_Chroma_V1.safetensors\",\"enabled\":false,\"strength\":1},{\"name\":\"Chroma\\\\Bridget_Regan_Chroma_V3.safetensors\",\"enabled\":false,\"strength\":1},{\"name\":\"Chroma\\\\Wolford_Fatal_15_Pantyhose_Chroma_V2.safetensors\",\"strength\":0.35000000000000003,\"enabled\":false},{\"name\":\"Chroma\\\\Cecilia_De_Rafael_Shiny_Pantyhose_Chroma_V3.safetensors\",\"enabled\":false,\"strength\":0.6},{\"name\":\"Chroma\\\\Christian_Louboutin_Pigalle_Black_Heels_Chroma_V2.safetensors\",\"strength\":0.6,\"enabled\":false},{\"name\":\"Chroma\\\\sultry-chroma.safetensors\",\"enabled\":true,\"strength\":0.8},{\"name\":\"Chroma\\\\- Chroma - profphotos_atmo_pref_s_m_4.0.safetensors\",\"enabled\":false,\"strength\":0.8999999999999999},{\"name\":\"Chroma\\\\RealisticAnime_Chroma-000003.safetensors\",\"enabled\":false,\"strength\":0.85},{\"name\":\"Chroma\\\\Real_Pussy_Chroma.safetensors\",\"enabled\":false,\"strength\":0.85},{\"name\":\"Chroma\\\\chroma_defluxer.safetensors\",\"enabled\":false,\"strength\":1.45}]",
         "base_model_name": "flux",
         "lora_filter": "",
         "civitai_api_key": "",
@@ -1859,26 +1977,28 @@
         }
       ],
       "properties": {
+        "Node name for S&R": "ModusFlowTextEditor",
         "aux_id": "ModusFlow/ComfyUI-ModusFlow",
-        "ver": "aa93e6dbc4797c5bc97ec424d6eaba0587c1b9a7",
-        "Node name for S&R": "ModusFlowTextEditor"
+        "ver": "aa93e6dbc4797c5bc97ec424d6eaba0587c1b9a7"
       },
       "widgets_values": [
-        "masterpiece, high quality, photorealistic 8k portrait of an elegant character in a sunlit architectural conservatory,\n/* dramatic atmospheric haze, */\nnatural skin texture, soft diffused morning sunlight, 85mm portrait photography, cinematic composition, shallow depth of field, sharp focus, hyperrealistic\n# alternative style notes:\n// vintage film grain, warm color grading",
-        "ugly, deformed, bad anatomy, blurry, low quality, distortion, extra limbs, watermark, signature",
-        "--all categories--",
-        "--select prompt--",
-        "",
+        "aesthetic 9, aesthetic 8, aesthetic 7, \n\nhigh quality, highest quality, masterpiece, best quality, elaborate, aesthetic, incredibly absurdres,  ultra hd, full body photo, insanely detailed, razor sharp focus, atmospheric, depth of field.\n\nphoto realistic, natural light, extremely realistic, digital photo, true to life, realistic, professional photo, hyperrealistic scenery.\n\nA woman in the lobby of a very nice, upscale beach resort. \n\nShe is a futanari, with a very long, veiny, lubricated, extremely erect, glistening penis.\n\nShe has very long, messy, hair and with some of it pulled back into a loose ponytail, long, slim legs, and a very athletic, petite build. Her tanned, soft skin glistens in the light from perspiration.\n\nHer face is decorated with light makeup, and glistening, glossy red lipstick. She is extremely sexual and sultry. She is very turned on and aroused.\n\n/* She is wearing very sexy, very revealing lingerie. She is posing, casually, extremely provocatively and very sexy. */\n\n/* She is wearing a very tiny, very sheer, very revealing, wicked weasel slingshot bikini, and a pair of platform wedge sandals. Her nipples are visible through her revealing top. She is posing, casually, extremely provocatively and very sexy. */\n\nShe is nude, posing casually, extremely provocatively and very sexy. Semen is oozing from her penis, covering the shaft of her penis. Her hand is wrapped around her penis, stroking it. Semen is on her chest, her stomach, her legs, her hands, and her legs.\n\nwhite sand, beach, ocean, waves, sun, daytime, sky, couch, labia.",
+        "ugly, overexposed, deformed, low quality, unfinished, out of focus, disfigure, watermark, signature, tan lines, fake,  grainy, lotion bottle, pubic hair, bra, blurry, panties, underwear, gusset.",
+        "prompts",
+        "Chroma",
+        "Beach Beauty.json",
+        "Beach Beauty.json",
         null,
         null,
         null
       ],
       "widgets_values_named": {
-        "positive": "masterpiece, high quality, photorealistic 8k portrait of an elegant character in a sunlit architectural conservatory,\n/* dramatic atmospheric haze, */\nnatural skin texture, soft diffused morning sunlight, 85mm portrait photography, cinematic composition, shallow depth of field, sharp focus, hyperrealistic\n# alternative style notes:\n// vintage film grain, warm color grading",
-        "negative": "ugly, deformed, bad anatomy, blurry, low quality, distortion, extra limbs, watermark, signature",
-        "category_filter": "--all categories--",
-        "saved_prompt": "--select prompt--",
-        "prompt_category": "",
+        "positive": "aesthetic 9, aesthetic 8, aesthetic 7, \n\nhigh quality, highest quality, masterpiece, best quality, elaborate, aesthetic, incredibly absurdres,  ultra hd, full body photo, insanely detailed, razor sharp focus, atmospheric, depth of field.\n\nphoto realistic, natural light, extremely realistic, digital photo, true to life, realistic, professional photo, hyperrealistic scenery.\n\nA woman in the lobby of a very nice, upscale beach resort. \n\nShe is a futanari, with a very long, veiny, lubricated, extremely erect, glistening penis.\n\nShe has very long, messy, hair and with some of it pulled back into a loose ponytail, long, slim legs, and a very athletic, petite build. Her tanned, soft skin glistens in the light from perspiration.\n\nHer face is decorated with light makeup, and glistening, glossy red lipstick. She is extremely sexual and sultry. She is very turned on and aroused.\n\n/* She is wearing very sexy, very revealing lingerie. She is posing, casually, extremely provocatively and very sexy. */\n\n/* She is wearing a very tiny, very sheer, very revealing, wicked weasel slingshot bikini, and a pair of platform wedge sandals. Her nipples are visible through her revealing top. She is posing, casually, extremely provocatively and very sexy. */\n\nShe is nude, posing casually, extremely provocatively and very sexy. Semen is oozing from her penis, covering the shaft of her penis. Her hand is wrapped around her penis, stroking it. Semen is on her chest, her stomach, her legs, her hands, and her legs.\n\nwhite sand, beach, ocean, waves, sun, daytime, sky, couch, labia.",
+        "negative": "ugly, overexposed, deformed, low quality, unfinished, out of focus, disfigure, watermark, signature, tan lines, fake,  grainy, lotion bottle, pubic hair, bra, blurry, panties, underwear, gusset.",
+        "type_filter": "prompts",
+        "category_filter": "Chroma",
+        "saved_prompt": "Beach Beauty.json",
+        "prompt_category": "Beach Beauty.json",
         "Save Prompt": null,
         "Update Selected": null,
         "Refresh List": null
@@ -1927,22 +2047,22 @@
         }
       ],
       "properties": {
+        "Node name for S&R": "ModusDynamicGuidance",
         "aux_id": "ModusFlow/ComfyUI-ModusFlow",
-        "ver": "0989dad862e261586ff98024f8c4f4b539227e5a",
-        "Node name for S&R": "ModusDynamicGuidance"
+        "ver": "0989dad862e261586ff98024f8c4f4b539227e5a"
       },
       "widgets_values": [
         4.5,
-        1.8,
-        1.0,
-        "cosine",
+        2,
+        1,
+        "linear",
         "CFG Scale (Chroma / SDXL / SD1.5)"
       ],
       "widgets_values_named": {
         "scale_start": 4.5,
-        "scale_end": 1.8,
-        "decay_power": 1.0,
-        "decay_profile": "cosine",
+        "scale_end": 2,
+        "decay_power": 1,
+        "decay_profile": "linear",
         "guidance_mode": "CFG Scale (Chroma / SDXL / SD1.5)"
       }
     },
@@ -1996,18 +2116,18 @@
         }
       ],
       "properties": {
+        "Node name for S&R": "ModusDeWaxTextureRestore",
         "aux_id": "ModusFlow/ComfyUI-ModusFlow",
-        "ver": "0989dad862e261586ff98024f8c4f4b539227e5a",
-        "Node name for S&R": "ModusDeWaxTextureRestore"
+        "ver": "0989dad862e261586ff98024f8c4f4b539227e5a"
       },
       "widgets_values": [
         0.3,
-        0.06,
+        0.04,
         3
       ],
       "widgets_values_named": {
         "micro_texture": 0.3,
-        "grain_intensity": 0.06,
+        "grain_intensity": 0.04,
         "blur_radius": 3
       }
     },
@@ -2016,11 +2136,11 @@
       "type": "ModusFlowImg2ImgVAEEncode",
       "pos": [
         360,
-        780
+        800
       ],
       "size": [
-        380,
-        480
+        390,
+        760
       ],
       "flags": {},
       "order": 8,
@@ -2097,6 +2217,7 @@
         "Node name for S&R": "ModusFlowImg2ImgVAEEncode"
       },
       "widgets_values": [
+        "none",
         75.0,
         "Faithful Restyle (75% Fidelity)",
         "Chroma 1-HD",
@@ -2106,10 +2227,10 @@
         25,
         true,
         0.2,
-        0.95,
-        "none"
+        0.95
       ],
       "widgets_values_named": {
+        "image_upload": "none",
         "fidelity": 75.0,
         "preset": "Faithful Restyle (75% Fidelity)",
         "target_model": "Chroma 1-HD",
@@ -2119,8 +2240,7 @@
         "base_steps": 25,
         "step_compensation": true,
         "min_denoise": 0.2,
-        "max_denoise": 0.95,
-        "image_upload": "none"
+        "max_denoise": 0.95
       }
     },
     {
@@ -2128,7 +2248,7 @@
       "type": "ModusFlowShowText",
       "pos": [
         360,
-        1290
+        1340
       ],
       "size": [
         380,
@@ -2659,10 +2779,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 1.553522046476897,
+      "scale": 0.45,
       "offset": [
-        -863.9731481314576,
-        -248.95028200132066
+        808.3443086902251,
+        300.61456745500436
       ]
     },
     "frontendVersion": "1.53.10",
