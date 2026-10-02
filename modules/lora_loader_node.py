@@ -62,16 +62,76 @@ class ModusFlowLoraLoader:
                 "negative": ("CONDITIONING",),
                 # Seed is a passthrough and provides deterministic random selection.
                 "seed": ("INT", {"forceInput": True}),
-                "random_pick_count": ("INT", {"default": 1, "min": 1, "max": 10, "step": 1}),
                 # This widget is for the UI only, to filter the LoRA list.
                 "lora_filter": ("STRING", {"default": "", "multiline": False}),
                 # This widget holds the API key, making it part of the workflow.
                 "civitai_api_key": ("STRING", {"default": "", "multiline": False, "hidden": True}),
+                "random_pick_count": ("INT", {"default": 1, "min": 1, "max": 10, "step": 1}),
             }
         }
 
-    RETURN_TYPES = ("MODEL", "CLIP", "CONDITIONING", "CONDITIONING", "INT", "PIPE", "STRING")
-    RETURN_NAMES = ("model", "clip", "positive", "negative", "seed", "pipe", "loaded_loras")
+    @staticmethod
+    def extract_lora_trigger_words(lora_file_path: str) -> list[str]:
+        """Extracts trained trigger words from sidecar json/civitai.info or safetensors header."""
+        if not lora_file_path or not os.path.isfile(lora_file_path):
+            return []
+
+        base_no_ext, _ = os.path.splitext(lora_file_path)
+
+        # 1. Check sidecar files: .civitai.info or .json
+        for ext in ('.civitai.info', '.json', '.info'):
+            sidecar = base_no_ext + ext
+            if os.path.isfile(sidecar):
+                try:
+                    with open(sidecar, 'r', encoding='utf-8') as f:
+                        meta = json.load(f)
+                        tw = meta.get("trainedWords")
+                        if isinstance(tw, list) and tw:
+                            return [str(w).strip() for w in tw if str(w).strip()]
+                except Exception:
+                    pass
+
+        # 2. Check safetensors header metadata directly (fast, zero torch overhead)
+        if lora_file_path.lower().endswith(".safetensors"):
+            try:
+                with open(lora_file_path, 'rb') as f:
+                    header_size_bytes = f.read(8)
+                    if len(header_size_bytes) == 8:
+                        import struct
+                        header_len = struct.unpack('<Q', header_size_bytes)[0]
+                        if 0 < header_len < 50 * 1024 * 1024:
+                            header_json = f.read(header_len).decode('utf-8', errors='ignore')
+                            meta = json.loads(header_json).get("__metadata__", {})
+
+                            # Direct trained words or modelspec tags
+                            tw = meta.get("trained_words") or meta.get("modelspec.tags")
+                            if isinstance(tw, str) and tw:
+                                return [t.strip() for t in tw.split(",") if t.strip()]
+
+                            # Dataset tag frequency: extract top tags
+                            tag_freq = meta.get("ss_tag_frequency")
+                            if tag_freq:
+                                if isinstance(tag_freq, str):
+                                    try:
+                                        tag_freq = json.loads(tag_freq)
+                                    except Exception:
+                                        pass
+                                if isinstance(tag_freq, dict):
+                                    all_tags = {}
+                                    for ds, tags in tag_freq.items():
+                                        if isinstance(tags, dict):
+                                            for t, cnt in tags.items():
+                                                all_tags[t] = all_tags.get(t, 0) + (cnt if isinstance(cnt, (int, float)) else 1)
+                                    if all_tags:
+                                        sorted_tags = sorted(all_tags.keys(), key=lambda x: all_tags[x], reverse=True)
+                                        return sorted_tags[:8]
+            except Exception:
+                pass
+
+        return []
+
+    RETURN_TYPES = ("MODEL", "CLIP", "CONDITIONING", "CONDITIONING", "INT", "PIPE", "STRING", "STRING")
+    RETURN_NAMES = ("model", "clip", "positive", "negative", "seed", "pipe", "loaded_loras", "trigger_words")
     FUNCTION = "load_loras"
     CATEGORY = "ModusFlow/Loaders"
 
@@ -118,13 +178,20 @@ class ModusFlowLoraLoader:
         except (json.JSONDecodeError, TypeError):
             lora_items = []
 
+        try:
+            random_pick_count = int(random_pick_count)
+        except (ValueError, TypeError):
+            random_pick_count = 1
+        if random_pick_count < 1:
+            random_pick_count = 1
+
         enabled_loras = [item for item in lora_items if item.get("enabled", False)]
 
         if not enabled_loras:
             if positive is None: positive = []
             if negative is None: negative = []
             output_pipe = (model, clip, vae, positive, negative)
-            return (model, clip, positive, negative, seed, output_pipe, "No LoRAs loaded")
+            return (model, clip, positive, negative, seed, output_pipe, "No LoRAs loaded", "")
 
         # Separate fixed vs random pool
         fixed_loras = [item for item in enabled_loras if not item.get("random", False)]
@@ -138,6 +205,7 @@ class ModusFlowLoraLoader:
 
         active_loras = [(item, "Fixed") for item in fixed_loras] + [(item, "Random") for item in chosen_random]
         loaded_summaries = []
+        all_trigger_words = []
 
         for item, tag in active_loras:
             lora_name = item.get("name")
@@ -146,6 +214,13 @@ class ModusFlowLoraLoader:
 
             lora_file = self.find_lora_path(lora_name, lora_paths)
             if lora_file:
+                full_lora_path = folder_paths.get_full_path("loras", lora_file)
+                if full_lora_path:
+                    triggers = self.extract_lora_trigger_words(full_lora_path)
+                    for t in triggers:
+                        if t not in all_trigger_words:
+                            all_trigger_words.append(t)
+
                 strength = item.get("strength", 1.0)
                 if strength == 0:
                     continue
@@ -162,7 +237,8 @@ class ModusFlowLoraLoader:
         
         output_pipe = (model, clip, vae, positive, negative)
         lora_summary_text = "\n".join(loaded_summaries) if loaded_summaries else "No LoRAs loaded"
-        return (model, clip, positive, negative, seed, output_pipe, lora_summary_text)
+        trigger_words_str = ", ".join(all_trigger_words)
+        return (model, clip, positive, negative, seed, output_pipe, lora_summary_text, trigger_words_str)
 
 NODE_CLASS_MAPPINGS = {
     "ModusFlowLoraLoader": ModusFlowLoraLoader

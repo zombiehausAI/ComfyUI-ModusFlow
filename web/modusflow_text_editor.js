@@ -177,8 +177,46 @@ function injectSyntaxStyles() {
             user-select: none;
             -webkit-user-select: none;
         }
+        .modusflow-token-badge {
+            position: absolute;
+            bottom: 4px;
+            right: 8px;
+            font-size: 11px;
+            line-height: 1.2;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(15, 23, 42, 0.82);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            pointer-events: none;
+            z-index: 10;
+            font-family: ui-monospace, SFMono-Regular, monospace;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            user-select: none;
+            transition: all 0.2s ease;
+        }
+        .modusflow-token-badge.token-warning {
+            color: #fbbf24;
+            border-color: rgba(251, 191, 36, 0.5);
+            background: rgba(45, 26, 10, 0.88);
+        }
     `;
     document.head.appendChild(styleEl);
+}
+
+function estimateTokens(text) {
+    if (!text) return { words: 0, tokens: 0, chunks: 0 };
+    const clean = text
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/(?:^|\n)\s*(?:#|\/\/)[^\n]*/g, "")
+        .trim();
+    if (!clean) return { words: 0, tokens: 0, chunks: 0 };
+
+    const words = clean.split(/\s+/).filter(Boolean);
+    const punctuation = (clean.match(/[,.:;!?()\[\]{}]/g) || []).length;
+    const tokens = Math.max(words.length, Math.round(words.length * 1.25 + punctuation * 0.5));
+    const chunks = Math.ceil(tokens / 75);
+    return { words: words.length, tokens, chunks };
 }
 
 function escapeHtml(str) {
@@ -320,7 +358,25 @@ function attachSyntaxHighlighter(widget, node) {
             backdrop.style.tabSize = "4";
         }
 
+        const tokenBadge = document.createElement("div");
+        tokenBadge.className = "modusflow-token-badge";
+        tokenBadge.title = "Estimated words / CLIP tokens (75-token chunks)";
+        parent.appendChild(tokenBadge);
+
         function render() {
+            const stats = estimateTokens(ta.value || "");
+            if (stats.tokens > 0) {
+                tokenBadge.style.display = "block";
+                tokenBadge.textContent = `${stats.words}w · ~${stats.tokens} tok (${stats.chunks} chunk${stats.chunks > 1 ? 's' : ''})`;
+                if (stats.tokens > 75) {
+                    tokenBadge.classList.add("token-warning");
+                } else {
+                    tokenBadge.classList.remove("token-warning");
+                }
+            } else {
+                tokenBadge.style.display = "none";
+            }
+
             const currentThemeName = node._currentSyntaxTheme ||
                                     (node.properties && node.properties.syntax_theme) ||
                                     (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_syntax_theme")) ||

@@ -65,7 +65,12 @@ Overview and usage reference for ModusFlow's advanced utility suite: Tiled VAE D
   * `scale_down_by` (FLOAT, default `0.5`): Rescale factor.
   * `rescale_method` (`lanczos`, `bicubic`, `bilinear`, `area`, `nearest-exact`).
   * `pipe` (PIPE, optional): Pass-through pipe.
-* **Outputs:** `image` (IMAGE), `pipe` (PIPE).
+  * `save_upscale` (BOOLEAN, optional, default `false`): When enabled, automatically saves the full-resolution model-upscaled image to disk before downscaling.
+  * `upscale_save_prefix` (STRING, optional, default `"ModusFlow_Upscale"`): Output file prefix for saved upscaled images.
+* **Outputs:**
+  * `image` (IMAGE): Final image (after optional downscaling).
+  * `pipe` (PIPE): Pass-through pipe.
+  * `upscaled_image` (IMAGE): Full-resolution model-upscaled image before downscaling (ideal for wiring to preview or custom save nodes).
 
 ---
 

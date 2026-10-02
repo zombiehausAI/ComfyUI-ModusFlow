@@ -32,7 +32,7 @@ The ModusFlow LoRA Loader manages a JSON-based stack of LoRAs through an interac
 - **negative** (CONDITIONING): Negative conditioning passthrough
 - **seed** (INT): Seed passthrough and random pool seed (forceInput — must be wired, not typed)
 - **random_pick_count** (INT, default: 1): How many LoRAs to randomly pick from the `🎲 Random Pool`
-- **lora_filter** (STRING): Text filter for the LoRA list in the UI panel; not used in execution
+- **lora_filter** (STRING): Text filter for the LoRA list in the UI panel; persists automatically across browser sessions via `localStorage` and within saved workflows
 - **civitai_api_key** (STRING, hidden): Civitai API key stored in the workflow; overrides `config.json` key
 
 ## Outputs
@@ -46,6 +46,7 @@ The ModusFlow LoRA Loader manages a JSON-based stack of LoRAs through an interac
 | seed | INT | Seed passthrough |
 | pipe | PIPE | `(model, clip, vae, positive, negative)` passthrough |
 | loaded_loras | STRING | Formatted list of applied LoRAs (connect to **Show Text**) |
+| trigger_words | STRING | Comma-separated trained trigger words extracted from active LoRAs (connect to **Text Editor** / **CLIP Encode**) |
 
 ## Random Pool & Hybrid LoRAs
 

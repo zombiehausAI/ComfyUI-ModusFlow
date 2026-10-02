@@ -801,15 +801,29 @@ app.registerExtension({
                 }
 
                 // Ensure lora_filter widget is visible and serializes properly
-                // It should persist across sessions as it's a regular STRING widget
+                // It persists across sessions via localStorage and workflow serialization
                 const loraFilterWidget = node.widgets.find((w) => w.name === "lora_filter");
+                const savedGlobalFilter = (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_lora_filter")) || "";
                 if (loraFilterWidget) {
-                    // Make sure it's not hidden so it can serialize with the workflow
                     loraFilterWidget.type = "STRING";
-                    // Ensure default value
-                    if (loraFilterWidget.value === undefined || loraFilterWidget.value === null) {
+                    if (!loraFilterWidget.value && savedGlobalFilter) {
+                        loraFilterWidget.value = savedGlobalFilter;
+                    } else if (loraFilterWidget.value === undefined || loraFilterWidget.value === null) {
                         loraFilterWidget.value = "";
                     }
+                }
+
+                // Handle random_pick_count widget if present
+                const randomPickWidget = node.widgets ? node.widgets.find((w) => w.name === "random_pick_count") : null;
+                if (randomPickWidget) {
+                    if (!randomPickWidget.value || randomPickWidget.value < 1) {
+                        randomPickWidget.value = 1;
+                    }
+                    const origRpcCallback = randomPickWidget.callback;
+                    randomPickWidget.callback = function () {
+                        origRpcCallback?.apply(this, arguments);
+                        renderList();
+                    };
                 }
 
                 const loraMetadataCache = {};
@@ -1002,16 +1016,20 @@ app.registerExtension({
                     renderList();
                 }
 
-                // Setup callback for lora_filter widget to re-render on changes
-                 if (loraFilterWidget) {
-                     const originalCallback = loraFilterWidget.callback;
-                     loraFilterWidget.callback = function() {
-                         // First, execute the original callback to ensure the widget's value is updated for serialization.
-                         originalCallback?.apply(this, arguments);
-                         // Then, re-render the list to apply the filter visually.
-                         renderList();
-                     };
-                 }
+                // Setup callback for lora_filter widget to re-render on changes and persist to localStorage
+                if (loraFilterWidget) {
+                    const originalCallback = loraFilterWidget.callback;
+                    loraFilterWidget.callback = function () {
+                        // First, execute the original callback to ensure the widget's value is updated for serialization.
+                        originalCallback?.apply(this, arguments);
+                        // Persist to localStorage across sessions
+                        if (typeof localStorage !== "undefined") {
+                            localStorage.setItem("modusflow_lora_filter", this.value || "");
+                        }
+                        // Then, re-render the list to apply the filter visually.
+                        renderList();
+                    };
+                }
 
                 const baseModelWidget = node.widgets.find(w => w.name === "base_model_name");
                 if (baseModelWidget) {
@@ -1036,17 +1054,6 @@ app.registerExtension({
 
                     const stack = getStack();
                     listContainer.innerHTML = ""; // Clear previous list
-
-                    const enabledCount = stack.filter(l => l.enabled).length;
-                    const fixedCount = stack.filter(l => l.enabled && !l.random).length;
-                    const randomCount = stack.filter(l => l.enabled && l.random).length;
-                    if (randomCount > 0) {
-                        statusSpan.textContent = `(${fixedCount} fixed, ${randomCount} random pool)`;
-                    } else if (enabledCount > 0) {
-                        statusSpan.textContent = `(${enabledCount} active)`;
-                    } else {
-                        statusSpan.textContent = "";
-                    }
 
                     const globalFilter = (loraFilterWidget?.value || "").toLowerCase();
                     const availableLoras = allLoras;
@@ -1196,12 +1203,19 @@ app.registerExtension({
                     setToggleAllChecked(allOn);
 
                     // Update status text
-                    const enabledCount = stack.filter(s => s.enabled).length;
                     const totalCount = stack.length;
+                    const enabledCount = stack.filter(s => s.enabled).length;
+                    const fixedCount = stack.filter(s => s.enabled && !s.random).length;
+                    const randomCount = stack.filter(s => s.enabled && s.random).length;
 
-                    const statusText = `${enabledCount} / ${totalCount} enabled`;
-                    statusSpan.textContent = statusText;
-                    statusSpan.title = `${enabledCount} of ${totalCount} LoRAs are enabled in the current stack.`;
+                    if (randomCount > 0) {
+                        const pickCount = randomPickWidget?.value || 1;
+                        statusSpan.textContent = `${enabledCount} / ${totalCount} (${fixedCount} 📌, pick ${pickCount} of ${randomCount} 🎲)`;
+                        statusSpan.title = `${enabledCount} of ${totalCount} LoRAs enabled (${fixedCount} fixed, picking ${pickCount} of ${randomCount} in random pool).`;
+                    } else {
+                        statusSpan.textContent = `${enabledCount} / ${totalCount} enabled`;
+                        statusSpan.title = `${enabledCount} of ${totalCount} LoRAs are enabled in the current stack.`;
+                    }
                     if (globalFilter) {
                         statusSpan.title += `\nDropdowns are pre-filtered by: "${globalFilter}"`;
                     }
@@ -1233,11 +1247,31 @@ app.registerExtension({
                 
                 // Clean up when node is removed
                 const originalOnRemoved = node.onRemoved;
-                node.onRemoved = function() {
+                node.onRemoved = function () {
                     loraLoaderNodes.delete(node);
                     if (originalOnRemoved) {
                         originalOnRemoved.apply(this, arguments);
                     }
+                };
+
+                // Hook onConfigure to sanitize and render properly when workflow is loaded
+                const originalOnConfigure = node.onConfigure;
+                node.onConfigure = function (info) {
+                    originalOnConfigure?.apply(this, arguments);
+                    const lfw = this.widgets ? this.widgets.find((w) => w.name === "lora_filter") : null;
+                    if (lfw) {
+                        const saved = (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_lora_filter")) || "";
+                        if (!lfw.value && saved) {
+                            lfw.value = saved;
+                        } else if (lfw.value && typeof localStorage !== "undefined") {
+                            localStorage.setItem("modusflow_lora_filter", lfw.value);
+                        }
+                    }
+                    const rpw = this.widgets ? this.widgets.find((w) => w.name === "random_pick_count") : null;
+                    if (rpw && (!rpw.value || rpw.value < 1)) {
+                        rpw.value = 1;
+                    }
+                    renderList();
                 };
 
                 // Initial fetch

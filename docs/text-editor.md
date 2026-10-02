@@ -56,6 +56,7 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **Positive**: Large text area for comfortable editing
 - **Negative**: Smaller default height but fully resizable
 - Both support multi-line, word wrapping, undo/redo (Ctrl+Z / Ctrl+Y)
+- **Live Token & Word Counter**: Real-time counter badge at the bottom-right corner showing word count, estimated CLIP tokens, and 75-token chunks (e.g. `14w · ~18 tok (1 chunk)`). Warns in amber when crossing standard 75-token chunks!
 
 ### Save Controls
 - **💾 Save Prompt**: Prompts for a filename and optional category, then saves both texts as a `.json` file

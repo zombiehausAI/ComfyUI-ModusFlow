@@ -38,6 +38,9 @@ from .modules.list_curator_node import ModusFlowListCurator
 from .modules.model_upscale_node import ModusFlowModelUpscale
 from .modules.chroma_shift_node import ModusFlowChromaShift
 from .modules.prompt_mixer_node import ModusFlowPromptMixer
+from .modules.seed_controller_node import ModusFlowSeedController
+from .modules.controlnet_preprocessor_node import ModusFlowImagePreprocessor
+from .modules.smart_resizer_node import ModusFlowSmartResizer
 import server
 from aiohttp import web
 import folder_paths
@@ -1276,6 +1279,9 @@ NODE_CLASS_MAPPINGS = {
     "ModusFlowModelUpscale": ModusFlowModelUpscale,
     "ModusFlowChromaShift": ModusFlowChromaShift,
     "ModusFlowPromptMixer": ModusFlowPromptMixer,
+    "ModusFlowSeedController": ModusFlowSeedController,
+    "ModusFlowImagePreprocessor": ModusFlowImagePreprocessor,
+    "ModusFlowSmartResizer": ModusFlowSmartResizer,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1319,6 +1325,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ModusFlowModelUpscale": "ModusFlow Model Upscale",
     "ModusFlowChromaShift": "ModusFlow Chroma Shift",
     "ModusFlowPromptMixer": "ModusFlow Prompt Mixer",
+    "ModusFlowSeedController": "ModusFlow Master Seed",
+    "ModusFlowImagePreprocessor": "ModusFlow Image Preprocessor",
+    "ModusFlowSmartResizer": "ModusFlow Smart Resizer",
 }
 
 WEB_DIRECTORY = "./web"

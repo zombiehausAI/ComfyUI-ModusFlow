@@ -32,6 +32,7 @@ ComfyUI-ModusFlow provides 22 custom nodes organized into six categories:
 **🖼️ Image Enhancement & Post-Processing**
 - Detailer Slot - Config bundle for one YOLO detection + inpaint pass
 - All-in-One Detailer - Runs any number of Detailer Slots sequentially with pipe support
+- Model Upscale - All-in-one neural upscaler (e.g. 4x-UltraSharp) with optional downscale and pre-downscale upscale saving
 - Upscaler - Tiled upscaling with seam fixing and post-processing
 - Restormer - Deep learning image restoration (motion deblur, defocus, denoising)
 - Modus De-Wax Texture Restore - Post-decode micro-texture reconstruction and organic sensor grain restoration
@@ -44,12 +45,17 @@ ComfyUI-ModusFlow provides 22 custom nodes organized into six categories:
 - Video Latent Preset - Wan 2.1 & Wan 2.2 spatio-temporal video latent generator with native I2V/T2V, plus `duration` and `fps` outputs for automated MMAudio synchronization
 - Save Video - Multi-format video export (H.264, HEVC, VP9) with AAC audio muxing and interactive preview
 
-**⚙️ Conditioning**
+**⚙️ Conditioning & Guidance**
+- ControlNet Loader & Apply - Direct ControlNet model loader and pipe-aware conditioning application
+- Image Preprocessor - Zero-dependency preprocessor (Canny, LineArt, Color, Tile, Luminance Proxy)
 - Conditioning Concat - Encode text and concatenate onto existing conditioning
 
 **🛠️ Utilities & Prompting**
-- Show Text - Simple text display for prompts and debugging
-- Text Editor - Interactive text editor with live syntax highlighting, multi-theme selector, and category-filtered save/load to unified prompts library
+- Master Seed - Centralized master seed generator and synchronizer (randomize, fixed, increment, decrement)
+- Smart Resizer - Aspect ratio optimization and smart cropping/padding for diffusion models
+- Show Text - Simple text display for prompts, LoRA logs, and debugging
+- Text Editor - Interactive text editor with live syntax highlighting, multi-theme selector, token counter, and category-filtered save/load
+- List Curator - Curated trait pool selector and prompt injection manager
 - Ollama Prompt Refiner - Prompt enhancement with category-filtered save/load to unified prompts library
 - Image Gallery - Browse output directory with metadata viewing
 - Save Image - Save images in PNG/JPEG/WebP with filename variables and metadata embedding
