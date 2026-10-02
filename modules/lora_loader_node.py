@@ -80,7 +80,9 @@ class ModusFlowLoraLoader:
         try:
             items = json.loads(lora_stack)
             random_pool = [i for i in items if i.get("enabled", False) and i.get("random", False)]
-            if len(random_pool) > 1 and kwargs.get("seed") is None:
+            seed_val = kwargs.get("seed")
+            # If there is a random pool and seed is left blank (None or 0), randomize every run
+            if len(random_pool) > 1 and (seed_val is None or seed_val == 0):
                 import time
                 return time.time()
         except Exception:
@@ -96,6 +98,9 @@ class ModusFlowLoraLoader:
             vae = pipe[2] if len(pipe) > 2 else None
             positive = positive if positive is not None else (pipe[3] if len(pipe) > 3 else positive)
             negative = negative if negative is not None else (pipe[4] if len(pipe) > 4 else negative)
+            # If an extended pipe has a seed at index 5 and seed input is blank, use it
+            if (seed is None or seed == 0) and len(pipe) > 5 and isinstance(pipe[5], int):
+                seed = pipe[5]
         else:
             vae = None
         
