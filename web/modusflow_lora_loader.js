@@ -1037,6 +1037,17 @@ app.registerExtension({
                     const stack = getStack();
                     listContainer.innerHTML = ""; // Clear previous list
 
+                    const enabledCount = stack.filter(l => l.enabled).length;
+                    const fixedCount = stack.filter(l => l.enabled && !l.random).length;
+                    const randomCount = stack.filter(l => l.enabled && l.random).length;
+                    if (randomCount > 0) {
+                        statusSpan.textContent = `(${fixedCount} fixed, ${randomCount} random pool)`;
+                    } else if (enabledCount > 0) {
+                        statusSpan.textContent = `(${enabledCount} active)`;
+                    } else {
+                        statusSpan.textContent = "";
+                    }
+
                     const globalFilter = (loraFilterWidget?.value || "").toLowerCase();
                     const availableLoras = allLoras;
                     const baseModelName = baseModelWidget?.value || "";
@@ -1066,6 +1077,20 @@ app.registerExtension({
                             updateStack(currentStack);
                         });
 
+                        const isRandom = !!lora.random;
+                        const randomButton = createElement("button", {
+                            className: "modusflow-lora-mode-button" + (isRandom ? " active-random" : ""),
+                            textContent: isRandom ? "🎲" : "📌",
+                            title: isRandom
+                                ? "Random Pool: Randomly picked during generation. Click to make Fixed (Always Loaded)."
+                                : "Fixed: Always loaded on every run. Click to add to Random Pool (🎲)."
+                        });
+                        randomButton.addEventListener("click", () => {
+                            const currentStack = getStack();
+                            currentStack[index].random = !currentStack[index].random;
+                            updateStack(currentStack);
+                        });
+
                         const dropdown = createSearchableDropdown(availableLoras, lora.name, (newValue) => {
                             const currentStack = getStack();
                             currentStack[index].name = newValue;
@@ -1089,7 +1114,7 @@ app.registerExtension({
                             updateStack(currentStack);
                         });
 
-                        row.append(dragHandle, toggle, validationIcon, dropdown, strengthInput, removeButton);
+                        row.append(dragHandle, toggle, randomButton, validationIcon, dropdown, strengthInput, removeButton);
                         listContainer.appendChild(row);
                         displayValidationStatus(lora.name, baseModelName, validationIcon);
 
@@ -1288,14 +1313,42 @@ if (!document.getElementById("modusflow-lora-loader-styles")) {
                 line-height: 1;
                 min-width: 28px;
             }
+            .modusflow-lora-status-span {
+                font-size: 0.85em;
+                color: #c084fc;
+                margin-left: 6px;
+                font-weight: 500;
+            }
             .modusflow-lora-row {
                 display: grid;
-                grid-template-columns: auto auto 18px 1fr auto auto;
+                grid-template-columns: auto auto auto 18px 1fr auto auto;
                 align-items: center;
                 gap: 4px;
                 padding: 2px;
                 border-radius: 2px;
                 font-size: 0.85em;
+            }
+            .modusflow-lora-mode-button {
+                background: transparent;
+                border: 1px solid transparent;
+                border-radius: 3px;
+                cursor: pointer;
+                font-size: 1.05em;
+                padding: 1px 3px;
+                line-height: 1;
+                opacity: 0.6;
+                transition: all 0.15s ease;
+                user-select: none;
+            }
+            .modusflow-lora-mode-button:hover {
+                opacity: 1;
+                background: rgba(255, 255, 255, 0.1);
+            }
+            .modusflow-lora-mode-button.active-random {
+                opacity: 1;
+                background: rgba(192, 132, 252, 0.2);
+                border: 1px solid rgba(192, 132, 252, 0.6);
+                box-shadow: 0 0 4px rgba(192, 132, 252, 0.3);
             }
             .modusflow-lora-validation-icon {
                 display: flex;

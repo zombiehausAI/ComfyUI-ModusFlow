@@ -2,6 +2,7 @@ import torch
 import folder_paths
 import os
 import json
+import random
 from nodes import LoraLoader as CoreLoraLoader
 from ..config import settings
 
@@ -59,8 +60,9 @@ class ModusFlowLoraLoader:
                 "clip": ("CLIP",),
                 "positive": ("CONDITIONING",),
                 "negative": ("CONDITIONING",),
-                # Seed is a passthrough and should not have a widget.
+                # Seed is a passthrough and provides deterministic random selection.
                 "seed": ("INT", {"forceInput": True}),
+                "random_pick_count": ("INT", {"default": 1, "min": 1, "max": 10, "step": 1}),
                 # This widget is for the UI only, to filter the LoRA list.
                 "lora_filter": ("STRING", {"default": "", "multiline": False}),
                 # This widget holds the API key, making it part of the workflow.
@@ -68,12 +70,24 @@ class ModusFlowLoraLoader:
             }
         }
 
-    RETURN_TYPES = ("MODEL", "CLIP", "CONDITIONING", "CONDITIONING", "INT", "PIPE")
-    RETURN_NAMES = ("model", "clip", "positive", "negative", "seed", "pipe")
+    RETURN_TYPES = ("MODEL", "CLIP", "CONDITIONING", "CONDITIONING", "INT", "PIPE", "STRING")
+    RETURN_NAMES = ("model", "clip", "positive", "negative", "seed", "pipe", "loaded_loras")
     FUNCTION = "load_loras"
     CATEGORY = "ModusFlow/Loaders"
 
-    def load_loras(self, lora_stack, base_model_name, pipe=None, model=None, clip=None, positive=None, negative=None, lora_filter="", seed=0, civitai_api_key=""):
+    @classmethod
+    def IS_CHANGED(cls, lora_stack, **kwargs):
+        try:
+            items = json.loads(lora_stack)
+            random_pool = [i for i in items if i.get("enabled", False) and i.get("random", False)]
+            if len(random_pool) > 1 and kwargs.get("seed") is None:
+                import time
+                return time.time()
+        except Exception:
+            pass
+        return False
+
+    def load_loras(self, lora_stack, base_model_name, pipe=None, model=None, clip=None, positive=None, negative=None, lora_filter="", seed=0, civitai_api_key="", random_pick_count=1):
         # Extract from pipe if provided (individual inputs override pipe)
         if pipe is not None:
             # Pipe format: (model, clip, vae, positive, negative)
@@ -89,7 +103,6 @@ class ModusFlowLoraLoader:
         if model is None or clip is None:
             raise ValueError("MODEL and CLIP are required (provide via pipe or individual inputs)")
         
-        # base_model_name is only used by the UI for validation and is not used in the execution logic here.
         lora_loader = CoreLoraLoader()
         lora_paths = folder_paths.get_filename_list("loras")
 
@@ -103,16 +116,25 @@ class ModusFlowLoraLoader:
         enabled_loras = [item for item in lora_items if item.get("enabled", False)]
 
         if not enabled_loras:
-            # Ensure conditioning outputs are valid lists, not None, to prevent crashes.
             if positive is None: positive = []
             if negative is None: negative = []
-            # Create output pipe
             output_pipe = (model, clip, vae, positive, negative)
-            return (model, clip, positive, negative, seed, output_pipe)
+            return (model, clip, positive, negative, seed, output_pipe, "No LoRAs loaded")
 
-        loaded_lora_count = 0
+        # Separate fixed vs random pool
+        fixed_loras = [item for item in enabled_loras if not item.get("random", False)]
+        random_pool = [item for item in enabled_loras if item.get("random", False)]
 
-        for item in enabled_loras:
+        chosen_random = []
+        if random_pool:
+            rng = random.Random(seed if seed is not None and seed != 0 else None)
+            k = min(random_pick_count, len(random_pool))
+            chosen_random = rng.sample(random_pool, k)
+
+        active_loras = [(item, "Fixed") for item in fixed_loras] + [(item, "Random") for item in chosen_random]
+        loaded_summaries = []
+
+        for item, tag in active_loras:
             lora_name = item.get("name")
             if not lora_name:
                 continue
@@ -120,26 +142,22 @@ class ModusFlowLoraLoader:
             lora_file = self.find_lora_path(lora_name, lora_paths)
             if lora_file:
                 strength = item.get("strength", 1.0)
-                
                 if strength == 0:
                     continue
 
                 try:
                     model, clip = lora_loader.load_lora(model, clip, lora_file, strength, strength)
-                    loaded_lora_count += 1
+                    loaded_summaries.append(f"[{tag}] {lora_name} (strength: {strength:g})")
                 except Exception as e:
                     pass
-            else:
-                pass
-        
 
-        # Ensure conditioning outputs are valid lists, not None, to prevent crashes.
+        # Ensure conditioning outputs are valid lists, not None
         if positive is None: positive = []
         if negative is None: negative = []
         
-        # Create output pipe
         output_pipe = (model, clip, vae, positive, negative)
-        return (model, clip, positive, negative, seed, output_pipe)
+        lora_summary_text = "\n".join(loaded_summaries) if loaded_summaries else "No LoRAs loaded"
+        return (model, clip, positive, negative, seed, output_pipe, lora_summary_text)
 
 NODE_CLASS_MAPPINGS = {
     "ModusFlowLoraLoader": ModusFlowLoraLoader

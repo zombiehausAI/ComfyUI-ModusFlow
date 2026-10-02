@@ -9,6 +9,9 @@ The ModusFlow LoRA Loader manages a JSON-based stack of LoRAs through an interac
 ## Features
 
 - **LoRA Stack UI**: Add, remove, reorder, and toggle individual LoRAs in the node's panel — all state is stored in a hidden `lora_stack` JSON field
+- **Hybrid Fixed & Random Pool**: Mark individual LoRAs as either Fixed (`📌` always applied) or Random Pool (`🎲` randomly chosen per generation)
+- **Show Text Integration**: Outputs a formatted string (`loaded_loras`) listing exactly which LoRAs were applied, ready to connect to `ModusFlowShowText`
+- **Deterministic Randomization**: Connect a `seed` to ensure the exact same random LoRA is picked for a given seed, or leave unconnected for dynamic generation
 - **Case-Insensitive Path Matching**: Finds LoRA files using three fallback strategies (exact, basename, basename without extension) — handles subdirectories and mixed-case filenames
 - **Per-LoRA Strength**: Each entry in the stack has its own strength value; strength 0 skips the LoRA
 - **Base Model Validation**: The `base_model_name` dropdown (populated from `config.json` definitions) lets the UI warn when a LoRA's metadata doesn't match the selected base model
@@ -27,7 +30,8 @@ The ModusFlow LoRA Loader manages a JSON-based stack of LoRAs through an interac
 - **clip** (CLIP): CLIP to apply LoRAs to
 - **positive** (CONDITIONING): Positive conditioning passthrough
 - **negative** (CONDITIONING): Negative conditioning passthrough
-- **seed** (INT): Seed passthrough (forceInput — must be wired, not typed)
+- **seed** (INT): Seed passthrough and random pool seed (forceInput — must be wired, not typed)
+- **random_pick_count** (INT, default: 1): How many LoRAs to randomly pick from the `🎲 Random Pool`
 - **lora_filter** (STRING): Text filter for the LoRA list in the UI panel; not used in execution
 - **civitai_api_key** (STRING, hidden): Civitai API key stored in the workflow; overrides `config.json` key
 
@@ -35,12 +39,30 @@ The ModusFlow LoRA Loader manages a JSON-based stack of LoRAs through an interac
 
 | Output | Type | Description |
 |--------|------|-------------|
-| model | MODEL | Model with all enabled LoRAs applied |
-| clip | CLIP | CLIP with all enabled LoRAs applied |
+| model | MODEL | Model with all enabled and selected LoRAs applied |
+| clip | CLIP | CLIP with all enabled and selected LoRAs applied |
 | positive | CONDITIONING | Positive conditioning passthrough |
 | negative | CONDITIONING | Negative conditioning passthrough |
 | seed | INT | Seed passthrough |
 | pipe | PIPE | `(model, clip, vae, positive, negative)` passthrough |
+| loaded_loras | STRING | Formatted list of applied LoRAs (connect to **Show Text**) |
+
+## Random Pool & Hybrid LoRAs
+
+The LoRA Loader allows combining **Fixed** LoRAs that always load alongside a **Random Pool** of variations:
+
+- **📌 Fixed (Default)**: Any LoRA marked with the pin icon is applied on every run. Perfect for base styles, detailers, or face enhancers.
+- **🎲 Random Pool**: Click the mode button to toggle a LoRA into the Random Pool (indicated with a dice icon and purple glow).
+- **`random_pick_count`**: Specifies how many LoRAs to randomly sample from the pool on each generation (default: 1).
+- **Live Header Count**: The header displays the active pool count (e.g., `(2 fixed, 4 random pool)`).
+
+### Connecting to Show Text
+
+Connect the `loaded_loras` output to the `text` input of a **Show Text** node (`ModusFlowShowText`). It displays exactly what was loaded for that run:
+```text
+[Fixed] detailer_v2.safetensors (strength: 1)
+[Random] cyberpunk_girl_v1.safetensors (strength: 0.85)
+```
 
 ## LoRA Stack
 
