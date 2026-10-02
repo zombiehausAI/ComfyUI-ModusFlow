@@ -124,10 +124,14 @@ function createSearchableDropdown(loras, selectedValue, onChange, globalFilter =
         let filteredLoras = [];
         let renderedRange = { start: 0, end: 0 };
 
+        const safeGlobalFilter = (typeof globalFilter === "string" ? globalFilter : "").toLowerCase();
+        const loraList = Array.isArray(loras) ? loras : [];
+
         function populateDropdown(internalFilter = "") {
+            const safeInternalFilter = (typeof internalFilter === "string" ? internalFilter : "").toLowerCase();
             currentFilter = internalFilter;
-            const globallyFiltered = loras.filter(l => l.toLowerCase().includes(globalFilter.toLowerCase()));
-            filteredLoras = globallyFiltered.filter(l => l.toLowerCase().includes(internalFilter.toLowerCase()));
+            const globallyFiltered = loraList.filter(l => typeof l === "string" && l.toLowerCase().includes(safeGlobalFilter));
+            filteredLoras = globallyFiltered.filter(l => typeof l === "string" && l.toLowerCase().includes(safeInternalFilter));
 
             if (filteredLoras.length === 0) {
                 itemsContainer.innerHTML = `<div class="modusflow-lora-search-item-none">No matches found</div>`;
@@ -545,8 +549,8 @@ function showInfoModal(loraName, node) {
     const localParams = new URLSearchParams({ name: loraName });
     const localPromise = api.fetchApi(`/modusflow/get_lora_metadata?${localParams}`).then(r => (r.json ? r.json() : r));
 
-    const apiKeyWidget = node.widgets.find(w => w.name === "civitai_api_key");
-    const apiKey = apiKeyWidget ? apiKeyWidget.value : "";
+    const apiKeyWidget = node.widgets ? node.widgets.find(w => w.name === "civitai_api_key") : null;
+    const apiKey = (apiKeyWidget && typeof apiKeyWidget.value === "string") ? apiKeyWidget.value : "";
     const civitaiParams = new URLSearchParams({ name: loraName });
     if (apiKey && apiKey.trim()) {
         civitaiParams.set("api_key", apiKey.trim());
@@ -806,10 +810,11 @@ app.registerExtension({
                 const savedGlobalFilter = (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_lora_filter")) || "";
                 if (loraFilterWidget) {
                     loraFilterWidget.type = "STRING";
-                    if (!loraFilterWidget.value && savedGlobalFilter) {
-                        loraFilterWidget.value = savedGlobalFilter;
-                    } else if (loraFilterWidget.value === undefined || loraFilterWidget.value === null) {
+                    if (typeof loraFilterWidget.value !== "string") {
                         loraFilterWidget.value = "";
+                    }
+                    if (!loraFilterWidget.value && typeof savedGlobalFilter === "string" && savedGlobalFilter) {
+                        loraFilterWidget.value = savedGlobalFilter;
                     }
                 }
 
@@ -829,7 +834,7 @@ app.registerExtension({
                 const loraMetadataCache = {};
 
                 async function displayValidationStatus(loraName, baseModelName, iconElement) {
-                    if (!loraName || !baseModelName || baseModelName === "None" || baseModelName.startsWith("<")) {
+                    if (!loraName || typeof loraName !== "string" || !baseModelName || typeof baseModelName !== "string" || baseModelName === "None" || baseModelName.startsWith("<")) {
                         iconElement.textContent = '';
                         return;
                     }
@@ -917,8 +922,11 @@ app.registerExtension({
                 const addButton = createElement("button", { textContent: "Add LoRA", className: "modusflow-lora-header-button" });
                 addButton.addEventListener("click", () => {
                     const currentStack = getStack();
-                    const globalFilter = (loraFilterWidget?.value || "").toLowerCase();
-                    const availableLoras = allLoras.filter(l => l.toLowerCase().includes(globalFilter));
+                    const filterVal = typeof loraFilterWidget?.value === "string" ? loraFilterWidget.value : "";
+                    const globalFilter = filterVal.toLowerCase();
+                    const availableLoras = (Array.isArray(allLoras) ? allLoras : []).filter(l => 
+                        typeof l === "string" && l.toLowerCase().includes(globalFilter)
+                    );
 
                     currentStack.push({
                         name: availableLoras[0] || allLoras[0] || "", // Use first available, fallback to first overall
@@ -946,7 +954,7 @@ app.registerExtension({
                     
                     const apiKeyInput = createElement("input", {
                         type: "text",
-                        value: apiKeyWidgetData.value,
+                        value: typeof apiKeyWidgetData.value === "string" ? apiKeyWidgetData.value : "",
                         placeholder: "Civitai API Key",
                         className: "modusflow-api-key-input-compact",
                         title: "Civitai API Key (saved with workflow)"
@@ -967,7 +975,7 @@ app.registerExtension({
      
                     saveButton.addEventListener("click", async () => {
                         // The save button reads from the widget and saves to the server config.
-                        const keyToSave = apiKeyWidgetData.value.trim();
+                        const keyToSave = (typeof apiKeyWidgetData.value === "string" ? apiKeyWidgetData.value : "").trim();
                         const originalText = saveButton.textContent;
                         saveButton.textContent = "💾...";
                         saveButton.disabled = true;
@@ -1004,9 +1012,10 @@ app.registerExtension({
                 // --- STATE MANAGEMENT ---
                 function getStack() {
                     try {
-                        return JSON.parse(loraStackWidget.value || "[]");
+                        const raw = loraStackWidget?.value;
+                        const parsed = typeof raw === "string" ? JSON.parse(raw || "[]") : (Array.isArray(raw) ? raw : []);
+                        return Array.isArray(parsed) ? parsed : [];
                     } catch (e) {
-                        
                         return [];
                     }
                 }
@@ -1023,8 +1032,8 @@ app.registerExtension({
                         // First, execute the original callback to ensure the widget's value is updated for serialization.
                         originalCallback?.apply(this, arguments);
                         // Persist to localStorage across sessions
-                        if (typeof localStorage !== "undefined") {
-                            localStorage.setItem("modusflow_lora_filter", this.value || "");
+                        if (typeof localStorage !== "undefined" && typeof this.value === "string") {
+                            localStorage.setItem("modusflow_lora_filter", this.value);
                         }
                         // Then, re-render the list to apply the filter visually.
                         renderList();
@@ -1043,27 +1052,39 @@ app.registerExtension({
                 // --- RENDERING ---
                 function renderList() {
                     // Force sync widget values to their DOM elements to fix state issues on refresh.
-                    const loraFilterWidget = node.widgets.find(w => w.name === "lora_filter");
-                    if (loraFilterWidget && loraFilterWidget.inputEl && loraFilterWidget.inputEl.value !== loraFilterWidget.value) {
-                        loraFilterWidget.inputEl.value = loraFilterWidget.value;
+                    const loraFilterWidget = node.widgets ? node.widgets.find(w => w.name === "lora_filter") : null;
+                    if (loraFilterWidget) {
+                        if (typeof loraFilterWidget.value !== "string") {
+                            loraFilterWidget.value = "";
+                        }
+                        if (loraFilterWidget.inputEl && loraFilterWidget.inputEl.value !== loraFilterWidget.value) {
+                            loraFilterWidget.inputEl.value = loraFilterWidget.value;
+                        }
                     }
-                    const apiKeyWidgetData = node.widgets.find(w => w.name === "civitai_api_key");
-                    if (apiKeyWidgetData && node.modusflowApiKeyInput && node.modusflowApiKeyInput.value !== apiKeyWidgetData.value) {
-                        node.modusflowApiKeyInput.value = apiKeyWidgetData.value;
+                    const apiKeyWidgetData = node.widgets ? node.widgets.find(w => w.name === "civitai_api_key") : null;
+                    if (apiKeyWidgetData) {
+                        if (typeof apiKeyWidgetData.value !== "string") {
+                            apiKeyWidgetData.value = "";
+                        }
+                        if (node.modusflowApiKeyInput && node.modusflowApiKeyInput.value !== apiKeyWidgetData.value) {
+                            node.modusflowApiKeyInput.value = apiKeyWidgetData.value;
+                        }
                     }
 
                     const stack = getStack();
                     listContainer.innerHTML = ""; // Clear previous list
 
-                    const globalFilter = (loraFilterWidget?.value || "").toLowerCase();
-                    const availableLoras = allLoras;
-                    const baseModelName = baseModelWidget?.value || "";
+                    const filterVal = typeof loraFilterWidget?.value === "string" ? loraFilterWidget.value : "";
+                    const globalFilter = filterVal.toLowerCase();
+                    const availableLoras = Array.isArray(allLoras) ? allLoras : [];
+                    const baseModelName = typeof baseModelWidget?.value === "string" ? baseModelWidget.value : "";
 
                     if (stack.length === 0) {
                         listContainer.innerHTML = `<div class="modusflow-lora-list-message">No LoRAs added.</div>`;
                     }
 
                     stack.forEach((lora, index) => {
+                        if (!lora || typeof lora !== "object") return;
                         const row = createElement("div", { 
                             className: "modusflow-lora-row", 
                             draggable: true,
@@ -1260,8 +1281,11 @@ app.registerExtension({
                     originalOnConfigure?.apply(this, arguments);
                     const lfw = this.widgets ? this.widgets.find((w) => w.name === "lora_filter") : null;
                     if (lfw) {
+                        if (typeof lfw.value !== "string") {
+                            lfw.value = "";
+                        }
                         const saved = (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_lora_filter")) || "";
-                        if (!lfw.value && saved) {
+                        if (!lfw.value && typeof saved === "string" && saved) {
                             lfw.value = saved;
                         } else if (lfw.value && typeof localStorage !== "undefined") {
                             localStorage.setItem("modusflow_lora_filter", lfw.value);
@@ -1271,7 +1295,11 @@ app.registerExtension({
                     if (rpw && (!rpw.value || rpw.value < 1)) {
                         rpw.value = 1;
                     }
-                    renderList();
+                    try {
+                        renderList();
+                    } catch (err) {
+                        console.error("[ModusFlow] Error rendering LoRA list on configure:", err);
+                    }
                 };
 
                 // Initial fetch
