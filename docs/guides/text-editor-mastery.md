@@ -158,21 +158,59 @@ For large collections (clothing, hairstyles, camera lenses, or artist styles), M
 
 ## 6. Visual List Curation with `ModusFlow List Curator`
 
-Rather than editing text files outside ComfyUI, connect **`ModusFlow List Curator`** directly to the text editor:
+Rather than editing text files outside ComfyUI, **`ModusFlow List Curator`** allows you to view, edit, save, update, and delete wildcard lists directly on your canvas.
+
+### What Does the Curator Connect To?
+`ModusFlow List Curator` outputs three values:
+* `selected_item` (`STRING`): The single chosen entry (or formatted selection).
+* `all_items` (`STRING`): All entries in the active list joined together.
+* `item_count` (`INT`): Total number of lines in the list.
 
 ```
-[ ModusFlow List Curator ] ── selected_item ──► [ ModusFlow Text Editor ]
+                               ┌───────────────────────────────────────────────┐
+                               │             ModusFlow Text Editor             │
+                               │  - positive_embedding (appends cleanly)      │
+                               │  - positive_input     (injects / overrides)   │
+                               └───────────────────────────────────────────────┘
+                                       ▲
+                                       │ selected_item
+┌───────────────────────────┐          │
+│   ModusFlow List Curator  ├──────────┼───────────────────────────────────────┐
+│  - wildcard_list          │          │ selected_item                         │
+│  - list entries textarea  │          ▼                                       ▼
+│  - [Save / Update / Del]  ├► [ ModusFlow ShowText ]          [ Detailer Slot / Conditioning ]
+└───────────────────────────┘  (visual canvas readout)         (inject traits into YOLO slot)
 ```
 
-### Modes & Features:
-* **Dropdown File Selector:** Automatically lists every `.txt` file inside `saved_prompts/wildcards/`.
-* **Curation Modes:**
-  * **Random (Seed Driven):** Picks a random line per generation (repeatable with seed).
-  * **Sequential (Index Driven):** Iterates through lines sequentially using an `index` integer.
-  * **All Items (Comma Separated):** Joins all items into a single comma-separated tag string.
-  * **All Items (Newline Separated):** Formats items as a multiline block.
-* **On-Canvas Editing (`custom_entries`):** Add temporary items directly on the node without opening a file explorer.
-* **Prefix / Suffix:** Prepend (e.g. `"wearing a"`) or append (e.g. `"in daylight"`) to every picked item.
+1. **Directly into `ModusFlow Text Editor` (`positive_embedding`):**
+   * **Most Popular Pattern:** Connect `selected_item` into the `positive_embedding` input of your `ModusFlow Text Editor`.
+   * **Why?** It automatically appends the curated trait (e.g. hairstyle, lighting, clothing) to the end of your positive prompt without modifying your raw prompt text in the editor!
+2. **Directly into `ModusFlow Text Editor` (`positive_input`):**
+   * Overrides or dynamically supplies the entire positive prompt from a curated template list.
+3. **Directly into `ModusFlow ShowText`:**
+   * Inspect the exact picked item on each seed generation right beside your sampler.
+4. **Directly into `CLIPTextEncode` / `ModusFlow Multi-CLIP`:**
+   * Route `selected_item` straight into a text conditioning encoder for a dedicated prompt branch.
+5. **Directly into `ModusFlow Detailer Slot`:**
+   * Feed random or sequential eye colors, expressions, or clothing details straight into a specific YOLO detailer pass.
+
+---
+
+### On-Canvas Save, Update & Delete Controls
+
+Inside the node UI:
+* **Automatic File Loading:** Selecting any file from the `wildcard_list` dropdown automatically loads its lines into the on-canvas textarea.
+* **💾 Save As New:** Prompts for a new list name (without extension) and saves the textarea contents to `saved_prompts/wildcards/<name>.txt`.
+* **✏️ Update Selected:** Overwrites the currently selected wildcard `.txt` file with whatever edits you made in the textarea.
+* **🗑️ Delete List:** Permanently removes the selected `.txt` file from disk (with a safety confirmation prompt).
+* **🔄 Refresh Lists:** Reloads the dropdown options if you added files externally.
+
+### Curation Modes:
+* **Random (Seed Driven):** Picks a random line per generation (repeatable when `seed` is set).
+* **Sequential (Index Driven):** Cycles through lines sequentially using an `index` integer (ideal for batching or animations).
+* **All Items (Comma Separated):** Joins all items in the list into a single comma-delimited string.
+* **All Items (Newline Separated):** Formats items as a multiline block.
+* **Prefix / Suffix:** Prepend (e.g. `"wearing a"`) or append (e.g. `"in daylight"`) to every picked item automatically.
 
 ---
 

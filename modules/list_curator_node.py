@@ -75,8 +75,14 @@ class ModusFlowListCurator:
     def curate(self, wildcard_list, mode, index, seed, custom_entries="", prefix="", suffix=""):
         items = []
 
-        # 1. Load from file in saved_prompts/wildcards if selected
-        if wildcard_list and wildcard_list != "--no wildcards found--":
+        # 1. If custom_entries is provided, use it directly (allows on-canvas editing without immediate saving)
+        if custom_entries and custom_entries.strip():
+            for line in custom_entries.splitlines():
+                cleaned = line.strip()
+                if cleaned and not cleaned.startswith("#"):
+                    items.append(cleaned)
+        elif wildcard_list and wildcard_list != "--no wildcards found--":
+            # 2. Fall back to loading from disk file in saved_prompts/wildcards/
             wc_dir = _get_wildcard_dir()
             file_path = os.path.join(wc_dir, f"{wildcard_list}.txt")
             if os.path.isfile(file_path):
@@ -88,13 +94,6 @@ class ModusFlowListCurator:
                                 items.append(cleaned)
                 except Exception as e:
                     print(f"[ModusFlow ListCurator] Error reading {file_path}: {e}")
-
-        # 2. Append custom entries if provided
-        if custom_entries and custom_entries.strip():
-            for line in custom_entries.splitlines():
-                cleaned = line.strip()
-                if cleaned and not cleaned.startswith("#"):
-                    items.append(cleaned)
 
         if not items:
             items = ["none"]
