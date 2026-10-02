@@ -31,6 +31,7 @@ class ModusFlowTextEditor:
             },
             "optional": {
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+                "mute_negative": ("BOOLEAN", {"default": False}),
                 "positive_input": ("STRING", {"forceInput": True}),
                 "negative_input": ("STRING", {"forceInput": True}),
                 "curator_input": ("STRING", {"forceInput": True}),
@@ -119,14 +120,79 @@ class ModusFlowTextEditor:
 
     @staticmethod
     def resolve_dynamic_prompts(text: str, seed: int = None) -> str:
-        """Resolve {option1|option2}, {shuffle: a, b}, and __wildcard__ files strictly in saved_prompts."""
+        """
+        Resolve:
+        - Variables ($color = {red|blue}; ... $color)
+        - Pick-N & Range choices ({2$$a|b|c}, {1-3$$a|b|c})
+        - Weighted choices ({80::blue | 20::red})
+        - Shuffles ({shuffle: a, b, c})
+        - Standard choices ({a|b|c})
+        - Wildcards (__name__, __2$$name__, __1-3$$name__) strictly in saved_prompts/wildcards/
+        """
         if not text or not isinstance(text, str):
             return ""
 
         import random
         rng = random.Random(seed) if seed is not None and seed != 0 else random.Random()
 
-        # 1. Resolve {shuffle: a, b, c}
+        # Helper: parse count spec "2" or "1-3"
+        def parse_count(spec, total):
+            if not spec or total <= 0:
+                return 1
+            if '-' in spec:
+                try:
+                    low, high = map(int, spec.split('-'))
+                    low = max(1, min(low, total))
+                    high = max(low, min(high, total))
+                    return rng.randint(low, high)
+                except Exception:
+                    return 1
+            try:
+                k = int(spec)
+                return max(1, min(k, total))
+            except Exception:
+                return 1
+
+        # Helper: sample k items without replacement respecting weights if given
+        def sample_items(options_with_weights, k):
+            if not options_with_weights:
+                return []
+            k = max(1, min(k, len(options_with_weights)))
+            pool = list(options_with_weights)
+            picked = []
+            for _ in range(k):
+                if not pool:
+                    break
+                weights = [w for _, w in pool]
+                total_w = sum(weights)
+                if total_w <= 0:
+                    weights = [1.0] * len(pool)
+                chosen = rng.choices(pool, weights=weights, k=1)[0]
+                picked.append(chosen[0])
+                pool.remove(chosen)
+            return picked
+
+        # 1. Resolve Variables: $varname = expression; or $varname = expression\n
+        var_pattern = r'^\s*\$([a-zA-Z0-9_]+)\s*=\s*([^;\n]+)[;\n]?'
+        variables = {}
+        cleaned_lines = []
+        for line in text.splitlines():
+            m = re.match(var_pattern, line)
+            if m:
+                var_name = m.group(1).strip()
+                var_expr = m.group(2).strip()
+                # Evaluate expression if it contains choices or wildcards
+                eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(var_expr, seed=seed)
+                variables[var_name] = eval_val
+            else:
+                cleaned_lines.append(line)
+        text = "\n".join(cleaned_lines)
+
+        # Substitute defined variables everywhere ($varname)
+        for var_name, var_val in variables.items():
+            text = re.sub(rf'\${var_name}\b', var_val, text)
+
+        # 2. Resolve {shuffle: a, b, c}
         def replace_shuffle(match):
             items = [x.strip() for x in match.group(1).split(',') if x.strip()]
             rng.shuffle(items)
@@ -134,10 +200,45 @@ class ModusFlowTextEditor:
 
         text = re.sub(r'\{shuffle:\s*([^{}]+)\}', replace_shuffle, text, flags=re.IGNORECASE)
 
-        # 2. Resolve {a|b|c} choices recursively
+        # 3. Resolve Pick-N, Weighted, and standard choices:
+        # e.g. {2$$a|b|c}, {1-3$$a|b|c}, {80::blue|20::red}, {a|b|c}
         def replace_choice(match):
-            options = match.group(1).split('|')
-            return rng.choice(options)
+            content = match.group(1).strip()
+            count_spec = None
+            if '$$' in content:
+                parts = content.split('$$', 1)
+                count_spec = parts[0].strip()
+                content = parts[1].strip()
+
+            if '|' in content:
+                raw_options = content.split('|')
+            elif count_spec and ',' in content:
+                raw_options = content.split(',')
+            else:
+                raw_options = [content]
+
+            options_with_weights = []
+            for opt in raw_options:
+                opt = opt.strip()
+                if not opt:
+                    continue
+                wm = re.match(r'^([0-9.]+)::(.*)$', opt)
+                if wm:
+                    try:
+                        w = float(wm.group(1))
+                        item = wm.group(2).strip()
+                        options_with_weights.append((item, max(0.001, w)))
+                    except Exception:
+                        options_with_weights.append((opt, 1.0))
+                else:
+                    options_with_weights.append((opt, 1.0))
+
+            if not options_with_weights:
+                return ""
+
+            k = parse_count(count_spec, len(options_with_weights)) if count_spec else 1
+            picked = sample_items(options_with_weights, k)
+            return ", ".join(picked)
 
         pattern = r'\{([^{}]+)\}'
         for _ in range(10): # Max 10 passes for nested {a|{b|c}}
@@ -145,9 +246,10 @@ class ModusFlowTextEditor:
                 break
             text = re.sub(pattern, replace_choice, text)
 
-        # 3. Resolve __wildcard__ file references (strictly within saved_prompts)
+        # 4. Resolve __wildcard__ and __N$$wildcard__ file references (strictly within saved_prompts)
         def replace_wildcard(match):
-            wc_name = match.group(1).strip()
+            count_spec = match.group(1)
+            wc_name = match.group(2).strip()
             try:
                 from ..config import settings, BASE_DIR
                 prompts_dir = settings.get('prompts_save_directory', '').strip()
@@ -163,12 +265,16 @@ class ModusFlowTextEditor:
                         with open(c, 'r', encoding='utf-8') as f:
                             lines = [l.strip() for l in f if l.strip() and not l.startswith('#')]
                         if lines:
-                            return rng.choice(lines)
+                            k = parse_count(count_spec, len(lines)) if count_spec else 1
+                            lines_with_weights = [(line, 1.0) for line in lines]
+                            picked = sample_items(lines_with_weights, k)
+                            return ", ".join(picked)
             except Exception:
                 pass
             return match.group(0)
 
-        text = re.sub(r'__([a-zA-Z0-9_\-]+)__', replace_wildcard, text)
+        # Matches __wildcard__ OR __2$$wildcard__ OR __1-3$$wildcard__
+        text = re.sub(r'__(?:([0-9]+(?:-[0-9]+)?)\$\$)?([a-zA-Z0-9_\-]+)__', replace_wildcard, text)
         return text
 
     @staticmethod
@@ -235,7 +341,7 @@ class ModusFlowTextEditor:
         return text
 
     def process_text(self, positive, negative, saved_prompt, weight_mode="Pass-Through (SDXL / Pony)",
-                     seed=None, positive_input=None, negative_input=None,
+                     seed=None, mute_negative=False, positive_input=None, negative_input=None,
                      curator_input=None, curator_input_2=None, curator_negative=None,
                      positive_embedding=None, negative_embedding=None,
                      unique_id=None, extra_pnginfo=None):
@@ -290,6 +396,10 @@ class ModusFlowTextEditor:
             output_positive = f"{output_positive}, {positive_embedding}".strip(", ")
         if negative_embedding is not None and negative_embedding.strip():
             output_negative = f"{output_negative}, {negative_embedding}".strip(", ")
+
+        # 7. Apply mute_negative toggle
+        if mute_negative:
+            output_negative = ""
 
         # Update the node's widget values in the workflow metadata if available
         if unique_id is not None and extra_pnginfo is not None:

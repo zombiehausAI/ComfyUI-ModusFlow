@@ -85,10 +85,40 @@ portrait of a {cyberpunk|steampunk|fantasy|retro} heroine with {silver|neon blue
   ```text
   wearing a {flowing {crimson|emerald} silk gown|tactical {black|camo} combat armor}
   ```
-* **Weighted Probability:** Repeat options to increase probability:
+* **Weighted Odds (`{weight::choice}`):**
+  Directly set percentage or relative likelihoods without duplicating words:
   ```text
-  {blue|blue|blue|red} eyes  # 75% blue, 25% red
+  heroine with {80::dark brown|15::platinum blonde|5::neon emerald} hair
   ```
+  *(80% brown, 15% blonde, 5% rare emerald).*
+
+### Pick-N & Range Selections (`{N$$...}` and `{min-max$$...}`)
+Pick multiple unique items from a set without duplicates:
+* **Fixed Count:**
+  ```text
+  1girl, {2$$freckles, blush, gold hoop earrings, choker, glasses, messy bun}
+  ```
+  *(Picks any 2 unique items from the list, comma-separated).*
+* **Variable Range:**
+  ```text
+  streets of Neo-Tokyo, {1-3$$neon signs, steam vents, flying spinners, rain puddles, holographic ads}
+  ```
+  *(Randomly picks between 1 and 3 unique items on each queue).*
+
+### Prompt Variables (Matched Consistency Across a Sentence)
+Guarantee consistency between different parts of a sentence without hardcoding tags:
+```text
+$color = {emerald green|crimson red|midnight blue|pure gold};
+portrait of an elven archer with $color eyes, wearing a matching $color hooded cloak
+```
+ModusFlow evaluates `$color` once and replaces it everywhere it appears in the prompt.
+
+### Multi-Pick Wildcards (`__2$$wildcard__`)
+Pick multiple random lines from a single wildcard `.txt` file:
+```text
+wearing __2$$accessories__, standing in __locations__
+```
+*(Selects 2 unique lines from `saved_prompts/wildcards/accessories.txt`).*
 
 ### Tag Shuffling (`{shuffle: ...}`)
 Models often suffer from "token position bias" where tokens placed earlier dominate tokens placed later. Shuffling equal-priority aesthetic tags breaks bias:
@@ -97,10 +127,14 @@ masterpiece, 1girl, {shuffle: volumetric lighting, cinematic atmosphere, 8k reso
 ```
 Each generation, ModusFlow shuffles the items inside the `{shuffle: ...}` block into a random sequence.
 
+### Negative Prompt Mute Toggle (`mute_negative`)
+Models like Chroma 1-HD often generate richer, more cinematic lighting with zero negative prompt.
+* Toggle **`mute_negative: True`** on the node to instantly bypass the negative prompt without deleting your text box notes.
+
 ### Deterministic Seed Control (`seed`)
 ModusFlow Text Editor includes an optional **`seed`** widget/input:
 * **`seed = 0` (or disconnected):** Truly random on every queue.
-* **`seed > 0` (or connected to KSampler seed):** All dynamic choices `{a|b|c}`, `{shuffle: ...}`, and `__wildcards__` evaluate **deterministically**. Rerunning with the exact same seed produces the identical prompt every time.
+* **`seed > 0` (or connected to KSampler seed):** All dynamic choices `{a|b|c}`, Pick-N `{2$$...}`, variables `$var`, `{shuffle: ...}`, and `__wildcards__` evaluate **deterministically**. Rerunning with the exact same seed produces the identical prompt every time.
 
 ---
 
@@ -240,3 +274,28 @@ Because dynamic prompts, wildcards, and weight translations transform your text 
 
 * Connect the `positive` output from `ModusFlow Text Editor` into **`ModusFlow ShowText`**.
 * The node will display the fully resolved, sanitized string right on the canvas.
+
+---
+
+## 9. Modular Prompt Stacking with `ModusFlow Prompt Mixer`
+
+For ultimate modularity, **`ModusFlow Prompt Mixer`** allows assembling prompts from independent, switchable layers:
+
+```
+[ ModusFlow Text Editor ] ──── Subject ────► ┌───────────────────────────┐
+[ ModusFlow List Curator ] ─── Outfit ─────► │   ModusFlow Prompt Mixer  ├─► KSampler
+[ Wildcard File / Text ] ──── Setting ────► │  - Per-slot bypass toggle │
+[ Camera / Mood Preset ] ──── Lighting ───► │  - Custom auto-prefixes   │
+                                             └───────────────────────────┘
+```
+
+### Features:
+* **5 Modular Layers:**
+  1. `Slot 1`: Primary Subject (e.g. `1girl, solo, portrait`)
+  2. `Slot 2`: Outfit & Accessories (Prefix: `"wearing"`)
+  3. `Slot 3`: Environment & Setting (Prefix: `"standing in"`)
+  4. `Slot 4`: Lighting & Atmosphere (Prefix: `"illuminated by"`)
+  5. `Slot 5`: Camera, Aesthetics & Quality (Prefix: `"captured on"`)
+* **Independent Bypass Toggles (`slotN_enabled`):** Turn backgrounds, lighting styles, or clothing on and off instantly without deleting text.
+* **Auto-Prefix Protection:** Prefixes (like `"wearing"`) are automatically prepended if not already present, avoiding duplicate words.
+* **Pipe-Aware:** Connects directly into the ModusFlow pipe or outputs standalone strings.

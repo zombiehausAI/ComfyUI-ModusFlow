@@ -37,6 +37,7 @@ from .modules.image_compare_node import ModusFlowCompareImages
 from .modules.list_curator_node import ModusFlowListCurator
 from .modules.model_upscale_node import ModusFlowModelUpscale
 from .modules.chroma_shift_node import ModusFlowChromaShift
+from .modules.prompt_mixer_node import ModusFlowPromptMixer
 import server
 from aiohttp import web
 import folder_paths
@@ -1227,6 +1228,7 @@ NODE_CLASS_MAPPINGS = {
     "ModusFlowListCurator": ModusFlowListCurator,
     "ModusFlowModelUpscale": ModusFlowModelUpscale,
     "ModusFlowChromaShift": ModusFlowChromaShift,
+    "ModusFlowPromptMixer": ModusFlowPromptMixer,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1269,6 +1271,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ModusFlowListCurator": "ModusFlow List Curator",
     "ModusFlowModelUpscale": "ModusFlow Model Upscale",
     "ModusFlowChromaShift": "ModusFlow Chroma Shift",
+    "ModusFlowPromptMixer": "ModusFlow Prompt Mixer",
 }
 
 WEB_DIRECTORY = "./web"

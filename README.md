@@ -170,6 +170,7 @@ Edit `config.json` to configure:
 - [Show Text](docs/show-text.md)
 - [Text Editor](docs/text-editor.md) (with Weight Translation, Dynamic Prompts & Wildcards)
 - [List Curator](docs/guides/text-editor-mastery.md) (Wildcard Curation & Sampling)
+- [Prompt Mixer](docs/guides/text-editor-mastery.md) (Modular Prompt Layer Builder & Stacker)
 - [Image Gallery](docs/image-gallery.md)
 - [Save Image](docs/save-image.md)
 
