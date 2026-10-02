@@ -140,6 +140,7 @@ Edit `config.json` to configure:
 - [Latent Preset](docs/latent-preset.md)
 - [Video Latent Preset](docs/video-latent.md)
 - [Modus Dynamic Guidance](docs/dynamic-guidance.md)
+- [Img2Img & Fidelity Controller](docs/img2img-fidelity.md) (All-in-One VAE Encode, Modular VAE Encode, Fidelity Slider, Load Image)
 
 **Image Enhancement & Post-Processing**
 - [All-in-One Detailer](docs/allinone-detailer.md)
@@ -166,6 +167,8 @@ Edit `config.json` to configure:
 ### 📂 Example Workflows
 
 Pre-configured sample workflows with optimal defaults and pipe-driven architecture are provided in the [`workflows/`](workflows/) directory:
+- **[Chroma Img2Img All-in-One (ModusFlow).json](workflows/Chroma%20Img2Img%20All-in-One%20(ModusFlow).json)**: Chroma 1-HD image-to-image workflow using the All-in-One `ModusFlow Img2Img VAE Encode` node with single-slider fidelity control (0–100%) and 100% ModusFlow nodes.
+- **[Chroma Img2Img Modular (ModusFlow).json](workflows/Chroma%20Img2Img%20Modular%20(ModusFlow).json)**: Chroma 1-HD image-to-image workflow using separate `ModusFlow Load Image`, `ModusFlow VAE Encode`, and `ModusFlow Fidelity Controller` nodes.
 - **[Wan2.2 (ModusFlow).json](workflows/Wan2.2%20(ModusFlow).json)**: Production Wan 2.2 Video Diffusion workflow with native 48-channel latent masking for Image-to-Video (I2V) and Text-to-Video (T2V).
 - **[Wan2.2 + MMAudio (ModusFlow).json](workflows/Wan2.2%20%2B%20MMAudio%20(ModusFlow).json)**: Wan 2.2 video generation with automated video-to-audio Foley synchronization via MMAudio, muxed into final MP4.
 - **[DiffRhythm Song Studio (ModusFlow).json](workflows/DiffRhythm%20Song%20Studio%20(ModusFlow).json)**: Complete full-song vocal music studio with structured lyrics, style prompts, and 320kbps MP3 audio export.

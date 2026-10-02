@@ -24,6 +24,12 @@ from .modules.video_latent_node import ModusFlowVideoLatent
 from .modules.save_video_node import ModusFlowSaveVideo
 from .modules.song_writer_node import ModusFlowSongWriter
 from .modules.audio_mixer_node import ModusFlowAudioMixer
+from .modules.vae_encode_node import (
+    ModusFlowLoadImage,
+    ModusFlowVAEEncode,
+    ModusFlowFidelityController,
+    ModusFlowImg2ImgVAEEncode,
+)
 import server
 from aiohttp import web
 import folder_paths
@@ -1122,6 +1128,10 @@ NODE_CLASS_MAPPINGS = {
     "ModusFlowSaveVideo": ModusFlowSaveVideo,
     "ModusFlowSongWriter": ModusFlowSongWriter,
     "ModusFlowAudioMixer": ModusFlowAudioMixer,
+    "ModusFlowLoadImage": ModusFlowLoadImage,
+    "ModusFlowVAEEncode": ModusFlowVAEEncode,
+    "ModusFlowFidelityController": ModusFlowFidelityController,
+    "ModusFlowImg2ImgVAEEncode": ModusFlowImg2ImgVAEEncode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1151,6 +1161,10 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ModusFlowSaveVideo": "ModusFlow Save Video",
     "ModusFlowSongWriter": "ModusFlow Song Writer & Lyric Studio",
     "ModusFlowAudioMixer": "ModusFlow Audio Mixer & Video Sync",
+    "ModusFlowLoadImage": "ModusFlow Load Image",
+    "ModusFlowVAEEncode": "ModusFlow VAE Encode",
+    "ModusFlowFidelityController": "ModusFlow Fidelity Controller",
+    "ModusFlowImg2ImgVAEEncode": "ModusFlow Img2Img VAE Encode",
 }
 
 WEB_DIRECTORY = "./web"
