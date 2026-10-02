@@ -121,6 +121,7 @@ Edit `config.json` to configure:
 ## 📖 Documentation
 
 - 🧭 **[Workflow & Node Usage Guide](docs/workflow-guide.md)** — Step-by-step guide to connecting nodes, pipe-driven workflows, detailing passes, and upscaling.
+- 🦄 **[Pony V6: Face & Quality Mastery Guide](docs/guides/pony-v6-faces-and-quality.md)** — Secrets to generating clean, sharp, distortion-free faces, eyes, and anatomy in Pony Diffusion V6 XL.
 
 ### Node Documentation
 
