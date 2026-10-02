@@ -78,21 +78,32 @@ app.registerExtension({
                 // ── Save as a new list ─────────────────────────────────────────────
                 function saveAsNewList() {
                     if (!entriesWidget) return;
-                    const filename = prompt("Enter new list name (without .txt extension):");
+                    let filename = prompt("Enter new list name (e.g. hair_colors):");
                     if (!filename || !filename.trim()) return;
+
+                    filename = filename.trim();
+                    // Strip leading/trailing underscores if entered out of habit (e.g. __hair_colors__ -> hair_colors)
+                    if (filename.startsWith("__") && filename.endsWith("__") && filename.length > 4) {
+                        filename = filename.slice(2, -2).trim();
+                    }
+                    // Strip .txt if user entered it
+                    if (filename.toLowerCase().endsWith(".txt")) {
+                        filename = filename.slice(0, -4).trim();
+                    }
+                    if (!filename) return;
 
                     fetch("/modusflow/wildcards/save", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
-                            filename: filename.trim(),
+                            filename: filename,
                             content: entriesWidget.value || ""
                         })
                     })
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
-                            alert("Saved: " + data.filename + ".txt");
+                            alert("Saved: " + data.filename + ".txt\n(Reference in prompts as __" + data.filename + "__)");
                             refreshWildcards(data.filename);
                         } else {
                             alert("Save failed: " + data.message);

@@ -84,7 +84,10 @@ class ModusFlowListCurator:
         elif wildcard_list and wildcard_list != "--no wildcards found--":
             # 2. Fall back to loading from disk file in saved_prompts/wildcards/
             wc_dir = _get_wildcard_dir()
-            file_path = os.path.join(wc_dir, f"{wildcard_list}.txt")
+            clean_list_name = str(wildcard_list).strip()
+            if clean_list_name.startswith("__") and clean_list_name.endswith("__") and len(clean_list_name) > 4:
+                clean_list_name = clean_list_name[2:-2].strip()
+            file_path = os.path.join(wc_dir, f"{clean_list_name}.txt")
             if os.path.isfile(file_path):
                 try:
                     with open(file_path, "r", encoding="utf-8") as f:

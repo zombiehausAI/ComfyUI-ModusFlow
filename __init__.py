@@ -622,7 +622,10 @@ async def load_wildcard_endpoint(request):
     """API endpoint to load the text lines of a wildcard file."""
     try:
         data = await request.json()
-        name = os.path.basename(data.get("filename", "").strip())
+        raw_name = data.get("filename", "").strip()
+        if raw_name.startswith("__") and raw_name.endswith("__") and len(raw_name) > 4:
+            raw_name = raw_name[2:-2].strip()
+        name = os.path.basename(raw_name)
         if not name:
             return web.json_response({"success": False, "message": "Filename cannot be empty."})
         if not name.endswith(".txt"):
@@ -641,7 +644,10 @@ async def save_wildcard_endpoint(request):
     """API endpoint to save or update a wildcard .txt file in saved_prompts/wildcards/."""
     try:
         data = await request.json()
-        name = os.path.basename(data.get("filename", "").strip())
+        raw_name = data.get("filename", "").strip()
+        if raw_name.startswith("__") and raw_name.endswith("__") and len(raw_name) > 4:
+            raw_name = raw_name[2:-2].strip()
+        name = os.path.basename(raw_name)
         content = data.get("content", "")
         if not name:
             return web.json_response({"success": False, "message": "Filename cannot be empty."})
@@ -660,7 +666,10 @@ async def delete_wildcard_endpoint(request):
     """API endpoint to delete a wildcard .txt file from saved_prompts/wildcards/."""
     try:
         data = await request.json()
-        name = os.path.basename(data.get("filename", "").strip())
+        raw_name = data.get("filename", "").strip()
+        if raw_name.startswith("__") and raw_name.endswith("__") and len(raw_name) > 4:
+            raw_name = raw_name[2:-2].strip()
+        name = os.path.basename(raw_name)
         if not name:
             return web.json_response({"success": False, "message": "Filename cannot be empty."})
         if not name.endswith(".txt"):
