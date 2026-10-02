@@ -46,6 +46,7 @@ ComfyUI-ModusFlow provides 22 custom nodes organized into six categories:
 - Save Video - Multi-format video export (H.264, HEVC, VP9) with AAC audio muxing and interactive preview
 
 **⚙️ Conditioning & Guidance**
+- ControlNet All-in-One - Complete all-in-one ControlNet pipeline (model loading, preprocessors, stick figure routing, and pipe scheduling)
 - ControlNet Loader & Apply - Direct ControlNet model loader and pipe-aware conditioning application
 - Image Preprocessor - Zero-dependency preprocessor (Canny, LineArt, Color, Tile, Luminance Proxy)
 - Conditioning Concat - Encode text and concatenate onto existing conditioning

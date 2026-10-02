@@ -31,7 +31,7 @@ from .modules.vae_encode_node import (
     ModusFlowFidelityController,
     ModusFlowImg2ImgVAEEncode,
 )
-from .modules.controlnet_node import ModusFlowControlNetLoader, ModusFlowControlNetApply
+from .modules.controlnet_node import ModusFlowControlNetLoader, ModusFlowControlNetApply, ModusFlowControlNetAllInOne
 from .modules.latent_tools_node import ModusFlowLatentUpscale, ModusFlowMaskTools
 from .modules.image_compare_node import ModusFlowCompareImages
 from .modules.list_curator_node import ModusFlowListCurator
@@ -1272,6 +1272,7 @@ NODE_CLASS_MAPPINGS = {
     "ModusFlowImg2ImgVAEEncode": ModusFlowImg2ImgVAEEncode,
     "ModusFlowControlNetLoader": ModusFlowControlNetLoader,
     "ModusFlowControlNetApply": ModusFlowControlNetApply,
+    "ModusFlowControlNetAllInOne": ModusFlowControlNetAllInOne,
     "ModusFlowLatentUpscale": ModusFlowLatentUpscale,
     "ModusFlowMaskTools": ModusFlowMaskTools,
     "ModusFlowCompareImages": ModusFlowCompareImages,
@@ -1318,6 +1319,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ModusFlowImg2ImgVAEEncode": "ModusFlow Img2Img VAE Encode",
     "ModusFlowControlNetLoader": "ModusFlow ControlNet Loader",
     "ModusFlowControlNetApply": "ModusFlow Apply ControlNet",
+    "ModusFlowControlNetAllInOne": "ModusFlow ControlNet All-in-One",
     "ModusFlowLatentUpscale": "ModusFlow Latent Upscale",
     "ModusFlowMaskTools": "ModusFlow Mask Tools",
     "ModusFlowCompareImages": "ModusFlow Compare Images",
