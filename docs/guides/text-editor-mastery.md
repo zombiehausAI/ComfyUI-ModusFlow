@@ -169,6 +169,8 @@ Rather than editing text files outside ComfyUI, **`ModusFlow List Curator`** all
 ```
                                ┌───────────────────────────────────────────────┐
                                │             ModusFlow Text Editor             │
+                               │  - curator_input     (fills {curator} in place)│
+                               │  - curator_input_2   (fills {curator2} in place│
                                │  - positive_embedding (appends cleanly)      │
                                │  - positive_input     (injects / overrides)   │
                                └───────────────────────────────────────────────┘
@@ -182,16 +184,23 @@ Rather than editing text files outside ComfyUI, **`ModusFlow List Curator`** all
 └───────────────────────────┘  (visual canvas readout)         (inject traits into YOLO slot)
 ```
 
-1. **Directly into `ModusFlow Text Editor` (`positive_embedding`):**
-   * **Most Popular Pattern:** Connect `selected_item` into the `positive_embedding` input of your `ModusFlow Text Editor`.
-   * **Why?** It automatically appends the curated trait (e.g. hairstyle, lighting, clothing) to the end of your positive prompt without modifying your raw prompt text in the editor!
-2. **Directly into `ModusFlow Text Editor` (`positive_input`):**
+1. **Directly into `ModusFlow Text Editor` (`curator_input`): In-Place Replacement!**
+   * **Connect:** `selected_item` $\rightarrow$ `curator_input`.
+   * **In your prompt:** Place `{curator}` (or `{list}` or `{item}`) anywhere in your sentence:
+     ```text
+     masterpiece, 1girl, portrait, wearing {curator}, standing in a vibrant market, cinematic lighting
+     ```
+   * **Result:** The chosen list item is dropped **right into the middle of the prompt** in that exact spot!
+   * **Fallback:** If you do not include `{curator}` in your text, it safely appends to the end of the positive prompt.
+2. **Multiple Curators (`curator_input_2`):**
+   * Connect a second curator into `curator_input_2` to fill the `{curator2}` placeholder in place.
+3. **Dedicated Embedding Input (`positive_embedding`):**
+   * Stays completely clean and independent for actual textual inversion tokens or LoRA trigger words.
+4. **Directly into `ModusFlow Text Editor` (`positive_input`):**
    * Overrides or dynamically supplies the entire positive prompt from a curated template list.
-3. **Directly into `ModusFlow ShowText`:**
+5. **Directly into `ModusFlow ShowText`:**
    * Inspect the exact picked item on each seed generation right beside your sampler.
-4. **Directly into `CLIPTextEncode` / `ModusFlow Multi-CLIP`:**
-   * Route `selected_item` straight into a text conditioning encoder for a dedicated prompt branch.
-5. **Directly into `ModusFlow Detailer Slot`:**
+6. **Directly into `ModusFlow Detailer Slot`:**
    * Feed random or sequential eye colors, expressions, or clothing details straight into a specific YOLO detailer pass.
 
 ---

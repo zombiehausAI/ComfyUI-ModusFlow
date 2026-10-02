@@ -31,6 +31,9 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 
 ### Optional
 - **seed** (INT): Seed controlling deterministic evaluation of `{a|b|c}`, `{shuffle: ...}`, and wildcards (set to 0 for random).
+- **curator_input** (STRING): Curated trait from `ModusFlow List Curator`. Replaces `{curator}` (or `{list}`, `{item}`) **directly in place** in the positive prompt (or appends if no placeholder is typed).
+- **curator_input_2** (STRING): Secondary curated trait. Replaces `{curator2}` **directly in place** in the positive prompt.
+- **curator_negative** (STRING): Curated negative trait. Replaces `{curator}` in the negative prompt.
 - **positive_input** (STRING): Positive text from another node (overrides widget)
 - **negative_input** (STRING): Negative text from another node (overrides widget)
 - **positive_embedding** (STRING): Embedding string to append to positive text (e.g., from LoRA Loader)

@@ -33,6 +33,9 @@ class ModusFlowTextEditor:
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
                 "positive_input": ("STRING", {"forceInput": True}),
                 "negative_input": ("STRING", {"forceInput": True}),
+                "curator_input": ("STRING", {"forceInput": True}),
+                "curator_input_2": ("STRING", {"forceInput": True}),
+                "curator_negative": ("STRING", {"forceInput": True}),
                 "positive_embedding": ("STRING", {"forceInput": True}),
                 "negative_embedding": ("STRING", {"forceInput": True}),
             },
@@ -232,8 +235,10 @@ class ModusFlowTextEditor:
         return text
 
     def process_text(self, positive, negative, saved_prompt, weight_mode="Pass-Through (SDXL / Pony)",
-                     seed=None, positive_input=None, negative_input=None, positive_embedding=None,
-                     negative_embedding=None, unique_id=None, extra_pnginfo=None):
+                     seed=None, positive_input=None, negative_input=None,
+                     curator_input=None, curator_input_2=None, curator_negative=None,
+                     positive_embedding=None, negative_embedding=None,
+                     unique_id=None, extra_pnginfo=None):
         """Process positive and negative text inputs and return them as outputs."""
         # If connected inputs are provided, they take precedence over widget values
         raw_positive = positive_input if positive_input is not None else positive
@@ -243,19 +248,44 @@ class ModusFlowTextEditor:
         clean_positive = self.strip_lora_tags(raw_positive)
         clean_negative = self.strip_lora_tags(raw_negative)
 
-        # 2. Filter out comments
+        # 2. In-place placeholder injection for connected List Curators
+        if curator_input is not None and str(curator_input).strip():
+            c1_str = str(curator_input).strip()
+            p1 = r'\{(?:curator|curator1|curator_1|list|item)\}'
+            if re.search(p1, clean_positive, flags=re.IGNORECASE):
+                clean_positive = re.sub(p1, c1_str, clean_positive, flags=re.IGNORECASE)
+            else:
+                clean_positive = f"{clean_positive}, {c1_str}".strip(", ")
+
+        if curator_input_2 is not None and str(curator_input_2).strip():
+            c2_str = str(curator_input_2).strip()
+            p2 = r'\{(?:curator2|curator_2|list2|item2)\}'
+            if re.search(p2, clean_positive, flags=re.IGNORECASE):
+                clean_positive = re.sub(p2, c2_str, clean_positive, flags=re.IGNORECASE)
+            else:
+                clean_positive = f"{clean_positive}, {c2_str}".strip(", ")
+
+        if curator_negative is not None and str(curator_negative).strip():
+            cn_str = str(curator_negative).strip()
+            pn = r'\{(?:curator|curator_negative|list|item)\}'
+            if re.search(pn, clean_negative, flags=re.IGNORECASE):
+                clean_negative = re.sub(pn, cn_str, clean_negative, flags=re.IGNORECASE)
+            else:
+                clean_negative = f"{clean_negative}, {cn_str}".strip(", ")
+
+        # 3. Filter out comments
         no_comments_positive = self.filter_comments(clean_positive)
         no_comments_negative = self.filter_comments(clean_negative)
 
-        # 3. Resolve dynamic wildcards, choices, and tag shuffles (seed-driven)
+        # 4. Resolve dynamic wildcards, choices, and tag shuffles (seed-driven)
         resolved_positive = self.resolve_dynamic_prompts(no_comments_positive, seed=seed)
         resolved_negative = self.resolve_dynamic_prompts(no_comments_negative, seed=seed)
 
-        # 4. Apply weight translation / front-loading
+        # 5. Apply weight translation / front-loading
         output_positive = self.translate_weights(resolved_positive, weight_mode)
         output_negative = self.translate_weights(resolved_negative, weight_mode)
 
-        # 5. Append embeddings to respective outputs
+        # 6. Append embeddings to respective outputs
         if positive_embedding is not None and positive_embedding.strip():
             output_positive = f"{output_positive}, {positive_embedding}".strip(", ")
         if negative_embedding is not None and negative_embedding.strip():
