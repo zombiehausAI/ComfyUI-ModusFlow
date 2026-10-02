@@ -56,7 +56,7 @@ ComfyUI-ModusFlow provides 22 custom nodes organized into six categories:
 - Smart Resizer - Aspect ratio optimization and smart cropping/padding for diffusion models
 - Show Text - Simple text display for prompts, LoRA logs, and debugging
 - Text Editor - Interactive text editor with live syntax highlighting, intelligent autocomplete (__lists__, $vars, %sys%, <loras>), multi-theme selector, token counter, and category-filtered save/load
-- List Curator - Curated trait pool selector and prompt injection manager
+- List Curator - Curated trait pool selector with on-canvas editor, live syntax highlighting, item counter, and autocomplete
 - Ollama Prompt Refiner - Prompt enhancement with category-filtered save/load to unified prompts library
 - Image Gallery - Browse output directory with metadata viewing
 - Save Image - Save images in PNG/JPEG/WebP with filename variables and metadata embedding

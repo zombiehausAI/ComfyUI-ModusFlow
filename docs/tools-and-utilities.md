@@ -126,3 +126,13 @@ Overview and usage reference for ModusFlow's advanced utility suite: Tiled VAE D
 * **Inputs:** `image_a` (IMAGE, required), `image_b` (IMAGE, optional), `split_percent` (0–100%), `split_direction` (Vertical / Horizontal), `show_divider` (BOOLEAN).
 * **Outputs:** `comparison` (IMAGE), `image_a`, `image_b`.
 * **Execution:** Configured as an active output node (`OUTPUT_NODE = True`), ensuring on-canvas previews render automatically on every run without requiring downstream connections.
+
+---
+
+## 9. List Curator (`ModusFlowListCurator`)
+* **Category:** `ModusFlow/Prompting`
+* **Overview:** On-canvas wildcard and list viewing, editing, saving, updating, and deleting with live syntax highlighting, line counter badge, comment toggles (`Ctrl+/`), and autocomplete.
+* **Usage:** Select any list from `saved_prompts/wildcards/`, view or edit entries, and inject randomly or sequentially into prompts via `{curator}` placeholders. See the full [List Curator Documentation](list-curator.md) and [Text Editor & Wildcard Mastery Guide](guides/text-editor-mastery.md).
+* **Inputs:** `wildcard_list` (dropdown), `custom_entries` (STRING), `mode` (Random / Sequential / All Items), `seed` (INT).
+* **Outputs:** `selected_item` (STRING), `all_items` (STRING), `item_count` (INT).
+
