@@ -142,12 +142,14 @@ Edit `config.json` to configure:
 - [Latent Preset](docs/latent-preset.md)
 - [Video Latent Preset](docs/video-latent.md)
 - [Modus Dynamic Guidance](docs/dynamic-guidance.md)
+- [ModusFlow Chroma Shift](docs/tools-and-utilities.md) (Flow-Matching Timestep Shifting for Chroma & Flux)
 - [Img2Img & Fidelity Controller](docs/img2img-fidelity.md) (All-in-One VAE Encode, Modular VAE Encode, Fidelity Slider, Load Image)
 - [VAE Decode & Latent Tools](docs/tools-and-utilities.md) (Tiled VAE Decode, Latent Upscale / Hires Fix)
 
 **Image Enhancement & Post-Processing**
 - [All-in-One Detailer](docs/allinone-detailer.md)
-- [Upscaler](docs/upscaler.md)
+- [Model Upscale (All-in-One)](docs/tools-and-utilities.md) (Neural Model Upscale with Bypass & Downscaling)
+- [Upscaler](docs/upscaler.md) (Diffusion Tiled Upscaling)
 - [Restormer](docs/restormer.md)
 - [Modus De-Wax Texture Restore](docs/dewax-texture-restore.md)
 - [Compare Images (A/B Split)](docs/tools-and-utilities.md)

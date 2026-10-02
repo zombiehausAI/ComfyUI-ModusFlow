@@ -25,15 +25,21 @@ class ModusFlowLatentPreset:
                 "batch_size": ("INT", {"default": 1, "min": 1, "max": 64, "step": 1}),
                 "latent_channels": ("INT", {"default": 4, "min": 1, "max": 16, "step": 1}),
                 "downscale": ("INT", {"default": 8, "min": 1, "max": 32, "step": 1}),
-            }
+                "architecture": (["Auto (from Pipe/VAE)", "Chroma / Flux (16ch)", "SDXL / Pony (4ch)", "SD 1.5 (4ch)", "Manual"], {"default": "Auto (from Pipe/VAE)"}),
+            },
+            "optional": {
+                "pipe": ("PIPE",),
+                "vae": ("VAE",),
+            },
         }
 
-    RETURN_TYPES = ("LATENT",)
-    RETURN_NAMES = ("latent",)
+    RETURN_TYPES = ("LATENT", "PIPE",)
+    RETURN_NAMES = ("latent", "pipe",)
     FUNCTION = "create_latent"
     CATEGORY = "ModusFlow/Latent"
 
-    def create_latent(self, resolution, width, height, batch_size, latent_channels, downscale):
+    def create_latent(self, resolution, width, height, batch_size, latent_channels, downscale,
+                      architecture="Auto (from Pipe/VAE)", pipe=None, vae=None):
         preset_map = {
             "1024x1024 (Square)": (1024, 1024),
             "832x1216 (Portrait)": (832, 1216),
@@ -47,9 +53,30 @@ class ModusFlowLatentPreset:
         if resolution != "Manual":
             width, height = preset_map.get(resolution, (1024, 1024))
 
+        # Determine effective latent channels
+        effective_channels = latent_channels
+        if architecture == "Chroma / Flux (16ch)":
+            effective_channels = 16
+        elif architecture in ("SDXL / Pony (4ch)", "SD 1.5 (4ch)"):
+            effective_channels = 4
+        elif architecture == "Auto (from Pipe/VAE)":
+            resolved_vae = vae
+            if resolved_vae is None and pipe is not None and len(pipe) > 2:
+                resolved_vae = pipe[2]
+
+            if resolved_vae is not None:
+                ch = getattr(resolved_vae, "latent_channels", None)
+                if ch is None and hasattr(resolved_vae, "first_stage_model"):
+                    ch = getattr(resolved_vae.first_stage_model, "latent_channels", None)
+                if ch is not None:
+                    effective_channels = int(ch)
+            else:
+                effective_channels = latent_channels
+
         # Ensure latent spatial dims align to downscale factor (ceil to nearest multiple)
         latent_width = (width + downscale - 1) // downscale
         latent_height = (height + downscale - 1) // downscale
 
-        latent = torch.zeros((batch_size, latent_channels, latent_height, latent_width))
-        return ({"samples": latent, "width": width, "height": height},)
+        latent = torch.zeros((batch_size, effective_channels, latent_height, latent_width))
+        latent_dict = {"samples": latent, "width": width, "height": height}
+        return (latent_dict, pipe)

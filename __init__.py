@@ -35,6 +35,8 @@ from .modules.controlnet_node import ModusFlowControlNetLoader, ModusFlowControl
 from .modules.latent_tools_node import ModusFlowLatentUpscale, ModusFlowMaskTools
 from .modules.image_compare_node import ModusFlowCompareImages
 from .modules.list_curator_node import ModusFlowListCurator
+from .modules.model_upscale_node import ModusFlowModelUpscale
+from .modules.chroma_shift_node import ModusFlowChromaShift
 import server
 from aiohttp import web
 import folder_paths
@@ -588,6 +590,85 @@ async def list_prompts_endpoint(request):
         msg = f"Error listing prompts: {e}"
         print(f"[ModusFlow TextEditor] {msg}")
         return web.json_response({"success": False, "message": msg})
+
+# ── Wildcard / List Curator routes ──────────────────────────────────────────
+
+def _get_wildcards_dir():
+    """Return the wildcards directory under saved_prompts (strictly isolated)."""
+    wc_dir = os.path.join(_get_base_prompts_dir(), 'wildcards')
+    os.makedirs(wc_dir, exist_ok=True)
+    return wc_dir
+
+@server.PromptServer.instance.routes.get("/modusflow/wildcards/list")
+async def list_wildcards_endpoint(request):
+    """API endpoint to list all wildcard .txt files in saved_prompts/wildcards/."""
+    try:
+        wc_dir = _get_wildcards_dir()
+        files = []
+        if os.path.isdir(wc_dir):
+            for f in sorted(os.listdir(wc_dir)):
+                if f.lower().endswith('.txt') and os.path.isfile(os.path.join(wc_dir, f)):
+                    files.append(os.path.splitext(f)[0])
+        return web.json_response({"success": True, "data": files})
+    except Exception as e:
+        return web.json_response({"success": False, "message": str(e)})
+
+@server.PromptServer.instance.routes.post("/modusflow/wildcards/load")
+async def load_wildcard_endpoint(request):
+    """API endpoint to load the text lines of a wildcard file."""
+    try:
+        data = await request.json()
+        name = os.path.basename(data.get("filename", "").strip())
+        if not name:
+            return web.json_response({"success": False, "message": "Filename cannot be empty."})
+        if not name.endswith(".txt"):
+            name += ".txt"
+        file_path = os.path.join(_get_wildcards_dir(), name)
+        if not os.path.isfile(file_path):
+            return web.json_response({"success": False, "message": f"File '{name}' not found."})
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return web.json_response({"success": True, "data": content, "filename": os.path.splitext(name)[0]})
+    except Exception as e:
+        return web.json_response({"success": False, "message": str(e)})
+
+@server.PromptServer.instance.routes.post("/modusflow/wildcards/save")
+async def save_wildcard_endpoint(request):
+    """API endpoint to save or update a wildcard .txt file in saved_prompts/wildcards/."""
+    try:
+        data = await request.json()
+        name = os.path.basename(data.get("filename", "").strip())
+        content = data.get("content", "")
+        if not name:
+            return web.json_response({"success": False, "message": "Filename cannot be empty."})
+        if not name.endswith(".txt"):
+            name += ".txt"
+        file_path = os.path.join(_get_wildcards_dir(), name)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"[ModusFlow ListCurator] Saved wildcard file: {file_path}")
+        return web.json_response({"success": True, "message": f"Saved {name}", "filename": os.path.splitext(name)[0]})
+    except Exception as e:
+        return web.json_response({"success": False, "message": str(e)})
+
+@server.PromptServer.instance.routes.post("/modusflow/wildcards/delete")
+async def delete_wildcard_endpoint(request):
+    """API endpoint to delete a wildcard .txt file from saved_prompts/wildcards/."""
+    try:
+        data = await request.json()
+        name = os.path.basename(data.get("filename", "").strip())
+        if not name:
+            return web.json_response({"success": False, "message": "Filename cannot be empty."})
+        if not name.endswith(".txt"):
+            name += ".txt"
+        file_path = os.path.join(_get_wildcards_dir(), name)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+            print(f"[ModusFlow ListCurator] Deleted wildcard file: {file_path}")
+            return web.json_response({"success": True, "message": f"Deleted {name}"})
+        return web.json_response({"success": False, "message": f"File '{name}' not found."})
+    except Exception as e:
+        return web.json_response({"success": False, "message": str(e)})
 
 # ── Song Writer routes ─────────────────────────────────────────────────────────
 
@@ -1144,6 +1225,8 @@ NODE_CLASS_MAPPINGS = {
     "ModusFlowMaskTools": ModusFlowMaskTools,
     "ModusFlowCompareImages": ModusFlowCompareImages,
     "ModusFlowListCurator": ModusFlowListCurator,
+    "ModusFlowModelUpscale": ModusFlowModelUpscale,
+    "ModusFlowChromaShift": ModusFlowChromaShift,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1184,6 +1267,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ModusFlowMaskTools": "ModusFlow Mask Tools",
     "ModusFlowCompareImages": "ModusFlow Compare Images",
     "ModusFlowListCurator": "ModusFlow List Curator",
+    "ModusFlowModelUpscale": "ModusFlow Model Upscale",
+    "ModusFlowChromaShift": "ModusFlow Chroma Shift",
 }
 
 WEB_DIRECTORY = "./web"
