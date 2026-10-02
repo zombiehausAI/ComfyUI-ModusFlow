@@ -122,6 +122,7 @@ Edit `config.json` to configure:
 
 - 🧭 **[Workflow & Node Usage Guide](docs/workflow-guide.md)** — Step-by-step guide to connecting nodes, pipe-driven workflows, detailing passes, and upscaling.
 - 🦄 **[Pony V6: Face & Quality Mastery Guide](docs/guides/pony-v6-faces-and-quality.md)** — Secrets to generating clean, sharp, distortion-free faces, eyes, and anatomy in Pony Diffusion V6 XL.
+- 📝 **[Text Editor & Wildcard Mastery Guide](docs/guides/text-editor-mastery.md)** — Model weight translation (Chroma/Flux T5 vs. SDXL/Pony), front-loading priority, tag shuffling `{shuffle: ...}`, deterministic seeds, inline choices `{a|b}`, strict `saved_prompts` wildcards, and on-canvas list curation.
 
 ### Node Documentation
 
@@ -142,12 +143,15 @@ Edit `config.json` to configure:
 - [Video Latent Preset](docs/video-latent.md)
 - [Modus Dynamic Guidance](docs/dynamic-guidance.md)
 - [Img2Img & Fidelity Controller](docs/img2img-fidelity.md) (All-in-One VAE Encode, Modular VAE Encode, Fidelity Slider, Load Image)
+- [VAE Decode & Latent Tools](docs/tools-and-utilities.md) (Tiled VAE Decode, Latent Upscale / Hires Fix)
 
 **Image Enhancement & Post-Processing**
 - [All-in-One Detailer](docs/allinone-detailer.md)
 - [Upscaler](docs/upscaler.md)
 - [Restormer](docs/restormer.md)
 - [Modus De-Wax Texture Restore](docs/dewax-texture-restore.md)
+- [Compare Images (A/B Split)](docs/tools-and-utilities.md)
+- [Mask Tools](docs/tools-and-utilities.md) (Grow/Shrink, Blur, Invert)
 
 **Video & Audio**
 - [Save Video](docs/save-video.md)
@@ -156,12 +160,14 @@ Edit `config.json` to configure:
 - [Audio Mixer & Video Sync](docs/audio-mixer.md)
 - [ACE Step Audio 1.5](docs/ace-step-audio.md)
 
-**Conditioning**
+**Conditioning & Control**
+- [ControlNet Suite](docs/tools-and-utilities.md) (Pipe-Aware ControlNet Apply & Loader)
 - [Conditioning Concat](docs/conditioning-concat.md)
 
 **Utilities**
 - [Show Text](docs/show-text.md)
-- [Text Editor](docs/text-editor.md)
+- [Text Editor](docs/text-editor.md) (with Weight Translation, Dynamic Prompts & Wildcards)
+- [List Curator](docs/guides/text-editor-mastery.md) (Wildcard Curation & Sampling)
 - [Image Gallery](docs/image-gallery.md)
 - [Save Image](docs/save-image.md)
 

@@ -496,3 +496,50 @@ class ModusFlowImg2ImgVAEEncode:
         )
 
         return (latent_dict, denoise, steps, aligned_image, pipe, summary)
+
+
+class ModusFlowVAEDecode:
+    """
+    Dedicated VAE decode node with optional tiled decoding and PIPE passthrough.
+    Prevents Out-Of-Memory (OOM) on large Flux, Chroma, and SDXL resolutions.
+    """
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "samples": ("LATENT",),
+                "tile_vae": ("BOOLEAN", {"default": False}),
+                "tile_size": ("INT", {"default": 512, "min": 64, "max": 4096, "step": 64}),
+            },
+            "optional": {
+                "vae": ("VAE",),
+                "pipe": ("PIPE",),
+            }
+        }
+
+    CATEGORY = "ModusFlow/Latent"
+    RETURN_TYPES = ("IMAGE", "PIPE")
+    RETURN_NAMES = ("image", "pipe")
+    FUNCTION = "decode"
+
+    def decode(self, samples, tile_vae, tile_size, vae=None, pipe=None):
+        resolved_vae = vae
+        if resolved_vae is None and pipe is not None and len(pipe) > 2:
+            resolved_vae = pipe[2]
+
+        if resolved_vae is None:
+            raise ValueError("[ModusFlow VAE Decode] VAE is required (provide via 'vae' or 'pipe').")
+
+        latent_samples = samples["samples"]
+
+        if tile_vae and hasattr(resolved_vae, "decode_tiled"):
+            images = resolved_vae.decode_tiled(latent_samples, tile_x=tile_size // 8, tile_y=tile_size // 8)
+        else:
+            images = resolved_vae.decode(latent_samples)
+
+        if hasattr(images, "ndim") and images.ndim == 5:
+            if images.shape[1] in (1, 3, 4) and images.shape[-1] not in (1, 3, 4):
+                images = images.permute(0, 2, 3, 4, 1)
+            images = images.reshape(-1, images.shape[-3], images.shape[-2], images.shape[-1])
+
+        return (images, pipe)

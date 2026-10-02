@@ -23,18 +23,26 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **positive** (STRING): Positive prompt text (large editor area)
 - **negative** (STRING): Negative prompt text (smaller editor area, resizable)
 - **saved_prompt** (dropdown): Select a previously saved `.json` prompt file
+- **weight_mode** (dropdown): Model weight adaptation strategy:
+  - `Pass-Through (SDXL / Pony)`: Preserves raw numerical weights `(tag:1.3)`.
+  - `Translate for Chroma / Flux (Linguistic Emphasis)`: Converts weights to descriptive natural language tokens for T5-XXL.
+  - `Front-Load Priority (Chroma / Flux)`: Converts weights and prepends high-priority terms (>= 1.2) to the front of the prompt.
+  - `Strip Weights (Clean Tags)`: Removes all weights and parentheses for clean text.
 
 ### Optional
+- **seed** (INT): Seed controlling deterministic evaluation of `{a|b|c}`, `{shuffle: ...}`, and wildcards (set to 0 for random).
 - **positive_input** (STRING): Positive text from another node (overrides widget)
 - **negative_input** (STRING): Negative text from another node (overrides widget)
-- **embedding** (STRING): Embedding string to append to positive text (e.g., from LoRA Loader)
+- **positive_embedding** (STRING): Embedding string to append to positive text (e.g., from LoRA Loader)
+- **negative_embedding** (STRING): Embedding string to append to negative text
 
 ## Outputs
 
-- **positive** (STRING): Current positive prompt text (with embedding appended if provided)
-- **negative** (STRING): Current negative prompt text
+- **positive** (STRING): Processed, comment-filtered, wildcard-resolved positive prompt text
+- **negative** (STRING): Processed, comment-filtered, wildcard-resolved negative prompt text
 
-> **Embedding Input**: When an embedding string is connected, it is automatically appended to the **positive** text with comma separation.
+> [!TIP]
+> For a full tutorial on weight adaptation, tag shuffling, wildcards, and dynamic choices, see the [Text Editor & Wildcard Mastery Guide](guides/text-editor-mastery.md).
 
 ## UI Features
 

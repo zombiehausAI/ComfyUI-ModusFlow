@@ -27,9 +27,14 @@ from .modules.audio_mixer_node import ModusFlowAudioMixer
 from .modules.vae_encode_node import (
     ModusFlowLoadImage,
     ModusFlowVAEEncode,
+    ModusFlowVAEDecode,
     ModusFlowFidelityController,
     ModusFlowImg2ImgVAEEncode,
 )
+from .modules.controlnet_node import ModusFlowControlNetLoader, ModusFlowControlNetApply
+from .modules.latent_tools_node import ModusFlowLatentUpscale, ModusFlowMaskTools
+from .modules.image_compare_node import ModusFlowCompareImages
+from .modules.list_curator_node import ModusFlowListCurator
 import server
 from aiohttp import web
 import folder_paths
@@ -1130,8 +1135,15 @@ NODE_CLASS_MAPPINGS = {
     "ModusFlowAudioMixer": ModusFlowAudioMixer,
     "ModusFlowLoadImage": ModusFlowLoadImage,
     "ModusFlowVAEEncode": ModusFlowVAEEncode,
+    "ModusFlowVAEDecode": ModusFlowVAEDecode,
     "ModusFlowFidelityController": ModusFlowFidelityController,
     "ModusFlowImg2ImgVAEEncode": ModusFlowImg2ImgVAEEncode,
+    "ModusFlowControlNetLoader": ModusFlowControlNetLoader,
+    "ModusFlowControlNetApply": ModusFlowControlNetApply,
+    "ModusFlowLatentUpscale": ModusFlowLatentUpscale,
+    "ModusFlowMaskTools": ModusFlowMaskTools,
+    "ModusFlowCompareImages": ModusFlowCompareImages,
+    "ModusFlowListCurator": ModusFlowListCurator,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1163,8 +1175,15 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ModusFlowAudioMixer": "ModusFlow Audio Mixer & Video Sync",
     "ModusFlowLoadImage": "ModusFlow Load Image",
     "ModusFlowVAEEncode": "ModusFlow VAE Encode",
+    "ModusFlowVAEDecode": "ModusFlow VAE Decode",
     "ModusFlowFidelityController": "ModusFlow Fidelity Controller",
     "ModusFlowImg2ImgVAEEncode": "ModusFlow Img2Img VAE Encode",
+    "ModusFlowControlNetLoader": "ModusFlow ControlNet Loader",
+    "ModusFlowControlNetApply": "ModusFlow Apply ControlNet",
+    "ModusFlowLatentUpscale": "ModusFlow Latent Upscale",
+    "ModusFlowMaskTools": "ModusFlow Mask Tools",
+    "ModusFlowCompareImages": "ModusFlow Compare Images",
+    "ModusFlowListCurator": "ModusFlow List Curator",
 }
 
 WEB_DIRECTORY = "./web"

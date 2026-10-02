@@ -1,0 +1,195 @@
+# ModusFlow Text Editor & Wildcard Mastery Guide
+
+A comprehensive guide to all advanced features of **`ModusFlow Text Editor`** and **`ModusFlow List Curator`**: comment syntax, dynamic choices, tag shuffling, deterministic seeds, model weight translation (Chroma/Flux/T5 vs. SDXL/Pony), LoRA sanitization, strict `saved_prompts` wildcards, and prompt inspection.
+
+---
+
+## 1. Overview
+
+[ModusFlow Text Editor](file:///c:/Users/donwo/source/ComfyUI-ModusFlow/modules/text_editor_node.py) is a centralized prompt engineering hub designed to eliminate the frustration of raw ComfyUI text boxes. It supports:
+* Simultaneous positive and negative prompt editing with dedicated inputs/outputs.
+* **Model-Aware Weight Adaptation:** Seamlessly bridge SDXL/Pony weight notation `(word:1.3)` into natural language emphasis or front-loaded priority for Chroma, Flux, and T5 architectures.
+* **Developer Comments (`/* ... */`, `#`, `//`):** Leave notes, toggle tags, and annotate prompts cleanly without affecting generation.
+* **Smart Sanitization:** Strips raw `<lora:...>` tags and normalizes broken punctuation and stray commas.
+* **Dynamic Tag Shuffling (`{shuffle: ...}`):** Eliminate position bias by randomizing prompt tag order on each generation.
+* **Dynamic Choices (`{a|b|c}`):** Inline nested selections with weighted probabilities.
+* **Deterministic Seeding (`seed`):** Lock random variations to a seed or let them roll freely.
+* **File-Based Wildcards (`__filename__`):** **Strictly isolated** to the `saved_prompts/` directory.
+* **Visual List Curation:** Integrate [ModusFlow List Curator](file:///c:/Users/donwo/source/ComfyUI-ModusFlow/modules/list_curator_node.py) for interactive wildcard browsing directly on the canvas.
+
+---
+
+## 2. Model Weight Adaptation (`weight_mode`)
+
+Different generative architectures interpret prompt syntax in radically different ways. The `weight_mode` dropdown allows you to write prompts using standard syntax while ModusFlow automatically adapts the text for your target model.
+
+### The Architectural Problem: CLIP vs. T5 / DiT
+* **CLIP Models (SD 1.5, SDXL, Pony, Illustrious):** CLIP text encoders support token weighting via parentheses, e.g. `(cinematic lighting:1.3)`. The backend multiplies the token embedding vectors directly.
+* **T5-XXL / DiT Models (Chroma 1-HD, Flux, SD3):** T5 is a pure natural language translation model. It **does not parse parenthesis weights**. If you send `(cyberpunk:1.3)` to Chroma or Flux, the model literally reads parentheses, colons, and decimal points as text tokens, degrading prompt fidelity and injecting punctuation noise into the cross-attention layers.
+
+### Available Weight Modes
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        weight_mode Selection                           │
+├────────────────────────────────┬───────────────────────────────────────┤
+│ Pass-Through (SDXL / Pony)     │ Keeps raw (tag:1.3) weights unchanged │
+│ Translate for Chroma / Flux    │ Converts weights to natural language  │
+│ Front-Load Priority (Chroma)   │ Amplifies & prepends to start of text │
+│ Strip Weights (Clean Tags)     │ Removes all weights & parentheses     │
+└────────────────────────────────┴───────────────────────────────────────┘
+```
+
+#### 1. `Pass-Through (SDXL / Pony)`
+Leaves all parentheses, brackets, and numerical weights untouched.
+* **Best For:** SDXL, Pony Diffusion V6, Illustrious, SD 1.5.
+* **Input:** `1girl, (freckles:1.3), [blush:0.8]`
+* **Output:** `1girl, (freckles:1.3), [blush:0.8]`
+
+#### 2. `Translate for Chroma / Flux (Linguistic Emphasis)`
+Automatically converts numerical weights into descriptive linguistic tokens that T5-XXL understands deeply.
+* **Best For:** Chroma 1-HD, Flux.1 [dev], Flux.1 [schnell], SD 3.5.
+* **Conversion Scale:**
+  | Weight Range | Transformation | Example Input | Model Receives |
+  |---|---|---|---|
+  | **>= 1.35** | `strikingly intense {term}, emphasizing {term}` | `(neon rim light:1.4)` | `strikingly intense neon rim light, emphasizing neon rim light` |
+  | **1.20 – 1.34** | `prominently featuring {term}, distinct {term}` | `(golden armor:1.25)` | `prominently featuring golden armor, distinct golden armor` |
+  | **1.10 – 1.19** | `vivid {term}` | `(blue eyes:1.15)` | `vivid blue eyes` |
+  | **0.91 – 1.09** | `{term}` (clean word) | `(katana:1.0)` | `katana` |
+  | **0.76 – 0.90** | `subtle {term}` | `(lens flare:0.85)` | `subtle lens flare` |
+  | **<= 0.75** | `faint, barely visible {term}` | `(fog:0.6)` | `faint, barely visible fog` |
+
+#### 3. `Front-Load Priority (Chroma / Flux)`
+In Diffusion Transformers (DiT), attention is highest at the beginning of the prompt sequence. This mode translates weights **and automatically moves high-priority concepts (weight >= 1.20) to the very front of the prompt string**.
+* **Input:** `portrait of a warrior, forest background, (intricate glowing armor:1.3), 8k`
+* **Output:** `prominently featuring intricate glowing armor, distinct intricate glowing armor, portrait of a warrior, forest background, 8k`
+
+#### 4. `Strip Weights (Clean Tags)`
+Strips all weights and parentheses completely, leaving clean natural words.
+* **Input:** `(photorealistic:1.4), ((masterpiece)), [film grain:0.8]`
+* **Output:** `photorealistic, masterpiece, film grain`
+
+---
+
+## 3. Dynamic Prompts & Tag Shuffling
+
+ModusFlow features built-in evaluation for dynamic choices and shuffling without needing external custom nodes.
+
+### Inline Choices (`{a|b|c}`)
+Generate endless variations on each generation:
+```text
+portrait of a {cyberpunk|steampunk|fantasy|retro} heroine with {silver|neon blue|crimson} hair
+```
+
+* **Nested Choices:**
+  ```text
+  wearing a {flowing {crimson|emerald} silk gown|tactical {black|camo} combat armor}
+  ```
+* **Weighted Probability:** Repeat options to increase probability:
+  ```text
+  {blue|blue|blue|red} eyes  # 75% blue, 25% red
+  ```
+
+### Tag Shuffling (`{shuffle: ...}`)
+Models often suffer from "token position bias" where tokens placed earlier dominate tokens placed later. Shuffling equal-priority aesthetic tags breaks bias:
+```text
+masterpiece, 1girl, {shuffle: volumetric lighting, cinematic atmosphere, 8k resolution, ray tracing, sharp focus}
+```
+Each generation, ModusFlow shuffles the items inside the `{shuffle: ...}` block into a random sequence.
+
+### Deterministic Seed Control (`seed`)
+ModusFlow Text Editor includes an optional **`seed`** widget/input:
+* **`seed = 0` (or disconnected):** Truly random on every queue.
+* **`seed > 0` (or connected to KSampler seed):** All dynamic choices `{a|b|c}`, `{shuffle: ...}`, and `__wildcards__` evaluate **deterministically**. Rerunning with the exact same seed produces the identical prompt every time.
+
+---
+
+## 4. Developer Comments & Smart Sanitization
+
+You can write comments, annotate prompts, and temporarily disable tags directly in your prompt text:
+
+### Supported Comment Syntax
+| Syntax | Example | What the Model Receives |
+|---|---|---|
+| **Block Comments** | `/* windblown hair, glowing runes, */` | *(Stripped completely)* |
+| **Line Comments (`#` or `//`)** | `# camera angle test`<br>`// cinematic lighting` | *(Stripped completely)* |
+| **Inline Comments** | `1girl, solo // character count`<br>`blue dress # outfit v2` | `1girl, solo, blue dress` |
+
+### Smart Protections
+1. **URL Protection:** `https://example.com/ref.png` or `http://...` is **never** cut off by `//`.
+2. **Hex Color Protection:** `#ff00aa` or `#00ff00` is **never** stripped as a `#` comment.
+3. **Punctuation Normalization:** Stray commas, leading commas, or duplicate commas (`, , ,`) created by stripping comments are cleanly normalized.
+4. **LoRA Tag Cleaner:** Pasting prompts from web galleries that contain `<lora:name:1.0>` will have those tags automatically stripped from the text encoder output, preventing punctuation pollution while letting your dedicated ModusFlow LoRA loaders handle the weights.
+
+### Keyboard Shortcuts
+Inside the positive and negative text boxes:
+* **Toggle Line Comment (`#`):** `Ctrl + /` (or `Cmd + /` on macOS)
+* **Toggle Block Comment (`/* ... */`):** `Ctrl + Shift + /` or `Shift + Alt + A`
+
+---
+
+## 5. Wildcards (Strictly in `saved_prompts/`)
+
+For large collections (clothing, hairstyles, camera lenses, or artist styles), ModusFlow uses `__name__` wildcards.
+
+> [!IMPORTANT]
+> **Strict Directory Isolation:**
+> ModusFlow wildcards **only ever look inside your `saved_prompts/` folder** (specifically `saved_prompts/wildcards/` or `saved_prompts/`). They will never hunt through outside directories or unrelated ComfyUI paths.
+
+### Creating Wildcard Lists
+1. Place plain `.txt` files in:
+   ```
+   ComfyUI-ModusFlow/saved_prompts/wildcards/
+   ```
+2. Add entries (one per line, `#` comments allowed):
+   ```text
+   # hairstyles.txt
+   long wavy ponytail
+   sleek straight waist-length hair
+   messy twin braids with ribbon ties
+   short layered bob cut
+   ```
+3. Call it in your prompt with double underscores:
+   ```text
+   1girl, solo, portrait, __hairstyles__, wearing __outfits__
+   ```
+
+---
+
+## 6. Visual List Curation with `ModusFlow List Curator`
+
+Rather than editing text files outside ComfyUI, connect **`ModusFlow List Curator`** directly to the text editor:
+
+```
+[ ModusFlow List Curator ] ── selected_item ──► [ ModusFlow Text Editor ]
+```
+
+### Modes & Features:
+* **Dropdown File Selector:** Automatically lists every `.txt` file inside `saved_prompts/wildcards/`.
+* **Curation Modes:**
+  * **Random (Seed Driven):** Picks a random line per generation (repeatable with seed).
+  * **Sequential (Index Driven):** Iterates through lines sequentially using an `index` integer.
+  * **All Items (Comma Separated):** Joins all items into a single comma-separated tag string.
+  * **All Items (Newline Separated):** Formats items as a multiline block.
+* **On-Canvas Editing (`custom_entries`):** Add temporary items directly on the node without opening a file explorer.
+* **Prefix / Suffix:** Prepend (e.g. `"wearing a"`) or append (e.g. `"in daylight"`) to every picked item.
+
+---
+
+## 7. Saving & Loading Prompt Libraries
+
+`ModusFlow Text Editor` includes a persistent prompt library:
+1. Enter your positive and negative prompts.
+2. In **`prompt_category`**, enter a category (e.g. `Characters`, `Landscapes`, `Portraits`).
+3. Click **💾 Save Prompt** and enter a prompt title.
+4. To reload later: Filter by category with **`category_filter`**, then select from **`saved_prompt`**.
+5. Prompts are stored as JSON files inside `saved_prompts/` and are fully preserved across ComfyUI updates.
+
+---
+
+## 8. Inspecting Resolved Prompts
+
+Because dynamic prompts, wildcards, and weight translations transform your text before sending it to the model, you can inspect the exact final string:
+
+* Connect the `positive` output from `ModusFlow Text Editor` into **`ModusFlow ShowText`**.
+* The node will display the fully resolved, sanitized string right on the canvas.
