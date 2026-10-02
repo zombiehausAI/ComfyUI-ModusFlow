@@ -860,6 +860,11 @@
           "name": "pipe",
           "type": "PIPE",
           "links": null
+        },
+        {
+          "name": "upscaled_image",
+          "type": "IMAGE",
+          "links": null
         }
       ],
       "properties": {
@@ -872,14 +877,18 @@
         true,
         true,
         0.5,
-        "lanczos"
+        "lanczos",
+        false,
+        "ModusFlow_Upscale"
       ],
       "widgets_values_named": {
         "upscale_model_name": "4x-UltraSharp.pth",
         "upscale_enabled": true,
         "downscale_enabled": true,
         "scale_down_by": 0.5,
-        "rescale_method": "lanczos"
+        "rescale_method": "lanczos",
+        "save_upscale": false,
+        "upscale_save_prefix": "ModusFlow_Upscale"
       }
     },
     {
@@ -1869,6 +1878,16 @@
           "links": [
             1195
           ]
+        },
+        {
+          "name": "loaded_loras",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "trigger_words",
+          "type": "STRING",
+          "links": null
         }
       ],
       "properties": {
