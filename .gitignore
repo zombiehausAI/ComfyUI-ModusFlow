@@ -1,5 +1,6 @@
 # Ignore user-specific configuration
 config.json
+syntax_themes.json
 
 # Python cache files
 __pycache__/

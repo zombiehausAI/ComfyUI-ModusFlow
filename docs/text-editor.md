@@ -9,6 +9,9 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 ## Features
 
 - **Dual Editor**: Separate Positive and Negative text areas
+- **Live Syntax Highlighting**: Real-time on-canvas syntax color highlighting for comments, dynamic choices, pick-n ranges, weighted odds, wildcards, prompt variables, attention weights, curator placeholders, and LoRAs
+- **Syntax Theme Selector**: Dropdown selector supporting multiple themes (Modus Neon, Cyberpunk 2077, Monokai Pro, Dracula Night, Nord Frost, Solarized Dark, High Contrast, and Plain Text)
+- **JSON Theme Configuration**: Fully customizable `syntax_themes.json` file for styling your own color themes
 - **Save/Load System**: Persistent storage as JSON files (`type`, `category`, `positive`, `negative`)
 - **Type & Category Filtering**: Filter by Type (`Prompts`, `Songs`, `All`) and Category (`Portraits`, `Landscapes`, `Song`, etc.)
 - **Cross-Node Interoperability**: Can load prompts or songs created across ModusFlow text nodes (Song Writer, ACE Audio, Ollama Refiner)
@@ -58,6 +61,67 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **💾 Save Prompt**: Prompts for a filename and optional category, then saves both texts as a `.json` file
 - **✏️ Update Selected**: Overwrites the currently selected prompt with the current text (preserves existing category)
 - **🔄 Refresh List**: Reloads the dropdown to show any newly added files
+
+## Live Syntax Highlighting & Themes
+
+The Text Editor includes a real-time, zero-latency syntax highlighting engine rendered directly behind both the Positive and Negative prompt textareas.
+
+### Highlighted Syntax Tokens
+
+| Token Type | Syntax Example | Description |
+|---|---|---|
+| **Comments** | `/* notes */`, `# comment`, `// idea` | Dimmed/subtle color indicating exclusion from generation |
+| **Variables** | `$lighting = neon ambient;`, `$lighting` | Distinct accent color for prompt variable definitions and references |
+| **Dynamic Choices** | `{red \| blue \| green}` | Bracketed options highlighted for easy scanning |
+| **Pick-N & Ranges** | `{2$$red \| blue \| green}`, `{1-3$$tags}` | Dynamic combination generators highlighted |
+| **Weighted Odds** | `{80::day \| 20::night}` | Probability weighted choices highlighted |
+| **Tag Shuffling** | `{shuffle: cyber, punk, neon}` | Shuffle blocks highlighted |
+| **Wildcards** | `__lighting/studio__`, `__clothing__` | Double underscore wildcards highlighted |
+| **Attention Weights** | `(sharp focus:1.2)`, `(grain:0.8)` | Attention weight numbers and terms highlighted |
+| **Curator Inputs** | `{curator}`, `{curator2}` | Curated trait placeholders highlighted |
+| **LoRAs** | `<lora:ChromaHD_Details:0.8>` | LoRA model tags highlighted |
+
+### Theme Dropdown Selector
+
+The node UI features a dedicated **Syntax Theme** dropdown selector placed right above the filters. Changing the theme updates both Positive and Negative editors immediately:
+- **Modus Neon (Default)**: Modern dark mode with neon accents
+- **Tomorrow Night Eighties**: Classic warm retro-dark coding palette
+- **Cyberpunk 2077**: Electric cyan, hot magenta, and neon yellow
+- **Monokai Pro**: Classic code editor palette
+- **Dracula Night**: Deep purple and vibrant pastel accents
+- **Nord Frost**: Calm arctic blues, snow whites, and cool teals
+- **Solarized Dark**: Precision low-contrast solarized palette
+- **High Contrast**: Vivid punchy colors on deep black
+- **Off (Plain Text)**: Disables highlighting and restores standard ComfyUI text styling
+
+### JSON Theme Configuration & Templates (`syntax_themes.json.example`)
+
+The repository includes `syntax_themes.json.example` as a template containing all default themes. If `syntax_themes.json` does not exist on startup, the system automatically creates it from `syntax_themes.json.example`. Because `syntax_themes.json` is user-specific and excluded from git, you can safely modify themes or add your own custom palettes without dirtying git status or conflicting with repository updates.
+
+You can also place `syntax_themes.json` inside your custom `saved_prompts/` directory if you prefer to keep your theme presets together with your saved prompt library.
+
+```json
+{
+  "active_theme": "Modus Neon (Default)",
+  "themes": {
+    "My Custom Theme": {
+      "comment": "#6b7280",
+      "choice": "#c084fc",
+      "shuffle": "#f472b6",
+      "wildcard": "#fbbf24",
+      "variable": "#38bdf8",
+      "weight": "#34d399",
+      "curator": "#4ade80",
+      "lora": "#f87171",
+      "plain_text": "#e2e8f0",
+      "caret_color": "#ffffff",
+      "bg_color": "#181825"
+    }
+  }
+}
+```
+
+The node automatically reads this file through the `/modusflow/syntax_themes` API endpoint and populates the dropdown dynamically. Custom themes appear immediately in the selector.
 
 ## Configuration
 

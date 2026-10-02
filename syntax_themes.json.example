@@ -1,0 +1,109 @@
+{
+  "active_theme": "Modus Neon (Default)",
+  "themes": {
+    "Modus Neon (Default)": {
+      "comment": "#6b7280",
+      "choice": "#c084fc",
+      "shuffle": "#f472b6",
+      "wildcard": "#fbbf24",
+      "variable": "#38bdf8",
+      "weight": "#34d399",
+      "curator": "#4ade80",
+      "lora": "#f87171",
+      "plain_text": "#e2e8f0",
+      "caret_color": "#ffffff",
+      "bg_color": "#181825"
+    },
+    "Tomorrow Night Eighties": {
+      "comment": "#999999",
+      "choice": "#cc99cc",
+      "shuffle": "#f99157",
+      "wildcard": "#ffcc66",
+      "variable": "#66cccc",
+      "weight": "#99cc99",
+      "curator": "#6699cc",
+      "lora": "#f2777a",
+      "plain_text": "#cccccc",
+      "caret_color": "#cccccc",
+      "bg_color": "#2d2d2d"
+    },
+    "Cyberpunk 2077": {
+      "comment": "#71717a",
+      "choice": "#e879f9",
+      "shuffle": "#ff007f",
+      "wildcard": "#facc15",
+      "variable": "#00f0ff",
+      "weight": "#22c55e",
+      "curator": "#39ff14",
+      "lora": "#ff0055",
+      "plain_text": "#f3f4f6",
+      "caret_color": "#00f0ff",
+      "bg_color": "#0d0e15"
+    },
+    "Monokai Pro": {
+      "comment": "#727072",
+      "choice": "#ffd866",
+      "shuffle": "#ff6188",
+      "wildcard": "#fc9867",
+      "variable": "#78dce8",
+      "weight": "#a9dc76",
+      "curator": "#ab9df2",
+      "lora": "#ff6188",
+      "plain_text": "#fcfcfa",
+      "caret_color": "#ffd866",
+      "bg_color": "#221f22"
+    },
+    "Dracula Night": {
+      "comment": "#6272a4",
+      "choice": "#bd93f9",
+      "shuffle": "#ff79c6",
+      "wildcard": "#f1fa8c",
+      "variable": "#8be9fd",
+      "weight": "#50fa7b",
+      "curator": "#50fa7b",
+      "lora": "#ff5555",
+      "plain_text": "#f8f8f2",
+      "caret_color": "#f8f8f2",
+      "bg_color": "#1e1f29"
+    },
+    "Nord Frost": {
+      "comment": "#616e88",
+      "choice": "#b48ead",
+      "shuffle": "#d08770",
+      "wildcard": "#ebcb8b",
+      "variable": "#88c0d0",
+      "weight": "#a3be8c",
+      "curator": "#8fbcbb",
+      "lora": "#bf616a",
+      "plain_text": "#eceff4",
+      "caret_color": "#88c0d0",
+      "bg_color": "#242933"
+    },
+    "Solarized Dark": {
+      "comment": "#586e75",
+      "choice": "#6c71c4",
+      "shuffle": "#d33682",
+      "wildcard": "#b58900",
+      "variable": "#2aa198",
+      "weight": "#859900",
+      "curator": "#268bd2",
+      "lora": "#cb4b16",
+      "plain_text": "#93a1a1",
+      "caret_color": "#268bd2",
+      "bg_color": "#001e26"
+    },
+    "High Contrast": {
+      "comment": "#9ca3af",
+      "choice": "#d946ef",
+      "shuffle": "#ec4899",
+      "wildcard": "#eab308",
+      "variable": "#06b6d4",
+      "weight": "#10b981",
+      "curator": "#22c55e",
+      "lora": "#ef4444",
+      "plain_text": "#ffffff",
+      "caret_color": "#ffffff",
+      "bg_color": "#09090b"
+    }
+  }
+}

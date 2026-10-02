@@ -49,7 +49,7 @@ ComfyUI-ModusFlow provides 22 custom nodes organized into six categories:
 
 **🛠️ Utilities & Prompting**
 - Show Text - Simple text display for prompts and debugging
-- Text Editor - Interactive text editor with category-filtered save/load to unified prompts library
+- Text Editor - Interactive text editor with live syntax highlighting, multi-theme selector, and category-filtered save/load to unified prompts library
 - Ollama Prompt Refiner - Prompt enhancement with category-filtered save/load to unified prompts library
 - Image Gallery - Browse output directory with metadata viewing
 - Save Image - Save images in PNG/JPEG/WebP with filename variables and metadata embedding

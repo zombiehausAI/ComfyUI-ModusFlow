@@ -671,6 +671,53 @@ async def delete_wildcard_endpoint(request):
     except Exception as e:
         return web.json_response({"success": False, "message": str(e)})
 
+# ── Syntax Highlighting Themes routes ───────────────────────────────────────
+
+def _get_syntax_themes_path():
+    """Return path to syntax_themes.json (checking saved_prompts, then root, auto-creating from example if missing)."""
+    from .config import BASE_DIR
+    custom_path = os.path.join(_get_base_prompts_dir(), 'syntax_themes.json')
+    if os.path.isfile(custom_path):
+        return custom_path
+    root_path = os.path.join(BASE_DIR, 'syntax_themes.json')
+    if os.path.isfile(root_path):
+        return root_path
+
+    # Auto-create syntax_themes.json from syntax_themes.json.example
+    example_path = os.path.join(BASE_DIR, 'syntax_themes.json.example')
+    if os.path.isfile(example_path):
+        try:
+            shutil.copyfile(example_path, root_path)
+            return root_path
+        except Exception:
+            return example_path
+    return root_path
+
+@server.PromptServer.instance.routes.get("/modusflow/syntax_themes")
+async def get_syntax_themes_endpoint(request):
+    """API endpoint to get syntax highlighting color themes."""
+    try:
+        path = _get_syntax_themes_path()
+        if os.path.isfile(path):
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return web.json_response({"success": True, "data": data})
+        return web.json_response({"success": False, "message": "Theme file not found"})
+    except Exception as e:
+        return web.json_response({"success": False, "message": str(e)})
+
+@server.PromptServer.instance.routes.post("/modusflow/syntax_themes/save")
+async def save_syntax_themes_endpoint(request):
+    """API endpoint to save or update syntax highlighting themes."""
+    try:
+        data = await request.json()
+        path = _get_syntax_themes_path()
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        return web.json_response({"success": True, "message": "Themes updated"})
+    except Exception as e:
+        return web.json_response({"success": False, "message": str(e)})
+
 # ── Song Writer routes ─────────────────────────────────────────────────────────
 
 @server.PromptServer.instance.routes.get("/modusflow/song/list")
