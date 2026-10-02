@@ -134,7 +134,8 @@ class ModusFlowSaveImage:
                     img.save(output_path, quality=quality, method=6)
 
             print(f"[ModusFlow SaveImage] Saved: {output_path}")
-            results.append({"filename": file, "subfolder": subfolder, "type": "output"})
+            clean_sub = subfolder.replace('\\', '/') if subfolder else ""
+            results.append({"filename": file, "subfolder": clean_sub, "type": "output"})
 
         if clean_vram and _has_torch and torch.cuda.is_available():
             torch.cuda.empty_cache()

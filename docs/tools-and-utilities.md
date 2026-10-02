@@ -119,9 +119,10 @@ Overview and usage reference for ModusFlow's advanced utility suite: Tiled VAE D
 
 ---
 
-## 8. A/B Image Comparison (`ModusFlowCompareImages`)
+## 8. A/B Image Comparison & Live Preview (`ModusFlowCompareImages`)
 * **Category:** `ModusFlow/Image`
-* **Overview:** Renders an interactive split-view comparison between Image A (Before) and Image B (After) with an adjustable divider line.
-* **Usage:** Connect Image A (original generation) and Image B (after DeWax, Detailer, or Restormer) to visually inspect sharpness, texture restoration, and facial improvements side-by-side.
-* **Inputs:** `image_a`, `image_b`, `split_percent` (0–100%), `split_direction` (Vertical / Horizontal), `show_divider` (BOOLEAN).
+* **Overview:** Renders an interactive split-view comparison between Image A (Before) and Image B (After) with an adjustable divider line, featuring live on-canvas image preview directly inside the node.
+* **Usage:** Connect Image A (original generation) and Image B (after DeWax, Detailer, or Restormer) to visually inspect sharpness, texture restoration, and facial improvements side-by-side on the canvas. If `image_b` is left unconnected, the node functions as a clean on-canvas image previewer for Image A.
+* **Inputs:** `image_a` (IMAGE, required), `image_b` (IMAGE, optional), `split_percent` (0–100%), `split_direction` (Vertical / Horizontal), `show_divider` (BOOLEAN).
 * **Outputs:** `comparison` (IMAGE), `image_a`, `image_b`.
+* **Execution:** Configured as an active output node (`OUTPUT_NODE = True`), ensuring on-canvas previews render automatically on every run without requiring downstream connections.
