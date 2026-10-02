@@ -253,6 +253,29 @@ Load template → Edit specific parts → Generate with conditioning output
 - **Ctrl + Z**: Undo
 - **Ctrl + Y**: Redo
 
+## Intelligent Autocomplete System
+
+The Text Editor features a built-in, context-aware autocomplete menu with real-time fuzzy filtering, categorized styling, and keyboard navigation.
+
+### Triggers & Categories
+
+| Trigger | Category | Badge | Description & Insertion Format |
+|---|---|---|---|
+| `__` | **Wildcards / Lists** | `LIST` | Auto-detects all list files in `saved_prompts/wildcards/`. Typing `__` or `__hair` brings up matching lists. Selecting inserts `__name__ `. |
+| `$` | **Prompt Variables** | `VAR` | Extracts all declared (`$name = ...`) and referenced variables in your prompt text across both positive and negative editors. Selecting inserts `$name `. |
+| `%` | **System Variables** | `SYS` | System variables including `%date%`, `%time%`, `%seed%`, `%model%`, `%width%`, `%height%`, `%steps%`, `%cfg%`. Selecting inserts `%name% `. |
+| `{c` | **Curator Placeholders** | `CUR` | Fast insertion for `{curator}`, `{curator2}`, `{curator3}`, `{curator4}`, `{curator5}`, `{curator6}` slots. Selecting inserts `{curator} `. |
+| `<l` or `<lora:` | **LoRA Models** | `LORA` | Scans available ComfyUI LoRA models. Selecting inserts `<lora:model_name:1.0> `. |
+
+### Keyboard & Navigation Controls
+
+- **Arrow Down (`↓`) / Arrow Up (`↑`)**: Move selection up and down with auto-scrolling
+- **Enter / Tab**: Commit the selected suggestion, automatically inserting the syntax brackets and cursor space
+- **Escape**: Dismiss the autocomplete popup without altering text
+- **Mouse Click**: Direct single-click selection without losing cursor focus
+- **Automatic Caching**: Lists and LoRAs are pre-cached and automatically updated when clicking **Refresh List** or focusing the editor
+
+
 ## Commenting Out Prompts (Exclusion Engine)
 
 The editor allows you to comment out words, tags, or entire blocks so they are excluded from generation without losing your notes or having to delete text:

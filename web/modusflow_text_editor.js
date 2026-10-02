@@ -200,6 +200,101 @@ function injectSyntaxStyles() {
             border-color: rgba(251, 191, 36, 0.5);
             background: rgba(45, 26, 10, 0.88);
         }
+        /* ── Autocomplete Menu ── */
+        .modusflow-autocomplete-menu {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.96);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 8px;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.1);
+            max-height: 230px;
+            overflow-y: auto;
+            z-index: 1000;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            display: none;
+            box-sizing: border-box;
+            padding: 4px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+        }
+        .modusflow-autocomplete-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #cbd5e1;
+            transition: background 0.12s ease, color 0.12s ease;
+            user-select: none;
+        }
+        .modusflow-autocomplete-item:hover,
+        .modusflow-autocomplete-item.selected {
+            background: rgba(56, 189, 248, 0.22);
+            color: #ffffff;
+            outline: 1px solid rgba(56, 189, 248, 0.45);
+        }
+        .modusflow-ac-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            font-weight: 500;
+        }
+        .modusflow-ac-hint {
+            font-size: 10px;
+            color: #94a3b8;
+            margin-left: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 140px;
+        }
+        .modusflow-ac-badge {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+        .modusflow-ac-badge.badge-wildcard {
+            background: rgba(251, 191, 36, 0.18);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.4);
+        }
+        .modusflow-ac-badge.badge-variable {
+            background: rgba(56, 189, 248, 0.18);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+        }
+        .modusflow-ac-badge.badge-lora {
+            background: rgba(248, 113, 113, 0.18);
+            color: #f87171;
+            border: 1px solid rgba(248, 113, 113, 0.4);
+        }
+        .modusflow-ac-badge.badge-curator {
+            background: rgba(74, 222, 128, 0.18);
+            color: #4ade80;
+            border: 1px solid rgba(74, 222, 128, 0.4);
+        }
+        .modusflow-ac-badge.badge-system {
+            background: rgba(192, 132, 252, 0.18);
+            color: #c084fc;
+            border: 1px solid rgba(192, 132, 252, 0.4);
+        }
+        .modusflow-ac-empty {
+            padding: 8px 12px;
+            font-size: 11px;
+            color: #94a3b8;
+            font-style: italic;
+            text-align: center;
+        }
     `;
     document.head.appendChild(styleEl);
 }
@@ -441,12 +536,535 @@ function setNodeTheme(node, themeName) {
     nw?._applyTheme?.(theme);
 }
 
+// ── Autocomplete System: Wildcards, Variables, Curator & LoRAs ───────────────
+let _cachedWildcards = null;
+let _cachedLoras = null;
+
+function fetchWildcardList(force = false) {
+    if (_cachedWildcards && !force) return Promise.resolve(_cachedWildcards);
+    return fetch("/modusflow/wildcards/list")
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && Array.isArray(data.data)) {
+                _cachedWildcards = data.data;
+            } else {
+                _cachedWildcards = [];
+            }
+            return _cachedWildcards;
+        })
+        .catch(err => {
+            console.debug("[ModusFlow Autocomplete] Wildcard fetch:", err.message);
+            return _cachedWildcards || [];
+        });
+}
+
+function fetchLoraList(force = false) {
+    if (_cachedLoras && !force) return Promise.resolve(_cachedLoras);
+    return fetch("/modusflow/get_loras")
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && Array.isArray(data.data)) {
+                _cachedLoras = data.data.map(name => name.replace(/\.(safetensors|pt|ckpt|bin)$/i, ""));
+            } else {
+                _cachedLoras = [];
+            }
+            return _cachedLoras;
+        })
+        .catch(err => {
+            console.debug("[ModusFlow Autocomplete] LoRA fetch:", err.message);
+            return _cachedLoras || [];
+        });
+}
+
+const SYSTEM_VARS = [
+    { name: "date", desc: "Current date (YYYY-MM-DD)" },
+    { name: "time", desc: "Current time (HH-MM-SS)" },
+    { name: "seed", desc: "Dynamic generation seed" },
+    { name: "width", desc: "Latent / Image width" },
+    { name: "height", desc: "Latent / Image height" },
+    { name: "model", desc: "Active checkpoint model" },
+    { name: "steps", desc: "Sampling steps" },
+    { name: "cfg", desc: "CFG scale" }
+];
+
+const CURATOR_TAGS = [
+    { name: "curator", desc: "Primary curator list item" },
+    { name: "curator2", desc: "Curator item slot 2" },
+    { name: "curator3", desc: "Curator item slot 3" },
+    { name: "curator4", desc: "Curator item slot 4" },
+    { name: "curator5", desc: "Curator item slot 5" },
+    { name: "curator6", desc: "Curator item slot 6" }
+];
+
+const DEFAULT_VARIABLE_HINTS = [
+    { name: "subject", desc: "Subject variable" },
+    { name: "style", desc: "Style variable" },
+    { name: "lighting", desc: "Lighting variable" },
+    { name: "quality", desc: "Quality boost variable" },
+    { name: "details", desc: "Details variable" },
+    { name: "outfit", desc: "Apparel variable" }
+];
+
+function extractPromptVariables(node) {
+    const vars = new Set();
+    const pw = node?.widgets?.find(w => w.name === "positive");
+    const nw = node?.widgets?.find(w => w.name === "negative");
+    const fullText = ((pw?.value || "") + "\n" + (nw?.value || ""));
+
+    const defRegex = /^\s*\$([a-zA-Z0-9_]+)\s*=/gm;
+    let m;
+    while ((m = defRegex.exec(fullText)) !== null) {
+        vars.add(m[1]);
+    }
+    const refRegex = /\$([a-zA-Z0-9_]+)/g;
+    while ((m = refRegex.exec(fullText)) !== null) {
+        vars.add(m[1]);
+    }
+    return Array.from(vars).sort();
+}
+
+function detectTrigger(text, cursor) {
+    if (cursor <= 0 || !text) return null;
+    const sub = text.slice(0, cursor);
+
+    // 1. Wildcards: __name (preceded by start of line, whitespace, or punctuation)
+    const wcMatch = sub.match(/(?:^|[\s,.:;!?([{\"])(__([a-zA-Z0-9_\/-]*))$/);
+    if (wcMatch) {
+        return {
+            type: "wildcard",
+            fullToken: wcMatch[1],
+            query: wcMatch[2] || "",
+            replaceStart: cursor - wcMatch[1].length,
+            replaceEnd: cursor
+        };
+    }
+
+    // 2. Variables: $name (must not be preceded by $)
+    const varMatch = sub.match(/(?:^|[^\$a-zA-Z0-9_])(\$([a-zA-Z0-9_]*))$/);
+    if (varMatch) {
+        return {
+            type: "variable",
+            fullToken: varMatch[1],
+            query: varMatch[2] || "",
+            replaceStart: cursor - varMatch[1].length,
+            replaceEnd: cursor
+        };
+    }
+
+    // 3. System variables: %name
+    const sysMatch = sub.match(/(?:^|[\s,.:;!?([{\"])(%([a-zA-Z0-9_]*))$/);
+    if (sysMatch) {
+        return {
+            type: "system",
+            fullToken: sysMatch[1],
+            query: sysMatch[2] || "",
+            replaceStart: cursor - sysMatch[1].length,
+            replaceEnd: cursor
+        };
+    }
+
+    // 4. Curator placeholders: {c or {curator
+    const curMatch = sub.match(/(?:^|[\s,.:;!?([{\"])((\{c[a-zA-Z0-9_]*))$/i);
+    if (curMatch) {
+        return {
+            type: "curator",
+            fullToken: curMatch[1],
+            query: curMatch[1].slice(1),
+            replaceStart: cursor - curMatch[1].length,
+            replaceEnd: cursor
+        };
+    }
+
+    // 5. LoRA tag: <lora: or <l
+    const loraMatch = sub.match(/(?:^|[\s,.:;!?([{\"])(<(?:lora:)?([a-zA-Z0-9_.\/-]*))$/i);
+    if (loraMatch) {
+        return {
+            type: "lora",
+            fullToken: loraMatch[1],
+            query: loraMatch[2] || "",
+            replaceStart: cursor - loraMatch[1].length,
+            replaceEnd: cursor
+        };
+    }
+
+    return null;
+}
+
+function formatReplacement(item, type) {
+    switch (type) {
+        case "wildcard":
+            return `__${item.name}__ `;
+        case "variable":
+            return `$${item.name} `;
+        case "system":
+            return `%${item.name}% `;
+        case "curator":
+            return `{${item.name}} `;
+        case "lora":
+            return `<lora:${item.name}:1.0> `;
+        default:
+            return `${item.name} `;
+    }
+}
+
+function getSuggestions(trigger, node) {
+    const q = (trigger.query || "").toLowerCase();
+
+    if (trigger.type === "wildcard") {
+        const list = _cachedWildcards || [];
+        const filtered = list.filter(w => !q || w.toLowerCase().includes(q));
+        filtered.sort((a, b) => {
+            const aStarts = a.toLowerCase().startsWith(q);
+            const bStarts = b.toLowerCase().startsWith(q);
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+            return a.localeCompare(b);
+        });
+        return filtered.map(name => ({
+            name,
+            badge: "LIST",
+            badgeClass: "badge-wildcard",
+            desc: "Wildcard list"
+        }));
+    }
+
+    if (trigger.type === "variable") {
+        const definedVars = extractPromptVariables(node);
+        let items = [];
+        if (definedVars.length > 0) {
+            const filtered = definedVars.filter(v => !q || v.toLowerCase().includes(q));
+            items = filtered.map(name => ({
+                name,
+                badge: "VAR",
+                badgeClass: "badge-variable",
+                desc: "Defined variable"
+            }));
+        }
+        const defaults = DEFAULT_VARIABLE_HINTS.filter(d => !q || d.name.toLowerCase().includes(q));
+        for (const def of defaults) {
+            if (!items.some(it => it.name === def.name)) {
+                items.push({
+                    name: def.name,
+                    badge: "VAR",
+                    badgeClass: "badge-variable",
+                    desc: def.desc
+                });
+            }
+        }
+        return items;
+    }
+
+    if (trigger.type === "system") {
+        return SYSTEM_VARS
+            .filter(v => !q || v.name.toLowerCase().includes(q))
+            .map(v => ({
+                name: v.name,
+                badge: "SYS",
+                badgeClass: "badge-system",
+                desc: v.desc
+            }));
+    }
+
+    if (trigger.type === "curator") {
+        return CURATOR_TAGS
+            .filter(c => !q || c.name.toLowerCase().includes(q))
+            .map(c => ({
+                name: c.name,
+                badge: "CUR",
+                badgeClass: "badge-curator",
+                desc: c.desc
+            }));
+    }
+
+    if (trigger.type === "lora") {
+        const list = _cachedLoras || [];
+        const filtered = list.filter(l => !q || l.toLowerCase().includes(q));
+        filtered.sort((a, b) => {
+            const aStarts = a.toLowerCase().startsWith(q);
+            const bStarts = b.toLowerCase().startsWith(q);
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+            return a.localeCompare(b);
+        });
+        return filtered.map(name => ({
+            name,
+            badge: "LORA",
+            badgeClass: "badge-lora",
+            desc: "LoRA model"
+        }));
+    }
+
+    return [];
+}
+
+function getCaretCoordinates(ta, position) {
+    const div = document.createElement("div");
+    const cs = window.getComputedStyle(ta);
+    const props = [
+        "direction", "boxSizing", "width", "height", "overflowX", "overflowY",
+        "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "borderStyle",
+        "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+        "fontStyle", "fontVariant", "fontWeight", "fontStretch", "fontSize",
+        "fontSizeAdjust", "lineHeight", "fontFamily", "textAlign", "textTransform",
+        "textIndent", "textDecoration", "letterSpacing", "wordSpacing", "tabSize"
+    ];
+    div.style.position = "absolute";
+    div.style.visibility = "hidden";
+    div.style.whiteSpace = "pre-wrap";
+    div.style.wordWrap = "break-word";
+    div.style.top = "0";
+    div.style.left = "-9999px";
+    for (const p of props) {
+        div.style[p] = cs[p];
+    }
+    div.style.width = (ta.clientWidth || 300) + "px";
+    div.textContent = ta.value.substring(0, position);
+    const span = document.createElement("span");
+    span.textContent = ta.value.substring(position) || ".";
+    div.appendChild(span);
+    document.body.appendChild(div);
+    const top = span.offsetTop - ta.scrollTop + parseInt(cs.borderTopWidth || "0", 10);
+    const left = span.offsetLeft - ta.scrollLeft + parseInt(cs.borderLeftWidth || "0", 10);
+    const lineHeight = parseInt(cs.lineHeight, 10) || 18;
+    document.body.removeChild(div);
+    return {
+        top: top + ta.offsetTop,
+        left: left + ta.offsetLeft,
+        lineHeight
+    };
+}
+
+function attachAutocomplete(widget, node) {
+    if (!widget) return;
+    injectSyntaxStyles();
+
+    let attempts = 0;
+    const bind = () => {
+        const ta = widget.inputEl || widget.element;
+        if (!ta || !ta.parentElement) {
+            if (attempts++ < 30) requestAnimationFrame(bind);
+            return;
+        }
+        if (ta._hasAutocomplete) return;
+        ta._hasAutocomplete = true;
+
+        const parent = ta.parentElement;
+        const parentPos = window.getComputedStyle(parent).position;
+        if (parentPos === "static") {
+            parent.style.position = "relative";
+        }
+
+        const menu = document.createElement("div");
+        menu.className = "modusflow-autocomplete-menu";
+        parent.appendChild(menu);
+
+        let activeItems = [];
+        let selectedIndex = 0;
+        let currentTrigger = null;
+
+        function closeMenu() {
+            menu.style.display = "none";
+            menu.innerHTML = "";
+            activeItems = [];
+            selectedIndex = 0;
+            currentTrigger = null;
+        }
+
+        function renderMenu() {
+            menu.innerHTML = "";
+            if (activeItems.length === 0) {
+                closeMenu();
+                return;
+            }
+
+            const maxVisible = 25;
+            const displayItems = activeItems.slice(0, maxVisible);
+
+            displayItems.forEach((item, idx) => {
+                const row = document.createElement("div");
+                row.className = "modusflow-autocomplete-item" + (idx === selectedIndex ? " selected" : "");
+
+                const badge = document.createElement("span");
+                badge.className = "modusflow-ac-badge " + item.badgeClass;
+                badge.textContent = item.badge;
+
+                const label = document.createElement("span");
+                label.className = "modusflow-ac-label";
+                label.textContent = item.name;
+
+                row.appendChild(badge);
+                row.appendChild(label);
+
+                if (item.desc) {
+                    const desc = document.createElement("span");
+                    desc.className = "modusflow-ac-hint";
+                    desc.textContent = item.desc;
+                    row.appendChild(desc);
+                }
+
+                row.addEventListener("mousedown", (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    commitItem(item);
+                });
+
+                row.addEventListener("mouseenter", () => {
+                    selectedIndex = idx;
+                    updateSelectionHighlight();
+                });
+
+                menu.appendChild(row);
+            });
+
+            if (activeItems.length > maxVisible) {
+                const more = document.createElement("div");
+                more.className = "modusflow-ac-empty";
+                more.textContent = `+${activeItems.length - maxVisible} more (type to filter)...`;
+                menu.appendChild(more);
+            }
+
+            positionMenu();
+            menu.style.display = "block";
+            updateSelectionHighlight();
+        }
+
+        function updateSelectionHighlight() {
+            const rows = menu.querySelectorAll(".modusflow-autocomplete-item");
+            rows.forEach((r, idx) => {
+                if (idx === selectedIndex) {
+                    r.classList.add("selected");
+                    r.scrollIntoView({ block: "nearest" });
+                } else {
+                    r.classList.remove("selected");
+                }
+            });
+        }
+
+        function positionMenu() {
+            if (!currentTrigger) return;
+            const coords = getCaretCoordinates(ta, currentTrigger.replaceStart);
+            const menuWidth = 320;
+            const parentW = parent.clientWidth || 480;
+            const parentH = parent.clientHeight || 300;
+
+            let left = coords.left;
+            if (left + menuWidth > parentW - 10) {
+                left = Math.max(8, parentW - menuWidth - 10);
+            }
+            if (left < 4) left = 4;
+
+            let top = coords.top + coords.lineHeight + 4;
+            const estMenuH = Math.min(220, activeItems.length * 32 + 20);
+            if (top + estMenuH > parentH && coords.top - estMenuH > 4) {
+                top = coords.top - estMenuH - 4;
+            }
+
+            menu.style.left = `${left}px`;
+            menu.style.top = `${top}px`;
+            menu.style.width = `${menuWidth}px`;
+        }
+
+        function commitItem(item) {
+            if (!currentTrigger) return;
+            const replacement = formatReplacement(item, currentTrigger.type);
+            ta.setRangeText(replacement, currentTrigger.replaceStart, currentTrigger.replaceEnd, "end");
+            widget.value = ta.value;
+            ta.dispatchEvent(new Event("input", { bubbles: true }));
+            closeMenu();
+        }
+
+        function checkTriggerAndSuggest() {
+            const trigger = detectTrigger(ta.value, ta.selectionStart);
+            if (!trigger) {
+                closeMenu();
+                return;
+            }
+
+            if (trigger.type === "wildcard" && !_cachedWildcards) {
+                fetchWildcardList().then(() => checkTriggerAndSuggest());
+                return;
+            }
+            if (trigger.type === "lora" && !_cachedLoras) {
+                fetchLoraList().then(() => checkTriggerAndSuggest());
+                return;
+            }
+
+            currentTrigger = trigger;
+            activeItems = getSuggestions(trigger, node);
+            selectedIndex = 0;
+            if (activeItems.length > 0) {
+                renderMenu();
+            } else {
+                closeMenu();
+            }
+        }
+
+        ta.addEventListener("input", checkTriggerAndSuggest);
+
+        ta.addEventListener("keydown", (e) => {
+            if (menu.style.display !== "none" && activeItems.length > 0) {
+                if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    selectedIndex = (selectedIndex + 1) % Math.min(activeItems.length, 25);
+                    updateSelectionHighlight();
+                    return;
+                }
+                if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    selectedIndex = (selectedIndex - 1 + Math.min(activeItems.length, 25)) % Math.min(activeItems.length, 25);
+                    updateSelectionHighlight();
+                    return;
+                }
+                if (e.key === "Enter" || e.key === "Tab") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    commitItem(activeItems[selectedIndex]);
+                    return;
+                }
+                if (e.key === "Escape") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeMenu();
+                    return;
+                }
+            }
+        });
+
+        ta.addEventListener("focus", () => {
+            fetchWildcardList(true);
+            fetchLoraList(true);
+        });
+
+        ta.addEventListener("blur", () => {
+            setTimeout(closeMenu, 180);
+        });
+
+        ta.addEventListener("scroll", () => {
+            if (menu.style.display !== "none") {
+                positionMenu();
+            }
+        }, { passive: true });
+
+        document.addEventListener("mousedown", (e) => {
+            if (menu.style.display !== "none" && !menu.contains(e.target) && e.target !== ta) {
+                closeMenu();
+            }
+        });
+    };
+
+    bind();
+}
+
 app.registerExtension({
     name: "modusflow.TextEditor",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         if (nodeData.name === "ModusFlowTextEditor") {
 
             fetchThemes();
+            fetchWildcardList();
+            fetchLoraList();
 
             // ── onNodeCreated ─────────────────────────────────────────────────────
             const onNodeCreated = nodeType.prototype.onNodeCreated;
@@ -463,11 +1081,13 @@ app.registerExtension({
                     positiveWidget.label = "Positive";
                     attachCommentShortcuts(positiveWidget);
                     attachSyntaxHighlighter(positiveWidget, node);
+                    attachAutocomplete(positiveWidget, node);
                 }
                 if (negativeWidget) {
                     negativeWidget.label = "Negative";
                     attachCommentShortcuts(negativeWidget);
                     attachSyntaxHighlighter(negativeWidget, node);
+                    attachAutocomplete(negativeWidget, node);
                 }
 
                 // ── Negative widget height control ────────────────────────────────
@@ -598,6 +1218,19 @@ app.registerExtension({
                 if (cw && vals[4] !== undefined) {
                     cw.value = vals[4];
                     if (cw.inputEl) cw.inputEl.value = vals[4];
+                }
+
+                const pw = this.widgets?.find(w => w.name === "positive");
+                const nw = this.widgets?.find(w => w.name === "negative");
+                if (pw) {
+                    attachCommentShortcuts(pw);
+                    attachSyntaxHighlighter(pw, this);
+                    attachAutocomplete(pw, this);
+                }
+                if (nw) {
+                    attachCommentShortcuts(nw);
+                    attachSyntaxHighlighter(nw, this);
+                    attachAutocomplete(nw, this);
                 }
             };
 
@@ -800,6 +1433,8 @@ app.registerExtension({
                             cw.options.values = ["--all categories--", ...cats];
                             cw.value = cw.options.values.includes(target) ? target : "--all categories--";
                         }
+                        fetchWildcardList(true);
+                        fetchLoraList(true);
                         applyFilter(node);
                     })
                     .catch(err => console.error("[ModusFlow] Refresh error:", err.message));
