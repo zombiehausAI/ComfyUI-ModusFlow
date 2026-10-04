@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { ComfyClient, PromptFileItem } from "./comfyClient";
+import { ComfyClient, PromptFileItem, SongFileItem } from "./comfyClient";
 
 export class PromptsTreeProvider implements vscode.TreeDataProvider<PromptTreeItem> {
     private _onDidChangeTreeData = new vscode.EventEmitter<PromptTreeItem | undefined | void>();
@@ -177,6 +177,82 @@ export class ConnectedCanvasNodeProvider implements vscode.TreeDataProvider<vsco
         negItem.tooltip = `Negative Prompt (Node #${node.id}):\n${negSnippet}`;
 
         return [headerItem, pushItem, pullItem, posItem, negItem];
+    }
+}
+
+export class SongsTreeProvider implements vscode.TreeDataProvider<SongTreeItem> {
+    private _onDidChangeTreeData = new vscode.EventEmitter<SongTreeItem | undefined | void>();
+    readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+
+    constructor(private client: ComfyClient) {}
+
+    refresh(): void {
+        this._onDidChangeTreeData.fire();
+    }
+
+    getTreeItem(element: SongTreeItem): vscode.TreeItem {
+        return element;
+    }
+
+    async getChildren(element?: SongTreeItem): Promise<SongTreeItem[]> {
+        if (!element) {
+            const list = await this.client.listSongs();
+            const categories = new Map<string, SongFileItem[]>();
+
+            for (const item of list) {
+                const cat = (item.category || item.genre || "General").trim();
+                if (!categories.has(cat)) categories.set(cat, []);
+                categories.get(cat)!.push(item);
+            }
+
+            const nodes: SongTreeItem[] = [];
+            for (const [cat, items] of categories.entries()) {
+                nodes.push(new SongTreeItem(
+                    cat,
+                    vscode.TreeItemCollapsibleState.Collapsed,
+                    "category",
+                    items
+                ));
+            }
+            return nodes.sort((a, b) => a.label.localeCompare(b.label));
+        }
+
+        if (element.contextValue === "category" && element.childItems) {
+            return element.childItems.map(song => {
+                const title = song.title || song.filename;
+                const item = new SongTreeItem(
+                    title,
+                    vscode.TreeItemCollapsibleState.None,
+                    "songFile"
+                );
+                item.description = song.genre ? `[${song.genre}]` : "";
+                item.tooltip = `Song: ${song.title || song.filename}\nGenre: ${song.genre || "N/A"}\nVocals: ${song.vocal_style || "N/A"}\nMood: ${song.mood || "N/A"}`;
+                item.command = {
+                    command: "modusflow.openSongFile",
+                    title: "Open Song in Songwriter Studio",
+                    arguments: [song.filename]
+                };
+                return item;
+            });
+        }
+
+        return [];
+    }
+}
+
+export class SongTreeItem extends vscode.TreeItem {
+    constructor(
+        public readonly label: string,
+        public readonly collapsibleState: vscode.TreeItemCollapsibleState,
+        public readonly contextValue: string,
+        public readonly childItems?: SongFileItem[]
+    ) {
+        super(label, collapsibleState);
+        if (contextValue === "category") {
+            this.iconPath = new vscode.ThemeIcon("folder");
+        } else {
+            this.iconPath = new vscode.ThemeIcon("music");
+        }
     }
 }
 
