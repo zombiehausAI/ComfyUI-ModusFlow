@@ -1,5 +1,8 @@
 # ModusFlow
 
+[![Release (main)](https://github.com/zombiehausAI/ComfyUI-ModusFlow/actions/workflows/release-and-versioning.yml/badge.svg?branch=main)](https://github.com/zombiehausAI/ComfyUI-ModusFlow/actions/workflows/release-and-versioning.yml?query=branch%3Amain)
+[![Build (dev)](https://github.com/zombiehausAI/ComfyUI-ModusFlow/actions/workflows/release-and-versioning.yml/badge.svg?branch=dev)](https://github.com/zombiehausAI/ComfyUI-ModusFlow/actions/workflows/release-and-versioning.yml?query=branch%3Adev)
+[![Latest Release](https://img.shields.io/github/v/release/zombiehausAI/ComfyUI-ModusFlow?color=blue&label=release)](https://github.com/zombiehausAI/ComfyUI-ModusFlow/releases)
 [![License](https://img.shields.io/badge/License-MIT-brightgreen)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/zombiehaus)
 
