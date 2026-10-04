@@ -651,9 +651,9 @@ export class ModusFlowStudioPanel {
             -webkit-text-fill-color: var(--text-main) !important;
         }
         textarea::selection {
-            background: rgba(137, 180, 250, 0.3) !important;
-            color: transparent !important;
-            -webkit-text-fill-color: transparent !important;
+            background: rgba(137, 180, 250, 0.4) !important;
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
         }
 
         .pedalboard-rack {
@@ -1067,88 +1067,113 @@ export class ModusFlowStudioPanel {
             }
         };
 
+        function escapeHtml(str) {
+            return (str || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
         function tokenizeToHtml(text, themeName) {
             if (!text) return "";
             const theme = SYNTAX_THEMES[themeName] || SYNTAX_THEMES["Modus Neon (Default)"];
             if (themeName === "Off") {
                 let esc = escapeHtml(text);
-                if (text.endsWith("\\n")) esc += "<br>&nbsp;";
+                if (text.endsWith("\n")) esc += "<br>&nbsp;";
                 return esc;
             }
 
-            const intervals = [];
-            const addMatches = (regex, type) => {
-                let m;
-                while ((m = regex.exec(text)) !== null) {
-                    const start = m.index;
-                    const end = start + m[0].length;
-                    if (!intervals.some(iv => (start < iv.end && end > iv.start))) {
-                        intervals.push({ start, end, type });
+            try {
+                const intervals = [];
+                const addMatches = (regex, type) => {
+                    let m;
+                    while ((m = regex.exec(text)) !== null) {
+                        const start = m.index;
+                        const end = start + m[0].length;
+                        if (!intervals.some(iv => (start < iv.end && end > iv.start))) {
+                            intervals.push({ start, end, type });
+                        }
                     }
+                };
+
+                // Section headers: // [Name] or [Name]
+                addMatches(/(?:\/\/|#|\/\*)\s*\[[^\]\r\n]+\](?:\s*\*\/)?/g, "section_header");
+                addMatches(/(?:^|(?<=[\r\n]))\s*\[[^\]\r\n]+\](?=\s*(?:[\r\n]|$))/g, "section_header");
+                // Block comments
+                addMatches(/\/\*[\s\S]*?\*\//g, "comment");
+                // Hex colors
+                addMatches(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g, "hex_color");
+                // Line comments
+                addMatches(/(?:\/\/|#)[^\r\n]*/g, "comment");
+                // LoRAs
+                addMatches(/<lora:[^>\r\n]+>/gi, "lora");
+                // Variables
+                addMatches(/\$[a-zA-Z0-9_-]+(?:\s*=\s*[^;\r\n]+;?)?/g, "variable");
+                // Curator & dynamic choices
+                addMatches(/\{curator\d*\}/gi, "curator");
+                addMatches(/\{shuffle:[^}]+\}/gi, "shuffle");
+                addMatches(/\{\s*\d+(?:-\d+)?\$\$[^}]+\}/g, "choice");
+                addMatches(/\{\s*\d+::[^}]+\}/g, "choice");
+                addMatches(/\{[^{}]*\|[^{}]*\}/g, "choice");
+                addMatches(/__[a-zA-Z0-9_/-]+__/g, "wildcard");
+                addMatches(/\([^():\r\n]+:\s*-?\d+(?:\.\d+)?\)/g, "weight");
+
+                if (currentMode === "songwriter") {
+                    addMatches(/\([^\)\r\n]+\)/g, "lyric_cue");
                 }
-            };
 
-            // Section headers: // [Name] or [Name]
-            addMatches(/(?:\\/\\/|#|\\/\\*)\\s*\\[[^\\]\\r\\n]+\\](?:\\s*\\*\\/)?/g, "section_header");
-            addMatches(/(?:^|(?<=[\\r\\n]))\\s*\\[[^\\]\\r\\n]+\\](?=\\s*(?:[\\r\\n]|$))/g, "section_header");
-            // Backing vocals
-            addMatches(/\\([^\\)\\r\\n]+\\)/g, "lyric_cue");
-            // Block comments
-            addMatches(/\\/\\*[\\s\\S]*?\\*\\//g, "comment");
-            // Hex colors
-            addMatches(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\\b/g, "hex_color");
-            // Line comments
-            addMatches(/(?:\\/\\/|#)[^\\r\\n]*/g, "comment");
-            // LoRAs
-            addMatches(/<lora:[^>\\r\\n]+>/gi, "lora");
-            // Variables
-            addMatches(/\\$[a-zA-Z0-9_-]+(?:\\s*=\\s*[^;\\r\\n]+;?)?/g, "variable");
-            // Curator & dynamic choices
-            addMatches(/\\{curator\\d*\\}/gi, "curator");
-            addMatches(/\\{shuffle:[^}]+\\}/gi, "shuffle");
-            addMatches(/\\{\\s*\\d+(?:-\\d+)?\\$\\$[^}]+\\}/g, "choice");
-            addMatches(/\\{\\s*\\d+::[^}]+\\}/g, "choice");
-            addMatches(/\\{[^{}]*\\|[^{}]*\\}/g, "choice");
-            addMatches(/__[a-zA-Z0-9_/-]+__/g, "wildcard");
-            addMatches(/\\([^():\\r\\n]+:\\s*-?\\d+(?:\\.\\d+)?\\)/g, "weight");
+                intervals.sort((a, b) => a.start - b.start);
 
-            intervals.sort((a, b) => a.start - b.start);
+                let html = "";
+                let cursor = 0;
 
-            let html = "";
-            let cursor = 0;
+                for (const iv of intervals) {
+                    if (iv.start < cursor) continue;
+                    if (iv.start > cursor) {
+                        html += escapeHtml(text.slice(cursor, iv.start));
+                    }
+                    const tokenText = escapeHtml(text.slice(iv.start, iv.end));
 
-            for (const iv of intervals) {
-                if (iv.start < cursor) continue;
-                if (iv.start > cursor) {
-                    html += escapeHtml(text.slice(cursor, iv.start));
+                    if (iv.type === "section_header") {
+                        html += '<span style="color: #cba6f7; font-weight: bold; background: rgba(203, 166, 247, 0.16); border-radius: 3px; padding: 1px 4px;">' + tokenText + '</span>';
+                    } else if (iv.type === "lyric_cue") {
+                        html += '<span style="color: #a6e3a1; font-style: italic;">' + tokenText + '</span>';
+                    } else if (iv.type === "hex_color") {
+                        const rawHex = text.slice(iv.start, iv.end);
+                        html += '<span style="color: ' + rawHex + '; font-weight: bold; background: ' + rawHex + '26; border-radius: 3px;">' + tokenText + '</span>';
+                    } else {
+                        const color = theme[iv.type] || theme.plain_text || "#cdd6f4";
+                        html += '<span style="color: ' + color + ';">' + tokenText + '</span>';
+                    }
+                    cursor = iv.end;
                 }
-                const tokenText = escapeHtml(text.slice(iv.start, iv.end));
 
-                if (iv.type === "section_header") {
-                    html += '<span style="color: #cba6f7; font-weight: bold; background: rgba(203, 166, 247, 0.16); border-radius: 3px; padding: 1px 4px;">' + tokenText + '</span>';
-                } else if (iv.type === "lyric_cue") {
-                    html += '<span style="color: #a6e3a1; font-style: italic;">' + tokenText + '</span>';
-                } else if (iv.type === "hex_color") {
-                    const rawHex = text.slice(iv.start, iv.end);
-                    html += '<span style="color: ' + rawHex + '; font-weight: bold; background: ' + rawHex + '26; border-radius: 3px;">' + tokenText + '</span>';
-                } else {
-                    const color = theme[iv.type] || theme.plain_text || "#cdd6f4";
-                    html += '<span style="color: ' + color + ';">' + tokenText + '</span>';
+                if (cursor < text.length) {
+                    html += escapeHtml(text.slice(cursor));
                 }
-                cursor = iv.end;
+                if (text.endsWith("\n")) {
+                    html += "<br>&nbsp;";
+                }
+                return html;
+            } catch (err) {
+                console.warn("Syntax highlight error:", err);
+                let esc = escapeHtml(text);
+                if (text.endsWith("\n")) esc += "<br>&nbsp;";
+                return esc;
             }
-
-            if (cursor < text.length) {
-                html += escapeHtml(text.slice(cursor));
-            }
-            if (text.endsWith("\\n")) {
-                html += "<br>&nbsp;";
-            }
-            return html;
         }
 
         function renderAllSyntax() {
             const themeName = themeSelect ? themeSelect.value : "Modus Neon (Default)";
+            const isOff = themeName === "Off";
+            posArea.classList.toggle("plain-mode", isOff);
+            negArea.classList.toggle("plain-mode", isOff);
+            lyricsArea.classList.toggle("plain-mode", isOff);
+            songAddStyleArea.classList.toggle("plain-mode", isOff);
+            songNegStyleArea.classList.toggle("plain-mode", isOff);
+
             if (currentMode === "songwriter") {
                 lyricsBackdrop.innerHTML = tokenizeToHtml(lyricsArea.value, themeName);
                 songAddStyleBackdrop.innerHTML = tokenizeToHtml(songAddStyleArea.value, themeName);
@@ -1347,11 +1372,11 @@ export class ModusFlowStudioPanel {
             });
         }
 
-        posArea.addEventListener("input", () => { notifyContent(); updateUI(); pushHistory(); });
-        negArea.addEventListener("input", () => { notifyContent(); updateUI(); pushHistory(); });
-        lyricsArea.addEventListener("input", () => { notifySongContent(); updateUI(); pushHistory(); });
-        songAddStyleArea.addEventListener("input", () => { notifySongContent(); updateUI(); pushHistory(); });
-        songNegStyleArea.addEventListener("input", () => { notifySongContent(); updateUI(); pushHistory(); });
+        posArea.addEventListener("input", () => { notifyContent(); updateUI(); renderAllSyntax(); pushHistory(); });
+        negArea.addEventListener("input", () => { notifyContent(); updateUI(); renderAllSyntax(); pushHistory(); });
+        lyricsArea.addEventListener("input", () => { notifySongContent(); updateUI(); renderAllSyntax(); pushHistory(); });
+        songAddStyleArea.addEventListener("input", () => { notifySongContent(); updateUI(); renderAllSyntax(); pushHistory(); });
+        songNegStyleArea.addEventListener("input", () => { notifySongContent(); updateUI(); renderAllSyntax(); pushHistory(); });
 
         filenameInput.addEventListener("input", notifyContent);
         categoryInput.addEventListener("input", notifyContent);
@@ -1449,6 +1474,7 @@ export class ModusFlowStudioPanel {
             }
         });
 
+        renderAllSyntax();
         updateUI();
         pushHistory();
     </script>
