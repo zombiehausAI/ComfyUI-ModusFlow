@@ -260,10 +260,11 @@ ComfyUI-ModusFlow includes an official companion extension for VS Code, Cursor, 
 - **🚀 One-Key Generation Queue (`Ctrl+Alt+Enter`)**: Trigger ComfyUI generation directly from your IDE.
 
 ### Install the Extension
+Download the latest `.vsix` package from the [Releases](https://github.com/zombiehausAI/ComfyUI-ModusFlow/releases) page or compile it locally, then install via:
 ```bash
-code --install-extension vscode-extension/modusflow-prompt-studio-0.1.0.vsix
+code --install-extension vscode-extension/modusflow-prompt-studio-*.vsix
 ```
-*Or in VS Code / Cursor / Windsurf: Press `Ctrl + Shift + P` $\rightarrow$ `Extensions: Install from VSIX...` $\rightarrow$ Select `modusflow-prompt-studio-0.1.0.vsix`.*
+*Or in VS Code / Cursor / Windsurf: Press `Ctrl + Shift + P` $\rightarrow$ `Extensions: Install from VSIX...` $\rightarrow$ Select the downloaded `.vsix` file.*
 
 ---
 

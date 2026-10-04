@@ -1,0 +1,171 @@
+name: Release & Version Management
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # JOB 1: Merges/Pushes into 'main' -> Publish Official Release & Bump 'dev' to Next Patch
+  release-main:
+    if: github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: vscode-extension/package-lock.json
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Process release version
+        id: versioning
+        run: |
+          node -e "
+            const fs = require('fs');
+            const raw = fs.readFileSync('VERSION', 'utf8').trim();
+            const releaseVer = raw.replace(/-dev[.-].*$/, '');
+            const [major, minor, patch] = releaseVer.split('.').map(Number);
+            const nextDevVer = \`\${major}.\${minor}.\${patch + 1}-dev.1\`;
+
+            console.log('Target Release Version:', releaseVer);
+            console.log('Next Dev Version:', nextDevVer);
+
+            fs.writeFileSync('VERSION', releaseVer + '\n');
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, \`release_version=\${releaseVer}\n\`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, \`next_dev_version=\${nextDevVer}\n\`);
+          "
+        shell: bash
+
+      - name: Sync version to vscode-extension
+        run: |
+          cd vscode-extension
+          npm --no-git-tag-version --allow-same-version version ${{ steps.versioning.outputs.release_version }}
+        shell: bash
+
+      - name: Commit release version to main
+        run: |
+          git add VERSION vscode-extension/package.json vscode-extension/package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): release v${{ steps.versioning.outputs.release_version }} [skip ci]"
+            git push origin main
+          fi
+        shell: bash
+
+      - name: Build VSIX extension
+        run: |
+          cd vscode-extension
+          npm ci
+          npm run package
+          mv *.vsix ../
+        shell: bash
+
+      - name: Create ComfyUI-ModusFlow.zip
+        run: |
+          git archive --format=zip --prefix=ComfyUI-ModusFlow/ HEAD -o ComfyUI-ModusFlow.zip
+        shell: bash
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.versioning.outputs.release_version }}
+          name: Release v${{ steps.versioning.outputs.release_version }}
+          files: |
+            *.vsix
+            ComfyUI-ModusFlow.zip
+          generate_release_notes: true
+
+      - name: Bump dev branch to next patch dev version
+        run: |
+          git fetch origin dev
+          git checkout dev
+          git pull origin dev
+
+          NEXT_DEV="${{ steps.versioning.outputs.next_dev_version }}"
+          echo "Updating dev branch to $NEXT_DEV"
+
+          echo "$NEXT_DEV" > VERSION
+          cd vscode-extension
+          npm --no-git-tag-version --allow-same-version version "$NEXT_DEV"
+          cd ..
+
+          git add VERSION vscode-extension/package.json vscode-extension/package-lock.json
+          git commit -m "chore(dev): bump dev version to $NEXT_DEV [skip ci]"
+          git push origin dev
+        shell: bash
+
+  # JOB 2: Pushes to 'dev' -> Auto-increment dev build counter (-dev.1, -dev.2, ...)
+  bump-dev:
+    if: github.ref == 'refs/heads/dev' && !contains(github.event.head_commit.message, '[skip ci]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dev repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Increment dev version counter
+        id: inc_dev
+        run: |
+          node -e "
+            const fs = require('fs');
+            const cur = fs.readFileSync('VERSION', 'utf8').trim();
+
+            let nextDev;
+            const devMatch = cur.match(/^(.*)-dev\.(\d+)$/);
+            if (devMatch) {
+              const num = parseInt(devMatch[2], 10) + 1;
+              nextDev = \`\${devMatch[1]}-dev.\${num}\`;
+            } else if (cur.includes('-dev')) {
+              nextDev = cur.replace(/-dev.*$/, '-dev.1');
+            } else {
+              nextDev = \`\${cur}-dev.1\`;
+            }
+
+            console.log('Current dev version:', cur);
+            console.log('New dev version:', nextDev);
+
+            fs.writeFileSync('VERSION', nextDev + '\n');
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, \`new_dev_version=\${nextDev}\n\`);
+          "
+        shell: bash
+
+      - name: Sync version to vscode-extension
+        run: |
+          cd vscode-extension
+          npm --no-git-tag-version --allow-same-version version ${{ steps.inc_dev.outputs.new_dev_version }}
+        shell: bash
+
+      - name: Commit incremented dev version
+        run: |
+          git add VERSION vscode-extension/package.json vscode-extension/package-lock.json
+          git commit -m "chore(dev): auto-increment dev version to ${{ steps.inc_dev.outputs.new_dev_version }} [skip ci]"
+          git push origin dev
+        shell: bash
