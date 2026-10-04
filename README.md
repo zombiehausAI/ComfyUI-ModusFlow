@@ -254,6 +254,8 @@ ComfyUI-ModusFlow includes an official companion extension for VS Code, Cursor, 
 - **🤖 Ollama Selection Inpainting**: Highlight any word or phrase and right-click to expand, audition visual synonyms, wrap into `{choice|choice}` blocks, or translate between tags and prose.
 - **💡 Rich IntelliSense & Autocomplete**: Autocomplete for installed wildcards (`__`), LoRA models (`<lora:`), and prompt macros (`!cine`, `!photo`, `!anime`, `!neg`).
 - **🖼️ LoRA Hover Cards**: View Civitai preview thumbnails, authors, and trained trigger tags on hover.
+- **🎵 Songwriter & Lyrics Studio Cockpit**: Seamlessly switch between Image Prompts and Songwriter & Lyric Studio modes. Structure musical lyrics with live section syntax highlighting (`[Verse]`, `[Chorus]`, `[Bridge]`), quick section ribbons, musical style pedals (*Studio Master*, *Analog Warmth*, *Punchy 808*, *Radio Ready*, *Vocal Air*, *Acoustic Live*, *Atmospheric Strings*), and save directly into your ComfyUI song collection.
+- **📚 Saved Songs & Lyrics Library**: Dedicated sidebar tree view to browse, preview, and load saved songs grouped by genre and category directly from ComfyUI.
 - **📁 Activity Bar Library Explorer**: Browse saved prompts and edit wildcard files side-by-side.
 - **🚀 One-Key Generation Queue (`Ctrl+Alt+Enter`)**: Trigger ComfyUI generation directly from your IDE.
 
