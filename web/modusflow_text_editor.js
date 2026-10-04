@@ -200,6 +200,65 @@ function injectSyntaxStyles() {
             border-color: rgba(251, 191, 36, 0.5);
             background: rgba(45, 26, 10, 0.88);
         }
+        .modusflow-health-badge {
+            position: absolute;
+            bottom: 4px;
+            left: 8px;
+            font-size: 11px;
+            line-height: 1.2;
+            padding: 2px 7px;
+            border-radius: 4px;
+            background: rgba(15, 23, 42, 0.88);
+            color: #fab387;
+            border: 1px solid rgba(250, 179, 135, 0.4);
+            z-index: 10;
+            font-family: ui-monospace, SFMono-Regular, monospace;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            display: none;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s ease;
+        }
+        .modusflow-health-badge:hover {
+            border-color: #fab387;
+            background: rgba(45, 26, 10, 0.95);
+        }
+        @keyframes mfToastSlideIn {
+            from { opacity: 0; transform: translateY(-12px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .modusflow-pedal-bar {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 5px;
+            user-select: none;
+            flex-wrap: wrap;
+        }
+        .modusflow-pedal-btn {
+            background: rgba(30, 30, 46, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 5px;
+            padding: 2px 8px;
+            font-size: 11px;
+            color: #a6adc8;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: inherit;
+            line-height: 1.3;
+        }
+        .modusflow-pedal-btn:hover {
+            border-color: #89b4fa;
+            color: #cdd6f4;
+            background: rgba(30, 30, 46, 0.95);
+        }
+        .modusflow-pedal-btn.active {
+            background: rgba(137, 180, 250, 0.22);
+            border-color: #89b4fa;
+            color: #89b4fa;
+            font-weight: 600;
+            box-shadow: 0 0 8px rgba(137, 180, 250, 0.3);
+        }
         /* ── Autocomplete Menu ── */
         .modusflow-autocomplete-menu {
             position: absolute;
@@ -295,23 +354,222 @@ function injectSyntaxStyles() {
             font-style: italic;
             text-align: center;
         }
+        /* ── Hex Color & Floating Inspector ── */
+        .modusflow-hex-pill {
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .modusflow-hex-pill:hover {
+            filter: brightness(1.2);
+            box-shadow: 0 0 6px currentColor;
+        }
+        .modusflow-floating-card {
+            animation: mfFadeIn 0.12s ease-out;
+        }
+        @keyframes mfFadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     `;
     document.head.appendChild(styleEl);
 }
 
+// ── Color Hex Inspector & Natural Color Resolver ──────────────────────────────
+const ARTISTIC_COLOR_PALETTE = [
+    { name: "pure white", hex: "#ffffff" },
+    { name: "ivory white", hex: "#fffff0" },
+    { name: "warm cream", hex: "#fffdd0" },
+    { name: "alabaster", hex: "#f2f0e6" },
+    { name: "soft beige", hex: "#f5f5dc" },
+    { name: "sand beige", hex: "#e2d2b4" },
+    { name: "champagne gold", hex: "#f7e7ce" },
+    { name: "pastel peach", hex: "#ffe5b4" },
+    { name: "blush pink", hex: "#ffb6c1" },
+    { name: "rose pink", hex: "#ff66cc" },
+    { name: "hot pink", hex: "#ff1493" },
+    { name: "vibrant magenta", hex: "#ff00ff" },
+    { name: "fuchsia", hex: "#d9027d" },
+    { name: "coral pink", hex: "#f88379" },
+    { name: "salmon pink", hex: "#fa8072" },
+    { name: "fiery coral", hex: "#ff6f61" },
+    { name: "crimson red", hex: "#dc143c" },
+    { name: "scarlet red", hex: "#ff2400" },
+    { name: "ruby red", hex: "#9b111e" },
+    { name: "blood red", hex: "#8a0303" },
+    { name: "deep wine red", hex: "#722f37" },
+    { name: "burgundy", hex: "#800020" },
+    { name: "maroon", hex: "#800000" },
+    { name: "terracotta", hex: "#e2725b" },
+    { name: "burnt sienna", hex: "#e97451" },
+    { name: "rust orange", hex: "#b7410e" },
+    { name: "persimmon orange", hex: "#ec5800" },
+    { name: "tangerine orange", hex: "#f28500" },
+    { name: "amber orange", hex: "#ff7e00" },
+    { name: "warm amber", hex: "#ffbf00" },
+    { name: "marigold yellow", hex: "#e3a857" },
+    { name: "mustard yellow", hex: "#ffdb58" },
+    { name: "cadmium yellow", hex: "#fff600" },
+    { name: "lemon yellow", hex: "#fff44f" },
+    { name: "canary yellow", hex: "#ffef00" },
+    { name: "chartreuse lime", hex: "#7fff00" },
+    { name: "electric lime", hex: "#32cd32" },
+    { name: "olive green", hex: "#808000" },
+    { name: "moss green", hex: "#8a9a5b" },
+    { name: "sage green", hex: "#9caf88" },
+    { name: "mint green", hex: "#98ff98" },
+    { name: "pistachio green", hex: "#93c572" },
+    { name: "emerald green", hex: "#50c878" },
+    { name: "forest green", hex: "#228b22" },
+    { name: "deep pine green", hex: "#01796f" },
+    { name: "jade green", hex: "#00a86b" },
+    { name: "viridian", hex: "#40826d" },
+    { name: "dark teal", hex: "#00565b" },
+    { name: "rich teal", hex: "#008080" },
+    { name: "cyan turquoise", hex: "#40e0d0" },
+    { name: "aquamarine", hex: "#7fffd4" },
+    { name: "electric cyan", hex: "#00ffff" },
+    { name: "baby blue", hex: "#89cff0" },
+    { name: "sky blue", hex: "#87ceeb" },
+    { name: "cerulean blue", hex: "#007ba7" },
+    { name: "cornflower blue", hex: "#6495ed" },
+    { name: "cobalt blue", hex: "#0047ab" },
+    { name: "royal blue", hex: "#4169e1" },
+    { name: "ultramarine blue", hex: "#3f00ff" },
+    { name: "deep sapphire blue", hex: "#0f52ba" },
+    { name: "navy blue", hex: "#000080" },
+    { name: "midnight blue", hex: "#191970" },
+    { name: "dark indigo", hex: "#310062" },
+    { name: "electric indigo", hex: "#4b0082" },
+    { name: "periwinkle", hex: "#ccccff" },
+    { name: "soft lavender", hex: "#e6e6fa" },
+    { name: "lilac", hex: "#c8a2c8" },
+    { name: "amethyst purple", hex: "#9966cc" },
+    { name: "violet", hex: "#8f00ff" },
+    { name: "deep plum", hex: "#701c45" },
+    { name: "warm ochre", hex: "#cc7722" },
+    { name: "raw sienna", hex: "#d68a59" },
+    { name: "raw umber", hex: "#826644" },
+    { name: "burnt umber", hex: "#8a3324" },
+    { name: "sepia brown", hex: "#704214" },
+    { name: "coffee brown", hex: "#4b3621" },
+    { name: "chocolate brown", hex: "#3d1c02" },
+    { name: "cool silver", hex: "#c0c0c0" },
+    { name: "slate gray", hex: "#708090" },
+    { name: "charcoal gray", hex: "#36454f" },
+    { name: "graphite", hex: "#252525" },
+    { name: "jet black", hex: "#0a0a0a" },
+    { name: "metallic gold", hex: "#d4af37" },
+    { name: "metallic bronze", hex: "#cd7f32" },
+    { name: "metallic copper", hex: "#b87333" }
+];
+
+function normalizeHex(hex) {
+    if (!hex) return "#000000";
+    let clean = hex.trim();
+    if (!clean.startsWith("#")) clean = "#" + clean;
+    if (clean.length === 4) {
+        clean = "#" + clean[1] + clean[1] + clean[2] + clean[2] + clean[3] + clean[3];
+    }
+    return clean.toLowerCase();
+}
+
+function hexToRgb(hex) {
+    const full = normalizeHex(hex);
+    const num = parseInt(full.slice(1), 16);
+    return {
+        r: (num >> 16) & 255,
+        g: (num >> 8) & 255,
+        b: num & 255
+    };
+}
+
+function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
+    if (max === min) {
+        h = s = 0;
+    } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+    }
+    return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+}
+
+function getNearestArtisticColor(hex) {
+    const rgb = hexToRgb(hex);
+    let best = ARTISTIC_COLOR_PALETTE[0];
+    let minDist = Infinity;
+
+    for (const item of ARTISTIC_COLOR_PALETTE) {
+        const itemRgb = hexToRgb(item.hex);
+        const rmean = (rgb.r + itemRgb.r) / 2;
+        const dr = rgb.r - itemRgb.r;
+        const dg = rgb.g - itemRgb.g;
+        const db = rgb.b - itemRgb.b;
+        const dist = Math.sqrt((((512 + rmean) * dr * dr) >> 8) + 4 * dg * dg + (((767 - rmean) * db * db) >> 8));
+        if (dist < minDist) {
+            minDist = dist;
+            best = item;
+        }
+    }
+
+    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+    let modifier = "";
+    if (hsl.s > 80 && hsl.l > 25 && hsl.l < 75 && !best.name.includes("electric") && !best.name.includes("vibrant")) {
+        modifier = "vibrant ";
+    } else if (hsl.l < 18 && !best.name.includes("black") && !best.name.includes("deep") && !best.name.includes("dark")) {
+        modifier = "deep dark ";
+    } else if (hsl.l > 82 && hsl.s > 20 && !best.name.includes("white") && !best.name.includes("pastel") && !best.name.includes("soft")) {
+        modifier = "pale ";
+    }
+
+    return {
+        matchedName: best.name,
+        promptFriendlyName: modifier + best.name,
+        targetHex: best.hex,
+        rgb,
+        hsl
+    };
+}
+
+// ── Built-in Prompt Snippets (Macros) ─────────────────────────────────────────
+const PROMPT_SNIPPETS = {
+    "!cine": "cinematic lighting, 35mm photograph, 8k, volumetric god rays, atmospheric haze, shallow depth of field",
+    "!photo": "raw photo, highly detailed, 85mm f/1.4 lens, natural skin texture, soft studio illumination",
+    "!anime": "masterpiece anime artwork, vibrant colors, clean lineart, Makoto Shinkai aesthetic, detailed background",
+    "!clean": "flawless details, sharp focus, 8k resolution, award-winning composition, pristine quality",
+    "!cyber": "cyberpunk neon glow, rainy reflections, dark moody atmosphere, volumetric light, futuristic cityscape",
+    "!portrait": "close-up portrait photography, sharp focus on eyes, dramatic rim lighting, creamy bokeh background",
+    "!fantasy": "epic high fantasy illustration, ethereal lighting, enchanted atmosphere, concept art, octane render",
+    "!neg": "worst quality, low quality, blurry, distorted, extra limbs, bad anatomy, artifacts, watermark",
+    "!neg_pony": "score_4, score_3, score_2, score_1, source_pony, rating_explicit, worst quality, low quality",
+    "!lighting": "dramatic chiaroscuro lighting, soft golden hour glow, cinematic rim light, ambient illumination",
+    "!optics": "85mm prime lens, f/1.8 aperture, shallow depth of field, subtle film grain, natural distortion"
+};
+
 function estimateTokens(text) {
-    if (!text) return { words: 0, tokens: 0, chunks: 0 };
+    if (!text) return { words: 0, tokens: 0, chunks: 0, currentChunk: 1, chunkProgress: 0, hasBreak: false };
     const clean = text
         .replace(/\/\*[\s\S]*?\*\//g, "")
         .replace(/(?:^|\n)\s*(?:#|\/\/)[^\n]*/g, "")
         .trim();
-    if (!clean) return { words: 0, tokens: 0, chunks: 0 };
+    if (!clean) return { words: 0, tokens: 0, chunks: 0, currentChunk: 1, chunkProgress: 0, hasBreak: false };
 
     const words = clean.split(/\s+/).filter(Boolean);
     const punctuation = (clean.match(/[,.:;!?()\[\]{}]/g) || []).length;
     const tokens = Math.max(words.length, Math.round(words.length * 1.25 + punctuation * 0.5));
-    const chunks = Math.ceil(tokens / 75);
-    return { words: words.length, tokens, chunks };
+    const chunks = Math.ceil(tokens / 75) || 1;
+    const currentChunk = chunks;
+    const chunkProgress = tokens > 0 ? ((tokens - 1) % 75) + 1 : 0;
+    const hasBreak = /\bBREAK\b/.test(clean);
+    return { words: words.length, tokens, chunks, currentChunk, chunkProgress, hasBreak };
 }
 
 function escapeHtml(str) {
@@ -322,6 +580,50 @@ function escapeHtml(str) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+}
+
+function showStudioToast(message, type = "success", duration = 2600) {
+    let container = document.getElementById("modusflow-studio-toast-container");
+    if (!container) {
+        container = document.createElement("div");
+        container.id = "modusflow-studio-toast-container";
+        container.style.cssText = "position: fixed; top: 24px; right: 28px; z-index: 10005; display: flex; flex-direction: column; gap: 8px; pointer-events: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;";
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement("div");
+    toast.className = `modusflow-studio-toast toast-${type}`;
+    const icon = type === "error" ? "❌" : (type === "warning" ? "⚠️" : (type === "info" ? "ℹ️" : "✨"));
+    const borderColor = type === "error" ? "#f38ba8" : (type === "warning" ? "#fab387" : (type === "info" ? "#89dceb" : "#89b4fa"));
+    const glowColor = type === "error" ? "rgba(243,139,168,0.25)" : (type === "warning" ? "rgba(250,179,135,0.25)" : "rgba(137,180,250,0.25)");
+
+    toast.style.cssText = `
+        background: rgba(24, 24, 37, 0.94);
+        border: 1px solid ${borderColor};
+        border-radius: 8px;
+        padding: 9px 15px;
+        color: #cdd6f4;
+        font-size: 13px;
+        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), 0 0 10px ${glowColor};
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        pointer-events: auto;
+        animation: mfToastSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        max-width: 420px;
+        line-height: 1.4;
+    `;
+    toast.innerHTML = `<span style="font-size: 15px; flex-shrink: 0;">${icon}</span><span style="font-weight: 500;">${escapeHtml(message)}</span>`;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(-8px)";
+        toast.style.transition = "all 0.25s ease";
+        setTimeout(() => toast.remove(), 260);
+    }, duration);
 }
 
 function tokenizeAndHighlight(text, theme) {
@@ -350,28 +652,32 @@ function tokenizeAndHighlight(text, theme) {
     };
 
     // Priority order of syntax tokens:
-    // 1. Comments: /* ... */ or // ... or # ...
-    addMatches(/\/\*[\s\S]*?\*\/|\/\/[^\r\n]*|#[^\r\n]*/g, "comment");
-    // 2. LoRA tags: <lora:...>
+    // 1. Comments: /* ... */
+    addMatches(/\/\*[\s\S]*?\*\//g, "comment");
+    // 2. Hex colors: #RRGGBB or #RGB (before line comments so #ff0000 is not marked as # comment)
+    addMatches(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g, "hex_color");
+    // 3. Comments (Line): // ... or # ...
+    addMatches(/\/\/[^\r\n]*|#[^\r\n]*/g, "comment");
+    // 4. LoRA tags: <lora:...>
     addMatches(/<lora:[^>\r\n]+>/gi, "lora");
-    // 3. Prompt Variables: $name = value; or $name
+    // 5. Prompt Variables: $name = value; or $name
     addMatches(/\$[a-zA-Z0-9_-]+(?:\s*=\s*[^;\r\n]+;?)?/g, "variable");
-    // 4. Curator placeholders: {curator}, {curator2}, etc.
+    // 6. Curator placeholders: {curator}, {curator2}, etc.
     addMatches(/\{curator\d*\}/gi, "curator");
-    // 5. Shuffle syntax: {shuffle:...}
+    // 7. Shuffle syntax: {shuffle:...}
     addMatches(/\{shuffle:[^}]+\}/gi, "shuffle");
-    // 6. Pick-N & Ranges: {2$$...}, {1-3$$...}
+    // 8. Pick-N & Ranges: {2$$...}, {1-3$$...}
     addMatches(/\{\s*\d+(?:-\d+)?\$\$[^}]+\}/g, "choice");
-    // 7. Weighted Odds: {80::a|20::b}
+    // 9. Weighted Odds: {80::a|20::b}
     addMatches(/\{\s*\d+::[^}]+\}/g, "choice");
-    // 8. Dynamic Choices: {a|b|c}
+    // 10. Dynamic Choices: {a|b|c}
     addMatches(/\{[^{}]*\|[^{}]*\}/g, "choice");
-    // 9. Wildcards: __name__ or __folder/name__
+    // 11. Wildcards: __name__ or __folder/name__
     addMatches(/__[a-zA-Z0-9_/-]+__/g, "wildcard");
-    // 10. Attention Weights: (tag:1.3)
+    // 12. Attention Weights: (tag:1.3)
     addMatches(/\([^():\r\n]+:\s*-?\d+(?:\.\d+)?\)/g, "weight");
 
-    // 11. Rainbow & Matching Parentheses + Unclosed Warning
+    // 13. Rainbow & Matching Parentheses + Unclosed Warning
     const RAINBOW_PAREN_COLORS = ["#38bdf8", "#c084fc", "#f472b6", "#34d399", "#fbbf24", "#a78bfa"];
     const isExcluded = (pos) => intervals.some(iv => pos >= iv.start && pos < iv.end && iv.type === "comment");
     const pStack = [];
@@ -412,6 +718,30 @@ function tokenizeAndHighlight(text, theme) {
             html += `<span style="color: ${iv.color}; font-weight: bold;">${tokenText}</span>`;
         } else if (iv.type === "unclosed_paren" || iv.type === "unmatched_paren") {
             html += `<span style="background: rgba(239, 68, 68, 0.4); color: #f87171; border-radius: 2px; text-decoration: underline wavy #ef4444; font-weight: bold;" title="${iv.type === 'unclosed_paren' ? 'Unclosed opening parenthesis!' : 'Unmatched closing parenthesis!'}">${tokenText}</span>`;
+        } else if (iv.type === "hex_color") {
+            const rawHex = text.slice(iv.start, iv.end);
+            html += `<span class="modusflow-hex-pill" data-hex="${rawHex}" style="color: ${rawHex}; font-weight: bold; background: ${rawHex}26; border-radius: 3px; box-shadow: 0 0 0 1px ${rawHex}88; text-decoration: underline dotted ${rawHex};" title="Hex Color: ${rawHex} (Click to inspect or convert)">${tokenText}</span>`;
+        } else if (iv.type === "weight") {
+            const raw = text.slice(iv.start, iv.end);
+            const wMatch = raw.match(/:(-?\d+(?:\.\d+)?)\)$/);
+            const w = wMatch ? parseFloat(wMatch[1]) : 1.0;
+            const baseColor = theme.weight || "#fde047";
+            let extraStyle = "";
+            let title = `Weight: ${w.toFixed(2)}`;
+            if (w > 1.0) {
+                const glowSpread = Math.min(14, Math.round((w - 1.0) * 12));
+                const glowAlpha = Math.min(0.9, 0.25 + (w - 1.0) * 0.45);
+                const bgAlpha = Math.min(0.3, (w - 1.0) * 0.22);
+                extraStyle = `font-weight: 600; text-shadow: 0 0 ${glowSpread}px rgba(251, 191, 36, ${glowAlpha}); background: rgba(245, 158, 11, ${bgAlpha}); border-radius: 3px; padding: 0 3px;`;
+                if (w > 1.5) {
+                    title += " ⚠️ Strong attention weight (> 1.5)";
+                }
+            } else if (w < 1.0 && w >= 0) {
+                const opacity = Math.max(0.4, w * 0.9);
+                extraStyle = `opacity: ${opacity}; filter: saturate(0.65);`;
+                title += " (De-emphasized)";
+            }
+            html += `<span class="modusflow-weight-token" data-weight="${w}" style="color: ${baseColor}; ${extraStyle}" title="${title}">${tokenText}</span>`;
         } else {
             const color = theme[iv.type] || theme.plain_text || "#e2e8f0";
             html += `<span style="color: ${color};">${tokenText}</span>`;
@@ -508,12 +838,20 @@ function attachSyntaxHighlighter(widget, node) {
         tokenBadge.title = "Estimated words / CLIP tokens (75-token chunks)";
         parent.appendChild(tokenBadge);
 
+        const healthBadge = document.createElement("div");
+        healthBadge.className = "modusflow-health-badge";
+        healthBadge.title = "Prompt Health & Deduplication";
+        parent.appendChild(healthBadge);
+
         function render() {
             const stats = estimateTokens(ta.value || "");
             const unclosed = countUnclosedParens(ta.value || "");
             if (stats.tokens > 0 || unclosed > 0) {
                 tokenBadge.style.display = "block";
-                let textDesc = `${stats.words}w · ~${stats.tokens} tok (${stats.chunks} chunk${stats.chunks > 1 ? 's' : ''})`;
+                let textDesc = `${stats.words}w · ~${stats.tokens} tok (${stats.chunkProgress}/75 Ch.${stats.currentChunk})`;
+                if (stats.hasBreak) {
+                    textDesc += " · ⚡ BREAK";
+                }
                 if (unclosed > 0) {
                     textDesc += ` · ⚠️ ${unclosed} unclosed ( )`;
                     tokenBadge.classList.add("token-warning");
@@ -525,6 +863,49 @@ function attachSyntaxHighlighter(widget, node) {
                 tokenBadge.textContent = textDesc;
             } else {
                 tokenBadge.style.display = "none";
+            }
+
+            // Prompt Health & Linter
+            const textVal = ta.value || "";
+            const rawTags = textVal
+                .split(/[,\n]/)
+                .map(t => t.trim().toLowerCase())
+                .filter(t => t && !t.startsWith("#") && !t.startsWith("//") && !t.startsWith("/*") && !t.startsWith("$"));
+            const duplicates = [];
+            const seenTags = new Set();
+            for (const t of rawTags) {
+                if (seenTags.has(t) && !duplicates.includes(t)) {
+                    duplicates.push(t);
+                }
+                seenTags.add(t);
+            }
+            const heavyWeights = textVal.match(/\([^():\r\n]+:\s*(?:1\.[6-9]|[2-9]|\d{2,})(?:\.\d+)?\)/g) || [];
+
+            if (duplicates.length > 0 || heavyWeights.length > 0) {
+                healthBadge.style.display = "block";
+                if (duplicates.length > 0) {
+                    healthBadge.textContent = `🟡 ${duplicates.length} duplicate${duplicates.length > 1 ? 's' : ''} [Fix]`;
+                    healthBadge.title = `Duplicate tags detected: ${duplicates.slice(0, 3).join(", ")}${duplicates.length > 3 ? '...' : ''} (Click to auto-dedupe)`;
+                    healthBadge.onclick = (e) => {
+                        e.stopPropagation();
+                        const before = ta.value;
+                        const cleaned = prettifyPromptText(before);
+                        if (cleaned !== before) {
+                            ta.value = cleaned;
+                            widget.value = cleaned;
+                            render();
+                            showStudioToast(`Removed ${duplicates.length} duplicate tag${duplicates.length > 1 ? 's' : ''}`);
+                            pushPromptHistory(node, "Auto-deduped tags");
+                        }
+                    };
+                } else {
+                    healthBadge.textContent = `⚠️ ${heavyWeights.length} high weight (>1.6)`;
+                    healthBadge.title = "High attention weights (>1.6) can distort or burn generations";
+                    healthBadge.onclick = null;
+                }
+            } else {
+                healthBadge.style.display = "none";
+                healthBadge.onclick = null;
             }
 
             const currentThemeName = node._currentSyntaxTheme ||
@@ -560,8 +941,16 @@ function attachSyntaxHighlighter(widget, node) {
             backdrop.scrollLeft = ta.scrollLeft;
         }, { passive: true });
         ta.addEventListener("focus", syncGeometry);
-        ta.addEventListener("keyup", syncGeometry);
-        ta.addEventListener("click", syncGeometry);
+        ta.addEventListener("keyup", (e) => {
+            syncGeometry();
+            if (e.key.startsWith("Arrow") || e.key === "Home" || e.key === "End") {
+                inspectTokenAtCursor(ta, widget, node);
+            }
+        });
+        ta.addEventListener("click", () => {
+            syncGeometry();
+            inspectTokenAtCursor(ta, widget, node);
+        });
 
         if (window.ResizeObserver) {
             const ro = new ResizeObserver(() => {
@@ -1163,7 +1552,7 @@ function showHistoryDialog(node) {
     } catch (e) {}
 
     if (!list.length) {
-        alert("Prompt session history is currently empty.");
+        showStudioToast("Prompt session history is currently empty.", "info");
         return;
     }
 
@@ -1482,11 +1871,11 @@ function showResolvedPreviewModal(node) {
 
     posBox.querySelector("#mf-copy-pos").onclick = () => {
         navigator.clipboard?.writeText(dialog.querySelector("#mf-pos-res").value);
-        alert("Positive prompt copied to clipboard!");
+        showStudioToast("Positive prompt copied to clipboard!");
     };
     negBox.querySelector("#mf-copy-neg").onclick = () => {
         navigator.clipboard?.writeText(dialog.querySelector("#mf-neg-res").value);
-        alert("Negative prompt copied to clipboard!");
+        showStudioToast("Negative prompt copied to clipboard!");
     };
 
     updatePreview();
@@ -1699,7 +2088,7 @@ function showOllamaStatusModal(node, btn) {
 async function enhancePromptWithOllama(node, btn) {
     const pw = node.widgets?.find(w => w.name === "positive");
     if (!pw || !pw.value || !pw.value.trim()) {
-        alert("Please enter a positive prompt before enhancing.");
+        showStudioToast("Please enter a positive prompt before enhancing.", "warning");
         return;
     }
 
@@ -1737,12 +2126,13 @@ async function enhancePromptWithOllama(node, btn) {
             if (pw.inputEl) pw.inputEl.value = res.enhanced;
             pw._updateSyntaxHighlight?.();
             pushPromptHistory(node, "✨ Enhanced with " + (res.model || model));
+            showStudioToast("Prompt enhanced with " + (res.model || model) + "!");
             app.graph?.setDirtyCanvas(true, true);
         } else {
-            alert("Ollama enhancement failed: " + (res.message || "Unknown error"));
+            showStudioToast("Ollama enhancement failed: " + (res.message || "Unknown error"), "error");
         }
     } catch (err) {
-        alert("Error calling Ollama: " + err.message);
+        showStudioToast("Error calling Ollama: " + err.message, "error");
     } finally {
         if (btn) btn.name = origLabel;
         app.graph?.setDirtyCanvas(true, true);
@@ -2454,10 +2844,11 @@ app.registerExtension({
                     attachCommentShortcuts(negativeWidget);
                     attachSyntaxHighlighter(negativeWidget, node);
                     attachAutocomplete(negativeWidget, node);
+                    attachNegativePedalboard(negativeWidget, node);
                 }
 
                 // ── Negative widget height control ────────────────────────────────
-                const NEG_H = 80;
+                const NEG_H = 95;
                 if (negativeWidget) {
                     negativeWidget.computeSize = function() {
                         return [0, NEG_H];
@@ -2568,6 +2959,10 @@ app.registerExtension({
                 });
                 enhanceBtn.tooltip = "Enhance prompt with local Ollama LLM. Shift+Click or click when offline to check status & select model.";
                 node.addWidget("button", "⚡ Quick Chips",          null, () => showQuickChipsModal(node));
+                node.addWidget("button", "🎨 LoRA Deck",             null, () => showLoraDeckModal(node));
+                node.addWidget("button", "⇄ Swap Prompts",          null, () => swapPositiveNegative(node));
+                node.addWidget("button", "◫ Explode / Collapse",    null, () => toggleTagFormat(node));
+                node.addWidget("button", "🔍 Find / Replace",        null, () => showFindReplaceBar(node));
                 node.addWidget("button", "🔍 Prompt Diff",          null, () => showPromptDiffModal(node));
                 node.addWidget("button", "Save Prompt",             null, () => showSaveDialog(node));
                 node.addWidget("button", "Update Selected",         null, () => updatePrompt(node));
@@ -2598,10 +2993,58 @@ app.registerExtension({
             const origGetExtraMenuOptions = nodeType.prototype.getExtraMenuOptions;
             nodeType.prototype.getExtraMenuOptions = function(canvas, options) {
                 if (origGetExtraMenuOptions) origGetExtraMenuOptions.apply(this, arguments);
-                options.push({
-                    content: "🤖 Ollama Status & Model Settings...",
-                    callback: () => showOllamaStatusModal(this, this.widgets?.find(w => w.name && w.name.includes("Enhance with Ollama")))
-                });
+                options.push(
+                    {
+                        content: "🤖 Ollama Status & Model Settings...",
+                        callback: () => showOllamaStatusModal(this, this.widgets?.find(w => w.name && w.name.includes("Enhance with Ollama")))
+                    },
+                    {
+                        content: "🎨 Active LoRA Deck & Weights...",
+                        callback: () => showLoraDeckModal(this)
+                    },
+                    {
+                        content: "🔍 Find & Replace (Ctrl+F)...",
+                        callback: () => showFindReplaceBar(this)
+                    },
+                    {
+                        content: "⇄ Swap Positive & Negative Prompts",
+                        callback: () => swapPositiveNegative(this)
+                    },
+                    {
+                        content: "◫ Explode Tags to Multi-Line",
+                        callback: () => {
+                            const pw = this.widgets?.find(w => w.name === "positive");
+                            if (pw) explodeTagsToLines(pw);
+                        }
+                    },
+                    {
+                        content: "◫ Collapse Tags to Inline",
+                        callback: () => {
+                            const pw = this.widgets?.find(w => w.name === "positive");
+                            if (pw) collapseTagsToInline(pw);
+                        }
+                    },
+                    {
+                        content: "🎨 Color Palette & Hex Browser...",
+                        callback: () => showColorPaletteModal(this)
+                    },
+                    {
+                        content: "✨ Translate All Hex Codes in Prompt",
+                        callback: () => translateAllHexInNode(this)
+                    },
+                    {
+                        content: "📋 Copy Clean Prompt (No Comments)",
+                        callback: () => copyCleanPrompt(this)
+                    },
+                    {
+                        content: "📋 Copy Prompt JSON Payload",
+                        callback: () => copyJsonPayload(this)
+                    },
+                    {
+                        content: "◫ Toggle Side-by-Side / Stacked Layout",
+                        callback: () => toggleNodeLayout(this)
+                    }
+                );
             };
 
             // ── onConfigure (workflow load / paste) ───────────────────────────────
@@ -2639,6 +3082,7 @@ app.registerExtension({
                     attachCommentShortcuts(nw);
                     attachSyntaxHighlighter(nw, this);
                     attachAutocomplete(nw, this);
+                    attachNegativePedalboard(nw, this);
                 }
             };
 
@@ -2922,6 +3366,120 @@ app.registerExtension({
                             }
                             return;
                         }
+
+                        // 6. IDE Line Manipulation: Move Line Up (Alt+Up)
+                        if (e.altKey && !ctrlOrCmd && !e.shiftKey && (e.key === "ArrowUp" || e.code === "ArrowUp")) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const text = ta.value;
+                            const start = ta.selectionStart;
+                            const end = ta.selectionEnd;
+
+                            const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+                            let lineEnd = text.indexOf("\n", end);
+                            if (lineEnd === -1) lineEnd = text.length;
+
+                            if (lineStart > 0) {
+                                const prevLineStart = text.lastIndexOf("\n", lineStart - 2) + 1;
+                                const prevLine = text.slice(prevLineStart, lineStart - 1);
+                                const currBlock = text.slice(lineStart, lineEnd);
+
+                                const newText = text.slice(0, prevLineStart) + currBlock + "\n" + prevLine + text.slice(lineEnd);
+                                ta.value = newText;
+                                widget.value = newText;
+                                const offset = prevLine.length + 1;
+                                ta.selectionStart = start - offset;
+                                ta.selectionEnd = end - offset;
+                                widget._updateSyntaxHighlight?.();
+                            }
+                            return;
+                        }
+
+                        // 7. IDE Line Manipulation: Move Line Down (Alt+Down)
+                        if (e.altKey && !ctrlOrCmd && !e.shiftKey && (e.key === "ArrowDown" || e.code === "ArrowDown")) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const text = ta.value;
+                            const start = ta.selectionStart;
+                            const end = ta.selectionEnd;
+
+                            const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+                            let lineEnd = text.indexOf("\n", end);
+                            if (lineEnd === -1) lineEnd = text.length;
+
+                            if (lineEnd < text.length) {
+                                let nextLineEnd = text.indexOf("\n", lineEnd + 1);
+                                if (nextLineEnd === -1) nextLineEnd = text.length;
+                                const nextLine = text.slice(lineEnd + 1, nextLineEnd);
+                                const currBlock = text.slice(lineStart, lineEnd);
+
+                                const newText = text.slice(0, lineStart) + nextLine + "\n" + currBlock + text.slice(nextLineEnd);
+                                ta.value = newText;
+                                widget.value = newText;
+                                const offset = nextLine.length + 1;
+                                ta.selectionStart = start + offset;
+                                ta.selectionEnd = end + offset;
+                                widget._updateSyntaxHighlight?.();
+                            }
+                            return;
+                        }
+
+                        // 8. IDE Line Manipulation: Duplicate Line Down (Shift+Alt+Down)
+                        if (e.altKey && e.shiftKey && !ctrlOrCmd && (e.key === "ArrowDown" || e.code === "ArrowDown")) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const text = ta.value;
+                            const start = ta.selectionStart;
+                            const end = ta.selectionEnd;
+
+                            const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+                            let lineEnd = text.indexOf("\n", end);
+                            if (lineEnd === -1) lineEnd = text.length;
+
+                            const block = text.slice(lineStart, lineEnd);
+                            const newText = text.slice(0, lineEnd) + "\n" + block + text.slice(lineEnd);
+                            ta.value = newText;
+                            widget.value = newText;
+                            const offset = block.length + 1;
+                            ta.selectionStart = start + offset;
+                            ta.selectionEnd = end + offset;
+                            widget._updateSyntaxHighlight?.();
+                            return;
+                        }
+
+                        // 9. Send to Opposite Prompt: Ctrl+Shift+N
+                        if (ctrlOrCmd && e.shiftKey && (e.key === "n" || e.key === "N" || e.code === "KeyN")) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            sendSelectionToOppositeWidget(node, widget);
+                            return;
+                        }
+
+                        // 10. Find & Replace: Ctrl+F or Ctrl+H
+                        if (ctrlOrCmd && !e.shiftKey && !e.altKey && (e.key === "f" || e.key === "F" || e.key === "h" || e.key === "H")) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            showFindReplaceBar(node);
+                            return;
+                        }
+
+                        // 11. Prompt Snippets (Macros) on Tab
+                        if (e.key === "Tab" && !e.shiftKey && !ctrlOrCmd && !e.altKey) {
+                            const text = ta.value;
+                            const pos = ta.selectionStart;
+                            let wordStart = pos;
+                            while (wordStart > 0 && /[!a-zA-Z0-9_-]/.test(text[wordStart - 1])) wordStart--;
+                            const trigger = text.slice(wordStart, pos);
+                            if (trigger.startsWith("!") && PROMPT_SNIPPETS[trigger.toLowerCase()]) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const expansion = PROMPT_SNIPPETS[trigger.toLowerCase()];
+                                ta.setRangeText(expansion, wordStart, pos, "end");
+                                widget.value = ta.value;
+                                widget._updateSyntaxHighlight?.();
+                                return;
+                            }
+                        }
                     });
                 };
 
@@ -3063,17 +3621,17 @@ app.registerExtension({
                 .then(data => {
                     if (data.success) {
                         const targetFile = filename + ".json";
-                        alert("Saved: " + targetFile);
+                        showStudioToast("Saved: " + targetFile);
                         pushPromptHistory(node, "Saved: " + filename);
                         if (category) {
                             node._savedCategory = category;
                         }
                         refreshPrompts(node, targetFile);
                     } else {
-                        alert("Save failed: " + data.message);
+                        showStudioToast("Save failed: " + data.message, "error");
                     }
                 })
-                .catch(err => alert("Save error: " + err.message));
+                .catch(err => showStudioToast("Save error: " + err.message, "error"));
             }
 
             // ── Overwrite the currently selected prompt ───────────────────────────
@@ -3085,7 +3643,7 @@ app.registerExtension({
 
                 const selected = dw?.value;
                 if (!selected || selected === "--select prompt--" || selected === "--no prompts found--") {
-                    alert("Select a saved prompt from the dropdown first.");
+                    showStudioToast("Select a saved prompt from the dropdown first.", "warning");
                     return;
                 }
                 if (!confirm('Overwrite "' + selected + '" with the current text?')) return;
@@ -3101,17 +3659,932 @@ app.registerExtension({
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        alert('"' + selected + '" updated.');
+                        showStudioToast('"' + selected + '" updated.');
                         pushPromptHistory(node, "Updated: " + selected);
                         if (category) {
                             node._savedCategory = category;
                         }
                         refreshPrompts(node, selected);
                     } else {
-                        alert("Update failed: " + data.message);
+                        showStudioToast("Update failed: " + data.message, "error");
                     }
                 })
-                .catch(err => alert("Update error: " + err.message));
+                .catch(err => showStudioToast("Update error: " + err.message, "error"));
+            }
+
+            // ── Floating Inspector Card (Hex Color & Prompt Variables) ────────────
+            let _activeFloatingCard = null;
+
+            function hideFloatingCard() {
+                if (_activeFloatingCard) {
+                    _activeFloatingCard.remove();
+                    _activeFloatingCard = null;
+                }
+            }
+
+            function inspectTokenAtCursor(ta, widget, node) {
+                if (!ta) return;
+                const pos = ta.selectionStart;
+                const text = ta.value || "";
+
+                // 1. Check for Hex Color at cursor
+                let hStart = pos;
+                while (hStart > 0 && /[#0-9a-fA-F]/.test(text[hStart - 1])) hStart--;
+                let hEnd = pos;
+                while (hEnd < text.length && /[0-9a-fA-F]/.test(text[hEnd])) hEnd++;
+                const hexCandidate = text.slice(hStart, hEnd);
+
+                if (/^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/i.test(hexCandidate)) {
+                    showColorInspectorCard(ta, widget, node, hexCandidate, hStart, hEnd);
+                    return;
+                }
+
+                // 2. Check for Prompt Variable at cursor
+                let vStart = pos;
+                while (vStart > 0 && /[\$a-zA-Z0-9_-]/.test(text[vStart - 1])) vStart--;
+                let vEnd = pos;
+                while (vEnd < text.length && /[a-zA-Z0-9_-]/.test(text[vEnd])) vEnd++;
+                const varCandidate = text.slice(vStart, vEnd);
+
+                if (varCandidate.startsWith("$") && varCandidate.length > 1) {
+                    showVariablePeekTooltip(ta, widget, node, varCandidate, vStart, vEnd);
+                    return;
+                }
+
+                hideFloatingCard();
+            }
+
+            function showColorInspectorCard(ta, widget, node, hex, start, end) {
+                hideFloatingCard();
+                const info = getNearestArtisticColor(hex);
+                const card = document.createElement("div");
+                card.className = "modusflow-floating-card";
+                card.style.cssText = `
+                    position: fixed;
+                    z-index: 10001;
+                    background: #181825;
+                    border: 1px solid #313244;
+                    border-radius: 10px;
+                    padding: 12px 14px;
+                    box-shadow: 0 12px 28px rgba(0,0,0,0.65);
+                    color: #cdd6f4;
+                    font-family: ui-monospace, SFMono-Regular, monospace;
+                    font-size: 12px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                    width: 275px;
+                `;
+
+                const topRow = document.createElement("div");
+                topRow.style.cssText = "display: flex; align-items: center; gap: 10px;";
+
+                const swatch = document.createElement("div");
+                swatch.style.cssText = `
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 8px;
+                    background-color: ${hex};
+                    border: 2px solid rgba(255,255,255,0.25);
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                    flex-shrink: 0;
+                `;
+
+                const meta = document.createElement("div");
+                meta.style.cssText = "display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;";
+                meta.innerHTML = `
+                    <div style="font-weight: bold; color: ${hex}; font-size: 13px;">${hex.toUpperCase()}</div>
+                    <div style="font-size: 10px; color: #a6adc8;">rgb(${info.rgb.r}, ${info.rgb.g}, ${info.rgb.b}) · hsl(${info.hsl.h}°, ${info.hsl.s}%, ${info.hsl.l}%)</div>
+                `;
+
+                const closeBtn = document.createElement("button");
+                closeBtn.textContent = "✕";
+                closeBtn.style.cssText = "background: none; border: none; color: #6c7086; font-size: 14px; cursor: pointer; padding: 0 4px;";
+                closeBtn.onclick = hideFloatingCard;
+
+                topRow.appendChild(swatch);
+                topRow.appendChild(meta);
+                topRow.appendChild(closeBtn);
+                card.appendChild(topRow);
+
+                const matchBox = document.createElement("div");
+                matchBox.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px;";
+                matchBox.innerHTML = `
+                    <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Natural Model Descriptor:</div>
+                    <div style="font-size: 12px; font-weight: bold; color: #89b4fa;">"${info.promptFriendlyName}"</div>
+                `;
+
+                const convertBtn = document.createElement("button");
+                convertBtn.textContent = `✨ Replace with "${info.promptFriendlyName}"`;
+                convertBtn.style.cssText = "background: rgba(137, 180, 250, 0.15); border: 1px solid rgba(137, 180, 250, 0.4); border-radius: 4px; padding: 6px 8px; color: #89b4fa; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s ease;";
+                convertBtn.onmouseenter = () => { convertBtn.style.background = "rgba(137, 180, 250, 0.3)"; };
+                convertBtn.onmouseleave = () => { convertBtn.style.background = "rgba(137, 180, 250, 0.15)"; };
+                convertBtn.onclick = () => {
+                    ta.setRangeText(info.promptFriendlyName, start, end, "end");
+                    widget.value = ta.value;
+                    widget._updateSyntaxHighlight?.();
+                    hideFloatingCard();
+                    showStudioToast(`Converted to "${info.promptFriendlyName}"`);
+                };
+                matchBox.appendChild(convertBtn);
+
+                const convertAllBtn = document.createElement("button");
+                convertAllBtn.textContent = "✨ Translate All Hex in Prompt";
+                convertAllBtn.style.cssText = "background: #1e1e2e; border: 1px solid #45475a; border-radius: 4px; padding: 5px 8px; color: #cdd6f4; font-size: 10px; cursor: pointer; transition: all 0.15s ease;";
+                convertAllBtn.onmouseenter = () => { convertAllBtn.style.borderColor = "#89b4fa"; convertAllBtn.style.color = "#89b4fa"; };
+                convertAllBtn.onmouseleave = () => { convertAllBtn.style.borderColor = "#45475a"; convertAllBtn.style.color = "#cdd6f4"; };
+                convertAllBtn.onclick = () => {
+                    hideFloatingCard();
+                    translateAllHexInNode(node);
+                };
+                matchBox.appendChild(convertAllBtn);
+                card.appendChild(matchBox);
+
+                const bottomRow = document.createElement("div");
+                bottomRow.style.cssText = "display: flex; align-items: center; justify-content: space-between; gap: 6px;";
+
+                const pickerLabel = document.createElement("label");
+                pickerLabel.style.cssText = "display: flex; align-items: center; gap: 4px; font-size: 11px; color: #a6adc8; cursor: pointer;";
+                const colorInput = document.createElement("input");
+                colorInput.type = "color";
+                colorInput.value = normalizeHex(hex);
+                colorInput.style.cssText = "width: 22px; height: 22px; padding: 0; border: none; border-radius: 4px; background: none; cursor: pointer;";
+                colorInput.oninput = (e) => {
+                    const newHex = e.target.value;
+                    ta.setRangeText(newHex, start, end, "select");
+                    widget.value = ta.value;
+                    widget._updateSyntaxHighlight?.();
+                    showColorInspectorCard(ta, widget, node, newHex, start, start + newHex.length);
+                };
+                pickerLabel.appendChild(colorInput);
+                pickerLabel.appendChild(document.createTextNode("Pick"));
+                bottomRow.appendChild(pickerLabel);
+
+                const copyBtn = document.createElement("button");
+                copyBtn.textContent = "📋 Copy Tag";
+                copyBtn.style.cssText = "background: #313244; border: 1px solid #45475a; border-radius: 4px; padding: 4px 8px; color: #cdd6f4; font-size: 10px; cursor: pointer;";
+                copyBtn.onclick = () => {
+                    navigator.clipboard?.writeText(info.promptFriendlyName);
+                    copyBtn.textContent = "Copied!";
+                    setTimeout(() => { copyBtn.textContent = "📋 Copy Tag"; }, 1500);
+                };
+                bottomRow.appendChild(copyBtn);
+                card.appendChild(bottomRow);
+
+                const rect = ta.getBoundingClientRect();
+                card.style.top = Math.max(10, rect.top - 180) + "px";
+                card.style.left = Math.min(window.innerWidth - 300, Math.max(10, rect.left + 20)) + "px";
+
+                document.body.appendChild(card);
+                _activeFloatingCard = card;
+            }
+
+            function showVariablePeekTooltip(ta, widget, node, varName, start, end) {
+                hideFloatingCard();
+                const pw = node.widgets?.find(w => w.name === "positive");
+                const nw = node.widgets?.find(w => w.name === "negative");
+                const fullText = (pw?.value || "") + "\n" + (nw?.value || "");
+
+                const reg = new RegExp(`^\\s*\\$${varName.slice(1)}\\s*=\\s*([^;\\r\\n]+)`, "m");
+                const m = reg.exec(fullText);
+
+                const card = document.createElement("div");
+                card.className = "modusflow-floating-card";
+                card.style.cssText = `
+                    position: fixed;
+                    z-index: 10001;
+                    background: #181825;
+                    border: 1px solid #313244;
+                    border-radius: 8px;
+                    padding: 10px 12px;
+                    box-shadow: 0 10px 24px rgba(0,0,0,0.65);
+                    color: #cdd6f4;
+                    font-family: ui-monospace, SFMono-Regular, monospace;
+                    font-size: 11px;
+                    max-width: 320px;
+                `;
+
+                if (m) {
+                    card.innerHTML = `
+                        <div style="font-weight: bold; color: #38bdf8; margin-bottom: 4px;">Variable Definition:</div>
+                        <div style="color: #a6e3a1; font-weight: 500; background: #11111b; padding: 6px 8px; border-radius: 4px; border: 1px solid #313244; word-break: break-word;">${escapeHtml(m[1].trim())}</div>
+                    `;
+                } else {
+                    card.innerHTML = `
+                        <div style="color: #f38ba8; font-weight: 500;">⚠️ <strong>${escapeHtml(varName)}</strong> not defined in header.</div>
+                        <div style="color: #6c7086; font-size: 10px; margin-top: 4px;">Assign with <code>${escapeHtml(varName)} = value;</code></div>
+                    `;
+                }
+
+                const rect = ta.getBoundingClientRect();
+                card.style.top = Math.max(10, rect.top - 60) + "px";
+                card.style.left = Math.min(window.innerWidth - 340, Math.max(10, rect.left + 20)) + "px";
+
+                document.body.appendChild(card);
+                _activeFloatingCard = card;
+            }
+
+            // ── Interactive LoRA Deck Modal ───────────────────────────────────────
+            function showLoraDeckModal(node) {
+                const pw = node.widgets?.find(w => w.name === "positive");
+                if (!pw) return;
+
+                const overlay = document.createElement("div");
+                overlay.className = "modusflow-modal-overlay";
+                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+
+                const dialog = document.createElement("div");
+                dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 560px; max-width: 92vw; max-height: 85vh; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 45px rgba(0,0,0,0.7); color: #cdd6f4; font-family: sans-serif;";
+
+                const header = document.createElement("div");
+                header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #313244; padding-bottom: 8px;";
+                header.innerHTML = '<h3 style="margin: 0; font-size: 16px; color: #f87171; display: flex; align-items: center; gap: 8px;">🎨 <span>Active LoRA Deck &amp; Weight Steppers</span></h3>';
+
+                const closeBtn = document.createElement("button");
+                closeBtn.textContent = "✕";
+                closeBtn.style.cssText = "background: none; border: none; color: #6c7086; font-size: 18px; cursor: pointer;";
+                closeBtn.onclick = () => overlay.remove();
+                header.appendChild(closeBtn);
+                dialog.appendChild(header);
+
+                const listContainer = document.createElement("div");
+                listContainer.style.cssText = "overflow-y: auto; display: flex; flex-direction: column; gap: 10px; max-height: 520px;";
+
+                function renderLoras() {
+                    listContainer.innerHTML = "";
+                    const pText = pw.value || "";
+                    const loraRegex = /(?:\/\*\s*)?(<lora:([^:>]+)(?::([0-9.]+))?>)(?:\s*\*\/)?/gi;
+                    const matches = [];
+                    let m;
+                    while ((m = loraRegex.exec(pText)) !== null) {
+                        matches.push({
+                            fullMatch: m[0],
+                            tag: m[1],
+                            name: m[2],
+                            weight: parseFloat(m[3] || "1.0"),
+                            isMuted: m[0].startsWith("/*")
+                        });
+                    }
+
+                    if (matches.length === 0) {
+                        listContainer.innerHTML = `
+                            <div style="padding: 28px; text-align: center; color: #a6adc8; font-size: 13px;">
+                                No LoRAs detected in prompt.<br><span style="font-size: 11px; color: #6c7086;">Add tags like <code>&lt;lora:my_model:1.0&gt;</code> to tune weights here.</span>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    for (const item of matches) {
+                        const card = document.createElement("div");
+                        card.style.cssText = `
+                            background: #11111b;
+                            border: 1px solid ${item.isMuted ? '#45475a' : '#313244'};
+                            border-radius: 8px;
+                            padding: 10px 14px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            gap: 12px;
+                            opacity: ${item.isMuted ? '0.6' : '1'};
+                        `;
+
+                        const infoCol = document.createElement("div");
+                        infoCol.style.cssText = "flex: 1; min-width: 0;";
+                        infoCol.innerHTML = `
+                            <div style="font-size: 13px; font-weight: 600; color: ${item.isMuted ? '#a6adc8' : '#f87171'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
+                            <div style="font-size: 11px; color: #6c7086;">${item.isMuted ? 'Muted / Excluded' : 'Active in CLIP'}</div>
+                        `;
+
+                        const controlCol = document.createElement("div");
+                        controlCol.style.cssText = "display: flex; align-items: center; gap: 6px;";
+
+                        const minusBtn = document.createElement("button");
+                        minusBtn.textContent = "-0.1";
+                        minusBtn.style.cssText = "background: #1e1e2e; border: 1px solid #313244; color: #cdd6f4; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;";
+                        minusBtn.onclick = () => updateWeight(item, -0.1);
+
+                        const weightVal = document.createElement("span");
+                        weightVal.textContent = item.weight.toFixed(2);
+                        weightVal.style.cssText = "font-family: monospace; font-size: 13px; font-weight: bold; width: 44px; text-align: center;";
+
+                        const plusBtn = document.createElement("button");
+                        plusBtn.textContent = "+0.1";
+                        plusBtn.style.cssText = "background: #1e1e2e; border: 1px solid #313244; color: #cdd6f4; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;";
+                        plusBtn.onclick = () => updateWeight(item, 0.1);
+
+                        const muteBtn = document.createElement("button");
+                        muteBtn.textContent = item.isMuted ? "Unmute" : "Mute";
+                        muteBtn.style.cssText = `background: ${item.isMuted ? '#a6e3a1' : '#313244'}; color: ${item.isMuted ? '#11111b' : '#cdd6f4'}; border: none; border-radius: 4px; padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer;`;
+                        muteBtn.onclick = () => toggleMute(item);
+
+                        controlCol.appendChild(minusBtn);
+                        controlCol.appendChild(weightVal);
+                        controlCol.appendChild(plusBtn);
+                        controlCol.appendChild(muteBtn);
+
+                        card.appendChild(infoCol);
+                        card.appendChild(controlCol);
+                        listContainer.appendChild(card);
+                    }
+                }
+
+                function updateWeight(item, delta) {
+                    let newW = Math.round((item.weight + delta) * 100) / 100;
+                    newW = Math.max(0.0, Math.min(2.5, newW));
+                    const newTag = `<lora:${item.name}:${newW.toFixed(2).replace(/\\.00$/, '')}>`;
+                    const replacement = item.isMuted ? `/* ${newTag} */` : newTag;
+                    pw.value = pw.value.replace(item.fullMatch, replacement);
+                    if (pw.inputEl) pw.inputEl.value = pw.value;
+                    pw._updateSyntaxHighlight?.();
+                    renderLoras();
+                }
+
+                function toggleMute(item) {
+                    let replacement;
+                    if (item.isMuted) {
+                        replacement = `<lora:${item.name}:${item.weight.toFixed(2).replace(/\\.00$/, '')}>`;
+                    } else {
+                        replacement = `/* <lora:${item.name}:${item.weight.toFixed(2).replace(/\\.00$/, '')}> */`;
+                    }
+                    pw.value = pw.value.replace(item.fullMatch, replacement);
+                    if (pw.inputEl) pw.inputEl.value = pw.value;
+                    pw._updateSyntaxHighlight?.();
+                    renderLoras();
+                }
+
+                dialog.appendChild(listContainer);
+                overlay.appendChild(dialog);
+                overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+                document.body.appendChild(overlay);
+                renderLoras();
+            }
+
+            // ── Floating Find & Replace Bar (Ctrl+F / Ctrl+H) ─────────────────────
+            let _activeFindBar = null;
+
+            function showFindReplaceBar(node) {
+                if (_activeFindBar) {
+                    _activeFindBar.focusInput();
+                    return;
+                }
+
+                const pw = node.widgets?.find(w => w.name === "positive");
+                if (!pw) return;
+
+                const bar = document.createElement("div");
+                bar.className = "modusflow-find-replace-bar";
+                bar.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 40px;
+                    z-index: 10002;
+                    background: #181825;
+                    border: 1px solid #313244;
+                    border-radius: 10px;
+                    padding: 10px 14px;
+                    box-shadow: 0 16px 36px rgba(0,0,0,0.7);
+                    color: #cdd6f4;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    font-size: 12px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    width: 360px;
+                `;
+
+                bar.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 600; color: #89b4fa; font-size: 13px;">🔍 Find &amp; Replace</span>
+                        <button id="mf-fr-close" style="background: none; border: none; color: #6c7086; cursor: pointer; font-size: 14px;">✕</button>
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <input id="mf-fr-find" placeholder="Find..." style="flex: 1; background: #11111b; border: 1px solid #313244; border-radius: 4px; padding: 5px 8px; color: #cdd6f4; font-size: 12px; outline: none;">
+                        <span id="mf-fr-count" style="font-size: 11px; color: #a6adc8; min-width: 45px; text-align: center;">0 / 0</span>
+                        <button id="mf-fr-prev" style="background: #313244; border: none; border-radius: 4px; padding: 4px 8px; color: #cdd6f4; cursor: pointer;">↑</button>
+                        <button id="mf-fr-next" style="background: #313244; border: none; border-radius: 4px; padding: 4px 8px; color: #cdd6f4; cursor: pointer;">↓</button>
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <input id="mf-fr-replace" placeholder="Replace with..." style="flex: 1; background: #11111b; border: 1px solid #313244; border-radius: 4px; padding: 5px 8px; color: #cdd6f4; font-size: 12px; outline: none;">
+                        <button id="mf-fr-rep-one" style="background: #313244; border: 1px solid #45475a; border-radius: 4px; padding: 5px 8px; color: #cdd6f4; font-size: 11px; cursor: pointer;">Replace</button>
+                        <button id="mf-fr-rep-all" style="background: #89b4fa; border: none; border-radius: 4px; padding: 5px 10px; color: #11111b; font-size: 11px; font-weight: bold; cursor: pointer;">All</button>
+                    </div>
+                    <div style="display: flex; gap: 14px; font-size: 11px; color: #a6adc8; align-items: center;">
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="checkbox" id="mf-fr-case"> Match Case (Aa)</label>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;"><input type="checkbox" id="mf-fr-regex"> Regex (.*)</label>
+                    </div>
+                `;
+
+                document.body.appendChild(bar);
+
+                const findInput = bar.querySelector("#mf-fr-find");
+                const repInput = bar.querySelector("#mf-fr-replace");
+                const countEl = bar.querySelector("#mf-fr-count");
+                const caseBox = bar.querySelector("#mf-fr-case");
+                const regexBox = bar.querySelector("#mf-fr-regex");
+
+                _activeFindBar = {
+                    element: bar,
+                    focusInput: () => findInput.focus()
+                };
+
+                function getMatches() {
+                    const query = findInput.value;
+                    if (!query) return [];
+                    let flags = caseBox.checked ? "g" : "gi";
+                    let regex;
+                    try {
+                        regex = regexBox.checked ? new RegExp(query, flags) : new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+                    } catch (_) {
+                        return [];
+                    }
+
+                    const matches = [];
+                    const text = pw.value || "";
+                    let m;
+                    while ((m = regex.exec(text)) !== null) {
+                        matches.push({ start: m.index, end: m.index + m[0].length, text: m[0] });
+                    }
+                    return matches;
+                }
+
+                let matchIdx = 0;
+                function updateMatchState() {
+                    const matches = getMatches();
+                    countEl.textContent = matches.length ? `${matchIdx + 1} / ${matches.length}` : "0 / 0";
+                }
+
+                findInput.addEventListener("input", () => { matchIdx = 0; updateMatchState(); });
+                caseBox.addEventListener("change", () => { matchIdx = 0; updateMatchState(); });
+                regexBox.addEventListener("change", () => { matchIdx = 0; updateMatchState(); });
+
+                bar.querySelector("#mf-fr-next").onclick = () => {
+                    const matches = getMatches();
+                    if (!matches.length) return;
+                    matchIdx = (matchIdx + 1) % matches.length;
+                    const cur = matches[matchIdx];
+                    if (pw.inputEl) {
+                        pw.inputEl.focus();
+                        pw.inputEl.setSelectionRange(cur.start, cur.end);
+                    }
+                    updateMatchState();
+                };
+
+                bar.querySelector("#mf-fr-prev").onclick = () => {
+                    const matches = getMatches();
+                    if (!matches.length) return;
+                    matchIdx = (matchIdx - 1 + matches.length) % matches.length;
+                    const cur = matches[matchIdx];
+                    if (pw.inputEl) {
+                        pw.inputEl.focus();
+                        pw.inputEl.setSelectionRange(cur.start, cur.end);
+                    }
+                    updateMatchState();
+                };
+
+                bar.querySelector("#mf-fr-rep-one").onclick = () => {
+                    const matches = getMatches();
+                    if (!matches.length) return;
+                    const cur = matches[matchIdx];
+                    const repVal = repInput.value;
+                    pw.value = pw.value.slice(0, cur.start) + repVal + pw.value.slice(cur.end);
+                    if (pw.inputEl) pw.inputEl.value = pw.value;
+                    pw._updateSyntaxHighlight?.();
+                    updateMatchState();
+                };
+
+                bar.querySelector("#mf-fr-rep-all").onclick = () => {
+                    const query = findInput.value;
+                    if (!query) return;
+                    let flags = caseBox.checked ? "g" : "gi";
+                    try {
+                        const regex = regexBox.checked ? new RegExp(query, flags) : new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+                        pw.value = (pw.value || "").replace(regex, repInput.value);
+                        if (pw.inputEl) pw.inputEl.value = pw.value;
+                        pw._updateSyntaxHighlight?.();
+                        updateMatchState();
+                    } catch (err) {
+                        showStudioToast("Regex error: " + err.message, "error");
+                    }
+                };
+
+                bar.querySelector("#mf-fr-close").onclick = () => {
+                    bar.remove();
+                    _activeFindBar = null;
+                };
+
+                findInput.focus();
+            }
+
+            // ── Swap Positive & Negative Prompts ──────────────────────────────────
+            function swapPositiveNegative(node) {
+                const pw = node.widgets?.find(w => w.name === "positive");
+                const nw = node.widgets?.find(w => w.name === "negative");
+                if (!pw || !nw) return;
+
+                pushPromptHistory(node, "Pre-Swap Prompts");
+                const temp = pw.value || "";
+                setTextValue(pw, nw.value || "");
+                setTextValue(nw, temp);
+                pushPromptHistory(node, "Swapped Positive & Negative");
+                app.graph?.setDirtyCanvas(true, true);
+            }
+
+            // ── Send Selection Between Positive & Negative Prompts ────────────────
+            function sendSelectionToOppositeWidget(node, currentWidget) {
+                const pw = node.widgets?.find(w => w.name === "positive");
+                const nw = node.widgets?.find(w => w.name === "negative");
+                if (!pw || !nw) return;
+
+                const source = currentWidget === nw ? nw : pw;
+                const target = currentWidget === nw ? pw : nw;
+                const ta = source.inputEl || source.element;
+                if (!ta) return;
+
+                const start = ta.selectionStart;
+                const end = ta.selectionEnd;
+                let selected = ta.value.slice(start, end).trim();
+
+                if (!selected) {
+                    let tStart = start;
+                    while (tStart > 0 && ta.value[tStart - 1] !== "," && ta.value[tStart - 1] !== "\n") tStart--;
+                    let tEnd = end;
+                    while (tEnd < ta.value.length && ta.value[tEnd] !== "," && ta.value[tEnd] !== "\n") tEnd++;
+                    selected = ta.value.slice(tStart, tEnd).trim();
+                    if (selected) {
+                        ta.setRangeText("", tStart, tEnd, "end");
+                    }
+                } else {
+                    ta.setRangeText("", start, end, "end");
+                }
+
+                if (!selected) return;
+
+                source.value = ta.value.replace(/,\s*,+/g, ", ").replace(/^,\s*/, "").replace(/,\s*$/, "");
+                if (source.inputEl) source.inputEl.value = source.value;
+                source._updateSyntaxHighlight?.();
+
+                let targetText = (target.value || "").trim();
+                if (targetText && !targetText.endsWith(",")) targetText += ", ";
+                else if (targetText && targetText.endsWith(",")) targetText += " ";
+                targetText += selected;
+
+                target.value = targetText;
+                if (target.inputEl) target.inputEl.value = targetText;
+                target._updateSyntaxHighlight?.();
+
+                app.graph?.setDirtyCanvas(true, true);
+            }
+
+            // ── Tag Formatter: Explode to Lines & Collapse to Inline ──────────────
+            function explodeTagsToLines(widget) {
+                if (!widget || !widget.value) return;
+                const text = widget.value;
+
+                const tags = [];
+                let cur = "";
+                let parenDepth = 0;
+                let braceDepth = 0;
+                let inBlockComment = false;
+
+                for (let i = 0; i < text.length; i++) {
+                    if (!inBlockComment && text.startsWith("/*", i)) {
+                        inBlockComment = true;
+                    } else if (inBlockComment && text.startsWith("*/", i)) {
+                        inBlockComment = false;
+                    }
+
+                    const ch = text[i];
+                    if (!inBlockComment) {
+                        if (ch === "(") parenDepth++;
+                        else if (ch === ")" && parenDepth > 0) parenDepth--;
+                        else if (ch === "{" || ch === "<") braceDepth++;
+                        else if ((ch === "}" || ch === ">") && braceDepth > 0) braceDepth--;
+                    }
+
+                    if (ch === "," && parenDepth === 0 && braceDepth === 0 && !inBlockComment) {
+                        if (cur.trim()) tags.push(cur.trim());
+                        cur = "";
+                    } else if (ch === "\n" && parenDepth === 0 && braceDepth === 0 && !inBlockComment) {
+                        if (cur.trim()) tags.push(cur.trim());
+                        cur = "";
+                    } else {
+                        cur += ch;
+                    }
+                }
+                if (cur.trim()) tags.push(cur.trim());
+
+                if (tags.length === 0) return;
+                const exploded = tags.map(t => "    " + t + ",").join("\n");
+                widget.value = exploded;
+                if (widget.inputEl) widget.inputEl.value = exploded;
+                widget._updateSyntaxHighlight?.();
+            }
+
+            function collapseTagsToInline(widget) {
+                if (!widget || !widget.value) return;
+                const lines = widget.value.split("\n");
+                const preserved = [];
+
+                for (let line of lines) {
+                    let t = line.trim();
+                    if (!t) continue;
+                    if (t.startsWith("#") || t.startsWith("//") || (t.startsWith("$") && t.includes("="))) {
+                        preserved.push(t);
+                    } else {
+                        if (t.endsWith(",")) t = t.slice(0, -1).trim();
+                        if (t) preserved.push(t);
+                    }
+                }
+
+                const collapsed = preserved.join(", ").replace(/,\s*,+/g, ", ");
+                widget.value = collapsed;
+                if (widget.inputEl) widget.inputEl.value = collapsed;
+                widget._updateSyntaxHighlight?.();
+            }
+
+            function toggleTagFormat(node) {
+                const pw = node.widgets?.find(w => w.name === "positive");
+                if (!pw || !pw.value) return;
+                const text = pw.value;
+                const lines = text.split("\n").filter(l => l.trim().length > 0);
+                const isMultiLine = lines.length > 3 && lines.some(l => l.trim().endsWith(",") || l.startsWith("    "));
+
+                if (isMultiLine) {
+                    collapseTagsToInline(pw);
+                } else {
+                    explodeTagsToLines(pw);
+                }
+            }
+
+            // ── Color Palette Modal ───────────────────────────────────────────────
+            function showColorPaletteModal(node) {
+                const pw = node.widgets?.find(w => w.name === "positive");
+                if (!pw) return;
+
+                const overlay = document.createElement("div");
+                overlay.className = "modusflow-modal-overlay";
+                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+
+                const dialog = document.createElement("div");
+                dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 620px; max-width: 92vw; max-height: 85vh; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 45px rgba(0,0,0,0.7); color: #cdd6f4; font-family: sans-serif;";
+
+                const header = document.createElement("div");
+                header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #313244; padding-bottom: 8px;";
+                header.innerHTML = '<h3 style="margin: 0; font-size: 16px; color: #89b4fa; display: flex; align-items: center; gap: 8px;">🎨 <span>Model Color Palette &amp; Hex Translator</span></h3>';
+
+                const closeBtn = document.createElement("button");
+                closeBtn.textContent = "✕";
+                closeBtn.style.cssText = "background: none; border: none; color: #6c7086; font-size: 18px; cursor: pointer;";
+                closeBtn.onclick = () => overlay.remove();
+                header.appendChild(closeBtn);
+                dialog.appendChild(header);
+
+                const translateAllBtn = document.createElement("button");
+                translateAllBtn.textContent = "✨ Translate All Hex Codes in Prompt to Natural Colors";
+                translateAllBtn.style.cssText = "background: rgba(137, 180, 250, 0.15); border: 1px solid rgba(137, 180, 250, 0.4); border-radius: 6px; padding: 7px 12px; color: #89b4fa; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s ease; text-align: center;";
+                translateAllBtn.onclick = () => {
+                    translateAllHexInNode(node);
+                    overlay.remove();
+                };
+                dialog.appendChild(translateAllBtn);
+
+                const filterInput = document.createElement("input");
+                filterInput.placeholder = "Search color pigment (e.g. crimson, emerald, cobalt, amber)...";
+                filterInput.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 6px; padding: 8px 12px; color: #cdd6f4; font-size: 13px; outline: none;";
+                dialog.appendChild(filterInput);
+
+                const grid = document.createElement("div");
+                grid.style.cssText = "overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; max-height: 480px; padding-right: 4px;";
+
+                function renderColors(q = "") {
+                    grid.innerHTML = "";
+                    const filtered = ARTISTIC_COLOR_PALETTE.filter(c => !q || c.name.toLowerCase().includes(q) || c.hex.toLowerCase().includes(q));
+
+                    for (const c of filtered) {
+                        const chip = document.createElement("button");
+                        chip.style.cssText = `
+                            background: #11111b;
+                            border: 1px solid #313244;
+                            border-radius: 6px;
+                            padding: 6px 8px;
+                            display: flex;
+                            align-items: center;
+                            gap: 8px;
+                            cursor: pointer;
+                            transition: all 0.15s ease;
+                            text-align: left;
+                        `;
+                        chip.onmouseenter = () => { chip.style.borderColor = "#89b4fa"; chip.style.background = "#1e1e2e"; };
+                        chip.onmouseleave = () => { chip.style.borderColor = "#313244"; chip.style.background = "#11111b"; };
+
+                        chip.innerHTML = `
+                            <div style="width: 18px; height: 18px; border-radius: 4px; background: ${c.hex}; border: 1px solid rgba(255,255,255,0.2); flex-shrink: 0;"></div>
+                            <div style="font-size: 11px; color: #cdd6f4; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${c.name}</div>
+                        `;
+
+                        chip.onclick = () => {
+                            let val = pw.value || "";
+                            if (val && !val.trim().endsWith(",")) val += ", ";
+                            else if (val && val.trim().endsWith(",")) val += " ";
+                            pw.value = val + c.name;
+                            if (pw.inputEl) pw.inputEl.value = pw.value;
+                            pw._updateSyntaxHighlight?.();
+                            overlay.remove();
+                        };
+                        grid.appendChild(chip);
+                    }
+                }
+
+                filterInput.oninput = (e) => renderColors(e.target.value.toLowerCase().trim());
+                dialog.appendChild(grid);
+                overlay.appendChild(dialog);
+                overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+                document.body.appendChild(overlay);
+                renderColors();
+            }
+
+            // ── Batch Hex Color Translator ────────────────────────────────────────
+            function translateAllHexInNode(node) {
+                const pw = node.widgets?.find(w => w.name === "positive");
+                const nw = node.widgets?.find(w => w.name === "negative");
+                let total = 0;
+                const hexRegex = /#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g;
+
+                const translateWidget = (w) => {
+                    if (!w || !w.value) return 0;
+                    let count = 0;
+                    const replaced = w.value.replace(hexRegex, (match) => {
+                        count++;
+                        const info = getNearestArtisticColor(match);
+                        return info.promptFriendlyName;
+                    });
+                    if (count > 0) {
+                        w.value = replaced;
+                        if (w.inputEl) w.inputEl.value = replaced;
+                        w._updateSyntaxHighlight?.();
+                    }
+                    return count;
+                };
+
+                total += translateWidget(pw);
+                total += translateWidget(nw);
+
+                if (total > 0) {
+                    showStudioToast(`Translated ${total} hex code${total > 1 ? 's' : ''} to natural color names`);
+                    pushPromptHistory(node, `Translated ${total} hex colors`);
+                    app.graph?.setDirtyCanvas(true, true);
+                } else {
+                    showStudioToast("No hex color codes found in prompt.", "info");
+                }
+            }
+
+            // ── Negative Pedalboard Implementation ────────────────────────────────
+            const PEDALBOARD_MODULES = [
+                {
+                    id: "quality",
+                    label: "✦ Quality",
+                    tooltip: "Toggle baseline quality guard (worst quality, low quality, normal quality)",
+                    matchTag: "worst quality",
+                    text: "(worst quality, low quality, normal quality:1.4)"
+                },
+                {
+                    id: "anatomy",
+                    label: "🚫 Anatomy",
+                    tooltip: "Toggle anatomical & hand deformity guard",
+                    matchTag: "bad anatomy",
+                    text: "(bad anatomy, bad hands, missing fingers, extra digits:1.3)"
+                },
+                {
+                    id: "cgi",
+                    label: "🎨 3D Guard",
+                    tooltip: "Toggle 3D render / CGI guard for 2D or realistic styles",
+                    matchTag: "3d render",
+                    text: "(cgi, 3d render, cartoon, illustration:1.2)"
+                },
+                {
+                    id: "watermark",
+                    label: "💧 Watermark",
+                    tooltip: "Toggle watermark, text, and signature suppression",
+                    matchTag: "watermark",
+                    text: "(watermark, text, signature, username:1.2)"
+                }
+            ];
+
+            function attachNegativePedalboard(widget, node) {
+                if (!widget) return;
+                requestAnimationFrame(() => {
+                    const ta = widget.inputEl || widget.element;
+                    if (!ta || !ta.parentElement || ta._hasPedalboard) return;
+                    ta._hasPedalboard = true;
+
+                    const parent = ta.parentElement;
+                    const pedalBar = document.createElement("div");
+                    pedalBar.className = "modusflow-pedal-bar";
+
+                    const label = document.createElement("span");
+                    label.textContent = "Pedalboard:";
+                    label.style.cssText = "font-size: 10px; color: #6c7086; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px; font-weight: 600;";
+                    pedalBar.appendChild(label);
+
+                    const buttons = [];
+
+                    PEDALBOARD_MODULES.forEach(mod => {
+                        const btn = document.createElement("button");
+                        btn.className = "modusflow-pedal-btn";
+                        btn.textContent = mod.label;
+                        btn.title = mod.tooltip;
+                        btn.type = "button";
+
+                        btn.onclick = (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            let cur = (ta.value || "").trim();
+                            const hasTag = cur.toLowerCase().includes(mod.matchTag.toLowerCase());
+
+                            if (hasTag) {
+                                cur = cur.replace(mod.text, "");
+                                const escTag = mod.matchTag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                cur = cur.replace(new RegExp(`\\([^)]*${escTag}[^)]*\\)`, "gi"), "");
+                                cur = cur.replace(/,\s*,+/g, ", ").replace(/^,\s*/, "").replace(/,\s*$/, "").trim();
+                                showStudioToast(`Disengaged [${mod.label}] guard`, "info");
+                            } else {
+                                if (cur && !cur.endsWith(",")) cur += ", ";
+                                else if (cur && cur.endsWith(",")) cur += " ";
+                                cur += mod.text;
+                                showStudioToast(`Engaged [${mod.label}] guard`);
+                            }
+
+                            ta.value = cur;
+                            widget.value = cur;
+                            widget._updateSyntaxHighlight?.();
+                            updateStates();
+                            pushPromptHistory(node, `Pedalboard: ${mod.label}`);
+                        };
+
+                        buttons.push({ btn, mod });
+                        pedalBar.appendChild(btn);
+                    });
+
+                    function updateStates() {
+                        const val = (ta.value || "").toLowerCase();
+                        buttons.forEach(({ btn, mod }) => {
+                            if (val.includes(mod.matchTag.toLowerCase())) {
+                                btn.classList.add("active");
+                            } else {
+                                btn.classList.remove("active");
+                            }
+                        });
+                    }
+
+                    ta.addEventListener("input", updateStates);
+                    updateStates();
+
+                    parent.insertBefore(pedalBar, ta);
+                });
+            }
+
+            // ── Clean Prompt & JSON Exporters ─────────────────────────────────────
+            function copyCleanPrompt(node) {
+                const pw = node.widgets?.find(w => w.name === "positive");
+                if (!pw || !pw.value) return;
+                let clean = pw.value
+                    .replace(/\/\*[\s\S]*?\*\//g, "")
+                    .replace(/(?:^|\n)\s*(?:#|\/\/)[^\n]*/g, "")
+                    .replace(/^\s*\$[a-zA-Z0-9_-]+\s*=[^;\n]+;?/gm, "")
+                    .replace(/\$[a-zA-Z0-9_-]+/g, "")
+                    .replace(/\s+/g, " ")
+                    .replace(/,\s*,+/g, ", ")
+                    .replace(/^,\s*/, "")
+                    .replace(/,\s*$/, "")
+                    .trim();
+                navigator.clipboard?.writeText(clean);
+                showStudioToast("Clean prompt copied to clipboard!");
+            }
+
+            function copyJsonPayload(node) {
+                const pw = node.widgets?.find(w => w.name === "positive");
+                const nw = node.widgets?.find(w => w.name === "negative");
+                const obj = {
+                    positive: pw?.value || "",
+                    negative: nw?.value || ""
+                };
+                navigator.clipboard?.writeText(JSON.stringify(obj, null, 2));
+                showStudioToast("Prompt JSON copied to clipboard!");
+            }
+
+            function toggleNodeLayout(node) {
+                node._splitLayout = !node._splitLayout;
+                if (node._splitLayout) {
+                    node.size = [960, 680];
+                } else {
+                    node.size = [560, 930];
+                }
+                const pw = node.widgets?.find(w => w.name === "positive");
+                const nw = node.widgets?.find(w => w.name === "negative");
+                pw?._updateSyntaxHighlight?.();
+                nw?._updateSyntaxHighlight?.();
+                app.graph?.setDirtyCanvas(true, true);
             }
         }
     }

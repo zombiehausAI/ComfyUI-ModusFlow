@@ -251,13 +251,7 @@ class ModusFlowTextEditor:
             picked = sample_items(options_with_weights, k)
             return ", ".join(picked)
 
-        pattern = r'\{([^{}]+)\}'
-        for _ in range(10): # Max 10 passes for nested {a|{b|c}}
-            if not re.search(pattern, text):
-                break
-            text = re.sub(pattern, replace_choice, text)
-
-        # 4. Resolve __wildcard__ and __N$$wildcard__ file references (strictly within saved_prompts)
+        # Helper: resolve __wildcard__ and __N$$wildcard__ file references (strictly within saved_prompts)
         def replace_wildcard(match):
             count_spec = match.group(1)
             wc_name = match.group(2).strip()
@@ -284,8 +278,30 @@ class ModusFlowTextEditor:
                 pass
             return match.group(0)
 
-        # Matches __wildcard__ OR __2$$wildcard__ OR __1-3$$wildcard__
-        text = re.sub(r'__(?:([0-9]+(?:-[0-9]+)?)\$\$)?([a-zA-Z0-9_\-]+)__', replace_wildcard, text)
+        # 3 & 4. Iteratively resolve choices and wildcards (up to 10 passes)
+        # This guarantees:
+        # - Wildcard list rows can contain choices like `wearing {red|blue} sneakers`
+        # - Dynamic choices can select between wildcards like `{__hats__|__helmets__}`
+        # - Nested choices `{a|{b|c}}` resolve from inside out
+        # - Recursive wildcards resolve cleanly
+        choice_pattern = r'\{([^{}]+)\}'
+        wc_pattern = r'__(?:([0-9]+(?:-[0-9]+)?)\$\$)?([a-zA-Z0-9_\-]+)__'
+
+        for _ in range(10):
+            changed = False
+            if re.search(wc_pattern, text):
+                new_text = re.sub(wc_pattern, replace_wildcard, text)
+                if new_text != text:
+                    text = new_text
+                    changed = True
+            if re.search(choice_pattern, text):
+                new_text = re.sub(choice_pattern, replace_choice, text)
+                if new_text != text:
+                    text = new_text
+                    changed = True
+            if not changed:
+                break
+
         return text
 
     @staticmethod

@@ -67,6 +67,17 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **Negative**: Smaller default height but fully resizable
 - Both support multi-line, word wrapping, undo/redo (Ctrl+Z / Ctrl+Y)
 - **Tag Weight Stepping**: Select a tag (or place cursor inside a word) and press `Ctrl + Up` or `Ctrl + Down` (Cmd+Up/Down on Mac) to adjust numerical weights by $\pm 0.05$ (e.g. `tag` $\rightarrow$ `(tag:1.05)` $\rightarrow$ `(tag:1.1)`). Stepping down to 1.0 automatically unwraps to clean plain text.
+- **Move Line Up / Down (`Alt + Up` / `Alt + Down`)**: Transposes the current line or selection up or down without cutting/pasting. Ideal for adjusting CLIP prompt priority.
+- **Duplicate Line Down (`Shift + Alt + Down`)**: Duplicates the current line or selected block directly below in one keystroke.
+- **Send to Opposite Prompt (`Ctrl + Shift + N`)**: Cuts the active selection from the positive prompt and appends it to negative (or vice versa), cleaning up commas automatically.
+- **Find & Replace (`Ctrl + F` / `Ctrl + H`)**: Opens a floating, non-intrusive Find & Replace bar with live match counter, Prev/Next buttons, Replace, Replace All, Case-Sensitive (`Aa`), and Regex (`.*`) support.
+- **Prompt Snippets / Macros (Tab Expansion)**: Type a shortcut trigger like `!cine`, `!photo`, `!anime`, `!clean`, `!cyber`, `!portrait`, or `!neg` and press `Tab` to expand into comprehensive visual descriptor bundles.
+- **Interactive Color Hex Inspector & Natural Color Resolver**: Type any `#RRGGBB` or `#RGB` hex code (e.g. `#e63946`, `#2a9d8f`, `#3a86ff`). The editor renders the text in that exact color with a subtle glowing pill container. Clicking or placing your cursor on it opens a floating inspector showing:
+  - Exact live color swatch, RGB, and HSL metrics.
+  - **Nearest Prompt-Friendly Name** (e.g. `#e63946` $\rightarrow$ `"vibrant crimson red"`), solving the problem of diffusion models not understanding raw hex codes!
+  - **✨ Replace with Natural Color** button: one-click replacement of the hex code into the model-understandable color name.
+  - **Visual Color Picker**: Built-in color picker to visually tweak colors and insert them in real time.
+- **Prompt Variable Peek**: Placing your cursor on or clicking any `$variable` token displays a floating card showing its defined value from the prompt header.
 - **Front-Load Priority Hotkey (`Alt + Home` / `Alt + Left`)**: Teleports the tag under the cursor or active selection directly to the very beginning of the prompt, granting it immediate CLIP/T5 priority.
 - **Tag Randomizer on Selection (`Alt + D`)**: Instantly resolves dynamic choices `{a|b|c}` or `{shuffle: ...}` within the selection or at cursor into a single random outcome in-place.
 - **Negative Presets**: Quick-fill dropdown for curated quality baselines (*SDXL Quality*, *Pony Score Baseline*, *Photorealistic*, *Anime / 2D Quality*, *Flux / Chroma Minimal*).
@@ -76,13 +87,17 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 ### Action Toolbar
 - **✨ Enhance with Ollama**: One-click local AI prompt expansion! Sends the current positive prompt to your local Ollama LLM to enrich lighting, atmosphere, and sensory details in-place. Features automatic model detection via a dynamic dropdown in ComfyUI Settings, live status diagnostics, and non-blocking availability checks that never stall canvas loading. Shift+Click or click when offline (or right-click $\rightarrow$ **🤖 Ollama Status & Model Settings...**) to inspect connection status, test endpoints, or switch models on the fly.
 - **⚡ Quick Chips**: Opens an interactive modal with curated visual tag chips organized into *Lighting & Atmosphere*, *Optics & Framing*, *Style & Aesthetics*, and *Mood & Color Palette*. Features a real-time filter search and one-click insertion at the cursor.
+- **🎨 LoRA Deck**: Interactive modal displaying all `<lora:name:weight>` detected in your prompt. Features `[-]` and `[+]` ($\pm 0.1$) steppers, a continuous weight slider, and an instant **Mute/Unmute** toggle (wraps the LoRA in `/* ... */` comments so you can disable it without deleting your configuration).
+- **⇄ Swap Prompts**: Instantly swaps text between Positive and Negative prompt textareas with one click.
+- **◫ Explode / Collapse**: Toggles between **Exploded Mode** (formats comma-separated tags onto separate indented lines for surgical editing, moving lines with `Alt+Up/Down`, and line commenting with `Ctrl+/`) and **Collapsed Mode** (compresses multi-line tags back into clean comma-separated inline paragraphs).
+- **🔍 Find / Replace**: Opens the floating Find & Replace search overlay (`Ctrl + F` / `Ctrl + H`).
 - **🔍 Prompt Diff**: Visual side-by-side or token diff viewer comparing the active prompt against any recent history snapshot or disk save, clearly highlighting added and removed tags.
-- **💾 Save Prompt**: Prompts for a filename and optional category, saves both texts as a `.json` file, and automatically selects the newly saved prompt in the picker dropdown (matching the List Curator behavior)
-- **✏️ Update Selected**: Overwrites the currently selected prompt with current text and keeps it selected
-- **🔄 Refresh List**: Reloads the dropdown to reflect newly added prompt files
-- **🧹 Prettify / Dedupe**: One-click cleanup to eliminate duplicate tags, collapse duplicate commas, and normalize tag spacing
-- **🔍 Preview Resolved**: Opens a live simulation modal showing exactly how dynamic prompts `{a|b}`, `{shuffle}`, and weight translation resolve with any seed
-- **🕒 Prompt History**: Browse and restore recent session snapshots from local storage
+- **💾 Save Prompt**: Prompts for a filename and optional category, saves both texts as a `.json` file, and automatically selects the newly saved prompt in the picker dropdown (matching the List Curator behavior).
+- **✏️ Update Selected**: Overwrites the currently selected prompt with current text and keeps it selected.
+- **🔄 Refresh List**: Reloads the dropdown to reflect newly added prompt files.
+- **🧹 Prettify / Dedupe**: One-click cleanup to eliminate duplicate tags, collapse duplicate commas, and normalize tag spacing.
+- **🔍 Preview Resolved**: Opens a live simulation modal showing exactly how dynamic prompts `{a|b}`, `{shuffle}`, and weight translation resolve with any seed.
+- **🕒 Prompt History**: Browse and restore recent session snapshots from local storage.
 
 ## Ollama AI Integration & Status Diagnostics
 
@@ -107,6 +122,7 @@ The Text Editor includes a real-time, zero-latency syntax highlighting engine re
 | Token Type | Syntax Example | Description |
 |---|---|---|
 | **Comments** | `/* notes */`, `# comment`, `// idea` | Dimmed/subtle color indicating exclusion from generation |
+| **Hex Colors** | `#ff5733`, `#00ffff`, `#e63946` | Rendered in the exact hex color with glowing pill badge and interactive hover inspector |
 | **Variables** | `$lighting = neon ambient;`, `$lighting` | Distinct accent color for prompt variable definitions and references |
 | **Dynamic Choices** | `{red \| blue \| green}` | Bracketed options highlighted for easy scanning |
 | **Pick-N & Ranges** | `{2$$red \| blue \| green}`, `{1-3$$tags}` | Dynamic combination generators highlighted |
@@ -158,6 +174,49 @@ You can also place `syntax_themes.json` inside your custom `saved_prompts/` dire
 ```
 
 The node automatically reads this file through the `/modusflow/syntax_themes` API endpoint and populates the dropdown dynamically. Custom themes appear immediately in the selector.
+
+## Studio Cockpit & Advanced Prompt Engineering Features
+
+The Text Editor is built as the ultimate prompt engineering cockpit in ComfyUI, featuring real-time visual feedback, tactile controls, and non-blocking studio ergonomics:
+
+### 1. Attention Weight Heatmap
+- **Dynamic Heat Glow ($> 1.0$)**: Attention-weighted tags such as `(sharp focus:1.3)` or `(cyberpunk:1.5)` automatically emit a warm golden/amber glow proportional to the attention weight boost. As the weight increases, the aura and subtle background tint intensify.
+- **Extreme Weight Warning ($> 1.5$)**: Weights exceeding $1.5$ are marked with a cautionary tooltip warning of potential over-saturation or generation burn artifacts.
+- **De-Emphasis Dimming ($< 1.0$)**: Downweighted tags like `(grain:0.7)` are softly dimmed and desaturated, giving you an instantaneous visual heatmap of what the diffusion model will prioritize.
+
+### 2. Studio Micro-Toasts (Zero Disruption)
+- Replaces disruptive, canvas-freezing native browser `alert()` modal dialogs with smooth, modern glassmorphic floating toasts.
+- Actions like saving a prompt, updating, copying clean text, copying JSON, AI enhancements, deduplication, and hex color translations display slick non-blocking confirmations in the upper-right corner.
+
+### 3. CLIP 75-Token Chunk Boundary Guides
+- The token counter badge in the bottom-right corner displays real-time word count, estimated CLIP tokens, and active chunk boundary progress:
+  - Example: `42w · 58 tok (58/75 Ch.1)`
+  - Example: `78w · 104 tok (29/75 Ch.2)`
+- **`BREAK` Detection**: If the prompt contains a ComfyUI `BREAK` keyword, an illuminated `⚡ BREAK` badge appears to indicate explicit conditioning chunk splits.
+- **Warning State**: Warns when unclosed parentheses are detected or when tokens exceed standard single-chunk limits.
+
+### 4. Prompt Health & Deduplication Linter
+- **Duplicate Tag Detection**: Analyzes comma-separated prompt tags in real-time. If duplicate tags are detected, a yellow health badge appears in the bottom-left corner (e.g. `🟡 2 duplicates [Fix]`).
+- **One-Click Auto-Dedupe**: Clicking the `[Fix]` badge instantly eliminates duplicates, normalizes spacing, and displays a toast confirming the clean-up while saving an undo snapshot to prompt history.
+- **Heavy Weight Warning**: Flags weights $>1.6$ to prevent unintentional prompt burning.
+
+### 5. Negative Pedalboard (Tactile Guard Rack)
+Directly above the Negative prompt box, a hardware-inspired pedalboard rack lets you toggle essential negative protection layers with illuminated active states:
+- **`✦ Quality`**: Toggles baseline quality protection: `(worst quality, low quality, normal quality:1.4)`
+- **`🚫 Anatomy`**: Toggles anatomical and limb deformity protection: `(bad anatomy, bad hands, missing fingers, extra digits:1.3)`
+- **`🎨 3D Guard`**: Toggles CGI / 3D render guard for 2D or photorealistic models: `(cgi, 3d render, cartoon, illustration:1.2)`
+- **`💧 Watermark`**: Toggles watermark, text, and signature suppression: `(watermark, text, signature, username:1.2)`
+- **Live State Sync**: The pedalboard buttons automatically illuminate (`active`) when their tags are present in the negative prompt, even if typed manually, and dim when removed.
+
+### 6. Hex Colors in Lists & Batch Translator
+- **Works Anywhere & in Lists**: Hex codes (`#RRGGBB` or `#RGB`) are supported anywhere in your prompt, including:
+  - **Dynamic Choices**: `{ #ff0055 | #00ffff | #38bdf8 }`
+  - **Shuffle Lists**: `{shuffle: #ff0000, #00ff00, #0000ff}`
+  - **Tag Lists**: `neon reflections, vibrant #ff5500 rim lighting, #00ffff hair`
+  - **Prompt Variables**: `$theme_color = #e11d48;`
+  - **Exploded Lists**: Multi-line exploded tag format
+- **Live Color Pill & Inspector**: Each hex code renders with its exact color, background glow, and dotted underline. Clicking it brings up the floating Color Inspector card showing swatch, RGB/HSL, and the nearest natural artistic pigment name.
+- **✨ Translate All Hex in Prompt**: One-click action available in the Color Inspector, Color Palette modal, and right-click context menu. Automatically translates every hex code across both Positive and Negative prompts into natural descriptive pigment names (e.g. `#8a0303` $\rightarrow$ `blood red`, `#00ffff` $\rightarrow$ `electric cyan`), preserving choices, shuffles, and prompt syntax.
 
 ## Configuration
 
