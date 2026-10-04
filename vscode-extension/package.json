@@ -68,6 +68,10 @@
           "name": "Saved Prompts Library"
         },
         {
+          "id": "modusflow.songsView",
+          "name": "Saved Songs & Lyrics Library"
+        },
+        {
           "id": "modusflow.wildcardsView",
           "name": "Wildcards & Lists"
         },
@@ -141,6 +145,23 @@
         "title": "Refresh Prompts & Wildcards",
         "category": "ModusFlow",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "modusflow.refreshSongs",
+        "title": "Refresh Songs Library",
+        "category": "ModusFlow",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "modusflow.openSongwriterStudio",
+        "title": "🎵 Open Songwriter & Lyrics Studio",
+        "category": "ModusFlow",
+        "icon": "$(music)"
+      },
+      {
+        "command": "modusflow.openSongFile",
+        "title": "Open Song in Studio",
+        "category": "ModusFlow"
       },
       {
         "command": "modusflow.openStudio",
@@ -288,6 +309,23 @@
         {
           "command": "modusflow.pushActivePrompt",
           "when": "resourceExtname =~ /\\.(prompt|mfprompt|modusprompt|txt)$/",
+          "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "modusflow.refreshPrompts",
+          "when": "view == modusflow.promptsView",
+          "group": "navigation"
+        },
+        {
+          "command": "modusflow.refreshSongs",
+          "when": "view == modusflow.songsView",
+          "group": "navigation"
+        },
+        {
+          "command": "modusflow.openSongwriterStudio",
+          "when": "view == modusflow.songsView",
           "group": "navigation"
         }
       ]
