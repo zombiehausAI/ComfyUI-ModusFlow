@@ -1089,7 +1089,7 @@ export class ModusFlowStudioPanel {
             const theme = SYNTAX_THEMES[themeName] || SYNTAX_THEMES["Modus Neon (Default)"];
             if (themeName === "Off") {
                 let esc = escapeHtml(text);
-                if (text.endsWith("\n")) esc += "<br>&nbsp;";
+                if (text.endsWith(String.fromCharCode(10))) esc += "<br>&nbsp;";
                 return esc;
             }
 
@@ -1107,29 +1107,29 @@ export class ModusFlowStudioPanel {
                 };
 
                 // Section headers: // [Name] or [Name]
-                addMatches(/(?:\/\/|#|\/\*)\s*\[[^\]\r\n]+\](?:\s*\*\/)?/g, "section_header");
-                addMatches(/(?:^|(?<=[\r\n]))\s*\[[^\]\r\n]+\](?=\s*(?:[\r\n]|$))/g, "section_header");
+                addMatches(/(?:\\/\\/|#|\\/\\*)\\s*\\[[^\\]\\r\\n]+\\](?:\\s*\\*\\/)?/g, "section_header");
+                addMatches(/(?:^|(?<=[\\r\\n]))\\s*\\[[^\\]\\r\\n]+\\](?=\\s*(?:[\\r\\n]|$))/g, "section_header");
                 // Block comments
-                addMatches(/\/\*[\s\S]*?\*\//g, "comment");
+                addMatches(/\\/\\*[\\s\\S]*?\\*\\//g, "comment");
                 // Hex colors
-                addMatches(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g, "hex_color");
+                addMatches(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\\b/g, "hex_color");
                 // Line comments
-                addMatches(/(?:\/\/|#)[^\r\n]*/g, "comment");
+                addMatches(/(?:\\/\\/|#)[^\\r\\n]*/g, "comment");
                 // LoRAs
-                addMatches(/<lora:[^>\r\n]+>/gi, "lora");
+                addMatches(/<lora:[^>\\r\\n]+>/gi, "lora");
                 // Variables
-                addMatches(/\$[a-zA-Z0-9_-]+(?:\s*=\s*[^;\r\n]+;?)?/g, "variable");
+                addMatches(/\\$[a-zA-Z0-9_-]+(?:\\s*=\\s*[^;\\r\\n]+;?)?/g, "variable");
                 // Curator & dynamic choices
-                addMatches(/\{curator\d*\}/gi, "curator");
-                addMatches(/\{shuffle:[^}]+\}/gi, "shuffle");
-                addMatches(/\{\s*\d+(?:-\d+)?\$\$[^}]+\}/g, "choice");
-                addMatches(/\{\s*\d+::[^}]+\}/g, "choice");
-                addMatches(/\{[^{}]*\|[^{}]*\}/g, "choice");
+                addMatches(/\\{curator\\d*\\}/gi, "curator");
+                addMatches(/\\{shuffle:[^}]+}/gi, "shuffle");
+                addMatches(/\\{\\s*\\d+(?:-\\d+)?\\$\\$[^}]+}/g, "choice");
+                addMatches(/\\{\\s*\\d+::[^}]+}/g, "choice");
+                addMatches(/\\{[^{}]*\\|[^{}]*\\}/g, "choice");
                 addMatches(/__[a-zA-Z0-9_/-]+__/g, "wildcard");
-                addMatches(/\([^():\r\n]+:\s*-?\d+(?:\.\d+)?\)/g, "weight");
+                addMatches(/\\([^():\\r\\n]+:\\s*-?\\d+(?:\\.\\d+)?\\)/g, "weight");
 
                 if (currentMode === "songwriter") {
-                    addMatches(/\([^\)\r\n]+\)/g, "lyric_cue");
+                    addMatches(/\\([^\\)\\r\\n]+\\)/g, "lyric_cue");
                 }
 
                 intervals.sort((a, b) => a.start - b.start);
@@ -1165,14 +1165,14 @@ export class ModusFlowStudioPanel {
                     const plainColor = theme.plain_text || "#cdd6f4";
                     html += '<span style="color: ' + plainColor + ';">' + plain + '</span>';
                 }
-                if (text.endsWith("\n")) {
+                if (text.endsWith(String.fromCharCode(10))) {
                     html += "<br>&nbsp;";
                 }
                 return html;
             } catch (err) {
                 console.warn("Syntax highlight error:", err);
                 let esc = escapeHtml(text);
-                if (text.endsWith("\n")) esc += "<br>&nbsp;";
+                if (text.endsWith(String.fromCharCode(10))) esc += "<br>&nbsp;";
                 const plainColor = (theme && theme.plain_text) || "#cdd6f4";
                 return '<span style="color: ' + plainColor + ';">' + esc + '</span>';
             }
@@ -1265,7 +1265,7 @@ export class ModusFlowStudioPanel {
                 if (has) {
                     if (snippet) neg = neg.replace(snippet, "");
                     if (alt) neg = neg.replace(alt, "");
-                    neg = neg.replace(/,\s*,/g, ",").replace(/^\s*,|\s*,$/g, "").trim();
+                    neg = neg.replace(/,\\s*,/g, ",").replace(/^\\s*,|\\s*,$/g, "").trim();
                 } else {
                     neg = neg.trim() ? neg.trim() + ", " + snippet : snippet;
                 }
@@ -1280,8 +1280,8 @@ export class ModusFlowStudioPanel {
             try {
                 if (currentMode === "songwriter") {
                     const lText = lyricsArea.value;
-                    const words = (lText.trim().match(/\S+/g) || []).length;
-                    const lines = lText.split("\n").filter(l => l.trim().length > 0).length;
+                    const words = (lText.trim().match(/\\S+/g) || []).length;
+                    const lines = lText.split(String.fromCharCode(10)).filter(l => l.trim().length > 0).length;
                     const totalSec = Math.round((words / 130) * 60);
                     const mins = Math.floor(totalSec / 60);
                     const secs = totalSec % 60;
@@ -1290,8 +1290,8 @@ export class ModusFlowStudioPanel {
                 } else {
                     const pText = posArea.value;
                     const nText = negArea.value;
-                    const pWords = (pText.trim().match(/\S+/g) || []).length;
-                    const nWords = (nText.trim().match(/\S+/g) || []).length;
+                    const pWords = (pText.trim().match(/\\S+/g) || []).length;
+                    const nWords = (nText.trim().match(/\\S+/g) || []).length;
                     posStats.textContent = pWords + "w";
                     negStats.textContent = nWords + "w";
                     document.getElementById("totalTokenBadge").textContent = (pWords + nWords) + " total words";
