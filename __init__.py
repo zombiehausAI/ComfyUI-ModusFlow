@@ -632,6 +632,81 @@ async def save_config_endpoint(request):
     except Exception as e:
         return web.json_response({"success": False, "message": str(e)})
 
+# ── Canvas Live Bridge routes (for IDE / external integration) ───────────────
+
+import time
+
+_active_canvas_node = None
+_canvas_nodes_cache = {}
+
+@server.PromptServer.instance.routes.get("/modusflow/canvas/active_node")
+async def get_active_canvas_node_endpoint(request):
+    """API endpoint to get the currently active / selected ModusFlowTextEditor canvas node."""
+    try:
+        nodes_list = list(_canvas_nodes_cache.values())
+        return web.json_response({
+            "success": True,
+            "data": _active_canvas_node,
+            "nodes": nodes_list
+        })
+    except Exception as e:
+        return web.json_response({"success": False, "message": str(e)})
+
+@server.PromptServer.instance.routes.post("/modusflow/canvas/set_active_node")
+async def set_active_canvas_node_endpoint(request):
+    """API endpoint for ComfyUI web frontend to report active / selected canvas node(s)."""
+    global _active_canvas_node
+    try:
+        data = await request.json()
+        node_id = str(data.get("id", ""))
+        if node_id:
+            node_info = {
+                "id": node_id,
+                "title": data.get("title", f"Text Editor #{node_id}"),
+                "positive": data.get("positive", ""),
+                "negative": data.get("negative", ""),
+                "prompt_style": data.get("prompt_style", "Tags (SDXL / Pony)"),
+                "is_selected": data.get("is_selected", True),
+                "timestamp": time.time()
+            }
+            _canvas_nodes_cache[node_id] = node_info
+            _active_canvas_node = node_info
+        return web.json_response({"success": True, "active": _active_canvas_node})
+    except Exception as e:
+        return web.json_response({"success": False, "message": str(e)})
+
+@server.PromptServer.instance.routes.post("/modusflow/canvas/push_prompt")
+async def push_prompt_to_canvas_endpoint(request):
+    """API endpoint to push prompt text from IDE to active canvas node in ComfyUI."""
+    try:
+        data = await request.json()
+        node_id = data.get("node_id")
+        positive = data.get("positive", "")
+        negative = data.get("negative")
+        prompt_style = data.get("prompt_style")
+
+        payload = {
+            "node_id": str(node_id) if node_id else None,
+            "positive": positive,
+            "negative": negative,
+            "prompt_style": prompt_style
+        }
+
+        # Broadcast event to ComfyUI web client via WebSocket
+        server.PromptServer.instance.send_sync("modusflow_canvas_push", payload)
+
+        # Update cache if node is known
+        if _active_canvas_node:
+            _active_canvas_node["positive"] = positive
+            if negative is not None:
+                _active_canvas_node["negative"] = negative
+            if prompt_style:
+                _active_canvas_node["prompt_style"] = prompt_style
+
+        return web.json_response({"success": True, "message": "Prompt pushed to canvas node via WebSocket"})
+    except Exception as e:
+        return web.json_response({"success": False, "message": str(e)})
+
 import shutil
 
 _auto_migration_done = False

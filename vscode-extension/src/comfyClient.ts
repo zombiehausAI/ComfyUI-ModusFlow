@@ -26,6 +26,16 @@ export interface LoraMetadata {
     images?: string[];
 }
 
+export interface CanvasNodeInfo {
+    id: string;
+    title: string;
+    positive: string;
+    negative: string;
+    prompt_style: string;
+    is_selected?: boolean;
+    timestamp?: number;
+}
+
 export class ComfyClient {
     private getBaseUrl(): string {
         const cfg = vscode.workspace.getConfiguration("modusflow");
@@ -170,6 +180,28 @@ export class ComfyClient {
             return { success: false, message: res.error ? JSON.stringify(res.error) : "Failed to queue" };
         } catch (e: any) {
             return { success: false, message: e.message };
+        }
+    }
+
+    async getActiveCanvasNode(): Promise<CanvasNodeInfo | null> {
+        try {
+            const res = await this.fetchJson<{ success: boolean; data?: CanvasNodeInfo; nodes?: CanvasNodeInfo[] }>("/modusflow/canvas/active_node");
+            return res?.data || null;
+        } catch {
+            return null;
+        }
+    }
+
+    async pushPromptToCanvas(payload: { node_id?: string | number; positive: string; negative?: string; prompt_style?: string }): Promise<boolean> {
+        try {
+            const res = await this.fetchJson<{ success: boolean; message?: string }>("/modusflow/canvas/push_prompt", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            return !!res.success;
+        } catch {
+            return false;
         }
     }
 }

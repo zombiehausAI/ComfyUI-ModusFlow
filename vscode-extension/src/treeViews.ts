@@ -105,3 +105,78 @@ export class WildcardsTreeProvider implements vscode.TreeDataProvider<vscode.Tre
         });
     }
 }
+
+export class ConnectedCanvasNodeProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
+    private _onDidChangeTreeData = new vscode.EventEmitter<vscode.TreeItem | undefined | void>();
+    readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+    private _lastNodeInfo: any = null;
+
+    constructor(private client: ComfyClient) {}
+
+    refresh(): void {
+        this._onDidChangeTreeData.fire();
+    }
+
+    getTreeItem(element: vscode.TreeItem): vscode.TreeItem {
+        return element;
+    }
+
+    async getChildren(element?: vscode.TreeItem): Promise<vscode.TreeItem[]> {
+        if (element) return [];
+
+        const node = await this.client.getActiveCanvasNode();
+        this._lastNodeInfo = node;
+
+        if (!node || !node.id) {
+            const emptyItem = new vscode.TreeItem("No Canvas Node Connected", vscode.TreeItemCollapsibleState.None);
+            emptyItem.description = "Select ModusFlowTextEditor in ComfyUI";
+            emptyItem.iconPath = new vscode.ThemeIcon("radio-tower");
+            emptyItem.tooltip = "Open ComfyUI in your browser and select or add a ModusFlow Text Editor node.";
+
+            const refreshItem = new vscode.TreeItem("Check Connection / Refresh", vscode.TreeItemCollapsibleState.None);
+            refreshItem.iconPath = new vscode.ThemeIcon("refresh");
+            refreshItem.command = {
+                command: "modusflow.refreshPrompts",
+                title: "Refresh Canvas Node & Prompts"
+            };
+
+            return [emptyItem, refreshItem];
+        }
+
+        const headerItem = new vscode.TreeItem(`Node #${node.id}: ${node.title || "ModusFlow Text Editor"}`, vscode.TreeItemCollapsibleState.None);
+        headerItem.description = `[${node.prompt_style || "Tags"}]`;
+        headerItem.iconPath = new vscode.ThemeIcon("circuit-board");
+        headerItem.tooltip = `Connected Node ID: ${node.id}\nTitle: ${node.title}\nStyle: ${node.prompt_style}`;
+
+        const pushItem = new vscode.TreeItem("Push Active Editor to Canvas", vscode.TreeItemCollapsibleState.None);
+        pushItem.iconPath = new vscode.ThemeIcon("cloud-upload");
+        pushItem.description = `→ Node #${node.id}`;
+        pushItem.command = {
+            command: "modusflow.pushActivePrompt",
+            title: "Push Prompt to Active Canvas Node"
+        };
+
+        const pullItem = new vscode.TreeItem("Pull Canvas Node to Editor", vscode.TreeItemCollapsibleState.None);
+        pullItem.iconPath = new vscode.ThemeIcon("cloud-download");
+        pullItem.description = `← Node #${node.id}`;
+        pullItem.command = {
+            command: "modusflow.pullActivePrompt",
+            title: "Pull Prompt from Active Canvas Node"
+        };
+
+        const posSnippet = (node.positive || "").trim();
+        const posItem = new vscode.TreeItem("Positive Prompt", vscode.TreeItemCollapsibleState.None);
+        posItem.iconPath = new vscode.ThemeIcon("edit");
+        posItem.description = posSnippet ? (posSnippet.length > 40 ? posSnippet.slice(0, 40) + "..." : posSnippet) : "(empty)";
+        posItem.tooltip = `Positive Prompt (Node #${node.id}):\n${posSnippet}`;
+
+        const negSnippet = (node.negative || "").trim();
+        const negItem = new vscode.TreeItem("Negative Prompt", vscode.TreeItemCollapsibleState.None);
+        negItem.iconPath = new vscode.ThemeIcon("shield");
+        negItem.description = negSnippet ? (negSnippet.length > 40 ? negSnippet.slice(0, 40) + "..." : negSnippet) : "(empty)";
+        negItem.tooltip = `Negative Prompt (Node #${node.id}):\n${negSnippet}`;
+
+        return [headerItem, pushItem, pullItem, posItem, negItem];
+    }
+}
+

@@ -1,6 +1,42 @@
 import { app } from "../../scripts/app.js";
+import { api } from "../../scripts/api.js";
 
 // ModusFlow Text Editor — positive/negative prompts with category-filtered save/load & syntax highlighting
+
+// ── Connected Canvas Node Reporting ──────────────────────────────────────────
+let _reportCanvasDebounce = null;
+function reportCanvasNode(node, isSelected = true) {
+    if (!node) return;
+    clearTimeout(_reportCanvasDebounce);
+    _reportCanvasDebounce = setTimeout(() => {
+        try {
+            const pw = node.widgets?.find(w => w.name === "positive");
+            const nw = node.widgets?.find(w => w.name === "negative");
+            const sw = node.widgets?.find(w => w.name === "prompt_style");
+            const payload = {
+                id: String(node.id),
+                title: node.title || `Text Editor #${node.id}`,
+                positive: pw?.value || "",
+                negative: nw?.value || "",
+                prompt_style: sw?.value || "Tags (SDXL / Pony)",
+                is_selected: isSelected
+            };
+            if (typeof api !== "undefined" && api.fetchApi) {
+                api.fetchApi("/modusflow/canvas/set_active_node", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                }).catch(() => {});
+            } else {
+                fetch("/modusflow/canvas/set_active_node", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                }).catch(() => {});
+            }
+        } catch (_) {}
+    }, 120);
+}
 
 // ── Built-in Syntax Themes (Fallbacks) ───────────────────────────────────────
 const DEFAULT_THEMES = {
@@ -1354,7 +1390,10 @@ function attachSyntaxHighlighter(widget, node) {
         widget._updateSyntaxHighlight = render;
         widget._applyTheme = render;
 
-        ta.addEventListener("input", render);
+        ta.addEventListener("input", () => {
+            render();
+            reportCanvasNode(node, true);
+        });
         ta.addEventListener("scroll", () => {
             backdrop.scrollTop = ta.scrollTop;
             backdrop.scrollLeft = ta.scrollLeft;
@@ -3853,6 +3892,14 @@ app.registerExtension({
                     });
                 }
 
+                // Hook selection and initial registration with IDE
+                const origOnSelected = node.onSelected;
+                node.onSelected = function () {
+                    origOnSelected?.apply(this, arguments);
+                    reportCanvasNode(node, true);
+                };
+                setTimeout(() => reportCanvasNode(node, true), 300);
+
                 // ── Prompt cache ──────────────────────────────────────────────────
                 node._allPrompts    = [];
                 node._savedCategory = undefined;
@@ -4138,6 +4185,7 @@ app.registerExtension({
                     attachNegativePedalboard(nw, this);
                     attachOllamaSelectionContextMenu(nw, nw, this);
                 }
+                setTimeout(() => reportCanvasNode(this, false), 500);
             };
 
             // ── onResize ──────────────────────────────────────────────────────────
@@ -7718,5 +7766,60 @@ app.registerExtension({
                 showStudioToast("Prompt Studio popped out! (Drag header to move, 🚀 Queue to run)");
             }
         }
+    },
+
+    async setup(app) {
+        // Listen for prompt pushes from IDE / Antigravity via WebSocket
+        api.addEventListener("modusflow_canvas_push", (e) => {
+            const detail = e?.detail || {};
+            const targetId = detail.node_id != null ? String(detail.node_id) : null;
+            const nodes = app.graph?._nodes || [];
+            let targetNode = null;
+            if (targetId) {
+                targetNode = nodes.find(n => String(n.id) === targetId && n.type === "ModusFlowTextEditor");
+            }
+            if (!targetNode) {
+                if (app.canvas?.selected_nodes) {
+                    targetNode = Object.values(app.canvas.selected_nodes).find(n => n?.type === "ModusFlowTextEditor");
+                }
+                if (!targetNode) {
+                    targetNode = nodes.find(n => n.type === "ModusFlowTextEditor");
+                }
+            }
+            if (targetNode) {
+                const pw = targetNode.widgets?.find(w => w.name === "positive");
+                const nw = targetNode.widgets?.find(w => w.name === "negative");
+                const sw = targetNode.widgets?.find(w => w.name === "prompt_style");
+                if (detail.positive !== undefined && pw) {
+                    pw.value = detail.positive;
+                    if (pw.inputEl) pw.inputEl.value = detail.positive;
+                    pw._updateSyntaxHighlight?.();
+                }
+                if (detail.negative !== undefined && nw) {
+                    nw.value = detail.negative;
+                    if (nw.inputEl) nw.inputEl.value = detail.negative;
+                    nw._updateSyntaxHighlight?.();
+                }
+                if (detail.prompt_style !== undefined && sw) {
+                    sw.value = detail.prompt_style;
+                }
+                if (targetNode._popoutSyncFromNode) {
+                    targetNode._popoutSyncFromNode();
+                }
+                app.graph?.setDirtyCanvas(true, true);
+                reportCanvasNode(targetNode, true);
+                if (typeof showStudioToast === "function") {
+                    showStudioToast(`📥 Prompt received from Antigravity/IDE (Node #${targetNode.id})`);
+                }
+            }
+        });
+
+        // Broadcast active node when graph loads
+        setTimeout(() => {
+            const firstNode = app.graph?._nodes?.find(n => n.type === "ModusFlowTextEditor");
+            if (firstNode) {
+                reportCanvasNode(firstNode, true);
+            }
+        }, 1500);
     }
 });

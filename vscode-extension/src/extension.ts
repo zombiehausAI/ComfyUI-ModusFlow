@@ -3,11 +3,37 @@ import { ComfyClient } from "./comfyClient";
 import { ModusFlowColorProvider } from "./colorProvider";
 import { ModusFlowHoverProvider } from "./hoverProvider";
 import { ModusFlowCompletionProvider } from "./completionProvider";
-import { PromptsTreeProvider, WildcardsTreeProvider } from "./treeViews";
+import { PromptsTreeProvider, WildcardsTreeProvider, ConnectedCanvasNodeProvider } from "./treeViews";
 import { runOllamaRefinerAction } from "./ollamaRefiner";
 import { ModusFlowStudioPanel } from "./studioWebview";
 import { TokenCounterStatusBar } from "./tokenCounter";
 import { stepTagWeight, prettifyAndDedupe, toggleExplodeCollapse, convertStyle, toggleNegativePedal, AESTHETIC_RIBBON } from "./editorTools";
+
+function extractPromptFromText(text: string): { positive: string; negative: string } {
+    let positive = text;
+    let negative = "";
+
+    const posMarker = text.search(/# ── Positive Prompt[^\n]*\n?/i);
+    const negMarker = text.search(/# ── Negative Prompt[^\n]*\n?/i);
+
+    if (posMarker !== -1 && negMarker !== -1) {
+        if (posMarker < negMarker) {
+            const afterPos = text.indexOf("\n", posMarker) + 1;
+            positive = text.substring(afterPos, negMarker).trim();
+            const afterNeg = text.indexOf("\n", negMarker) + 1;
+            negative = text.substring(afterNeg).trim();
+        } else {
+            const afterNeg = text.indexOf("\n", negMarker) + 1;
+            negative = text.substring(afterNeg, posMarker).trim();
+            const afterPos = text.indexOf("\n", posMarker) + 1;
+            positive = text.substring(afterPos).trim();
+        }
+    } else if (posMarker !== -1) {
+        const afterPos = text.indexOf("\n", posMarker) + 1;
+        positive = text.substring(afterPos).trim();
+    }
+    return { positive, negative };
+}
 
 class ModusFlowFileSystemProvider implements vscode.FileSystemProvider {
     private _onDidChangeFile = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
@@ -60,28 +86,7 @@ class ModusFlowFileSystemProvider implements vscode.FileSystemProvider {
                 }
             }
 
-            let positive = text;
-            let negative = "";
-
-            const posMarker = text.search(/# ── Positive Prompt[^\n]*\n?/i);
-            const negMarker = text.search(/# ── Negative Prompt[^\n]*\n?/i);
-
-            if (posMarker !== -1 && negMarker !== -1) {
-                if (posMarker < negMarker) {
-                    const afterPos = text.indexOf("\n", posMarker) + 1;
-                    positive = text.substring(afterPos, negMarker).trim();
-                    const afterNeg = text.indexOf("\n", negMarker) + 1;
-                    negative = text.substring(afterNeg).trim();
-                } else {
-                    const afterNeg = text.indexOf("\n", negMarker) + 1;
-                    negative = text.substring(afterNeg, posMarker).trim();
-                    const afterPos = text.indexOf("\n", posMarker) + 1;
-                    positive = text.substring(afterPos).trim();
-                }
-            } else if (posMarker !== -1) {
-                const afterPos = text.indexOf("\n", posMarker) + 1;
-                positive = text.substring(afterPos).trim();
-            }
+            const { positive, negative } = extractPromptFromText(text);
 
             const ok = await this.client.savePrompt({
                 filename: jsonFilename,
@@ -145,18 +150,33 @@ class ModusFlowFileSystemProvider implements vscode.FileSystemProvider {
         if (path.startsWith("/prompts/")) {
             const rawFilename = path.replace(/^\/prompts\//, "");
             const baseName = decodeURIComponent(rawFilename).replace(/\.(prompt|mfprompt|modusprompt|json)$/i, "");
-            const jsonFilename = `${baseName}.json`;
-            const data = await this.client.loadPrompt(jsonFilename);
-            if (data) {
-                text = [
-                    `/* Category: ${data.category || 'General'} | File: ${jsonFilename} */`,
-                    "",
-                    `# ── Positive Prompt ───────────────────────`,
-                    data.positive || "",
-                    "",
-                    `# ── Negative Prompt ───────────────────────`,
-                    data.negative || ""
-                ].join("\n");
+            if (baseName.startsWith("Canvas_Node_")) {
+                const activeNode = await this.client.getActiveCanvasNode();
+                if (activeNode) {
+                    text = [
+                        `/* Category: Canvas | Style: ${activeNode.prompt_style || "Tags (SDXL / Pony)"} */`,
+                        "",
+                        `# ── Positive Prompt ───────────────────────`,
+                        activeNode.positive || "",
+                        "",
+                        `# ── Negative Prompt ───────────────────────`,
+                        activeNode.negative || ""
+                    ].join("\n");
+                }
+            } else {
+                const jsonFilename = `${baseName}.json`;
+                const data = await this.client.loadPrompt(jsonFilename);
+                if (data) {
+                    text = [
+                        `/* Category: ${data.category || 'General'} | File: ${jsonFilename} */`,
+                        "",
+                        `# ── Positive Prompt ───────────────────────`,
+                        data.positive || "",
+                        "",
+                        `# ── Negative Prompt ───────────────────────`,
+                        data.negative || ""
+                    ].join("\n");
+                }
             }
         } else if (path.startsWith("/wildcards/")) {
             const rawFilename = path.replace(/^\/wildcards\//, "");
@@ -205,6 +225,15 @@ export function activate(context: vscode.ExtensionContext) {
     const wildcardsProvider = new WildcardsTreeProvider(client);
     vscode.window.registerTreeDataProvider("modusflow.wildcardsView", wildcardsProvider);
 
+    const activeNodeProvider = new ConnectedCanvasNodeProvider(client);
+    vscode.window.registerTreeDataProvider("modusflow.activeNodeView", activeNodeProvider);
+
+    // Periodically poll active node to keep sidebar in sync with ComfyUI canvas
+    const activeNodeTimer = setInterval(() => {
+        activeNodeProvider.refresh();
+    }, 3500);
+    context.subscriptions.push(new vscode.Disposable(() => clearInterval(activeNodeTimer)));
+
     // ── Language Providers ────────────────────────────────────────────────────
     const docSelector: vscode.DocumentSelector = [
         { scheme: "file", language: "modusprompt" },
@@ -233,13 +262,76 @@ export function activate(context: vscode.ExtensionContext) {
             updateConnectionStatus();
             promptsProvider.refresh();
             wildcardsProvider.refresh();
+            activeNodeProvider.refresh();
         }),
 
         vscode.commands.registerCommand("modusflow.refreshPrompts", () => {
             fsProvider.clearCache();
             promptsProvider.refresh();
             wildcardsProvider.refresh();
-            vscode.window.showInformationMessage("🔄 ModusFlow library refreshed");
+            activeNodeProvider.refresh();
+            vscode.window.showInformationMessage("🔄 ModusFlow library & canvas node refreshed");
+        }),
+
+        vscode.commands.registerCommand("modusflow.pushActivePrompt", async () => {
+            const editor = vscode.window.activeTextEditor;
+            let positive = "";
+            let negative = "";
+
+            if (editor) {
+                const text = editor.document.getText();
+                const extracted = extractPromptFromText(text);
+                positive = extracted.positive;
+                negative = extracted.negative;
+            } else {
+                vscode.window.showWarningMessage("No active prompt editor open to push from.");
+                return;
+            }
+
+            const activeNode = await client.getActiveCanvasNode();
+            const res = await client.pushPromptToCanvas({
+                node_id: activeNode?.id,
+                positive,
+                negative
+            });
+
+            if (res) {
+                vscode.window.showInformationMessage(`🚀 Pushed prompt to canvas node ${activeNode ? '#' + activeNode.id : ''}!`);
+                activeNodeProvider.refresh();
+            } else {
+                vscode.window.showErrorMessage("Failed to push prompt to ComfyUI canvas node. Is ComfyUI running?");
+            }
+        }),
+
+        vscode.commands.registerCommand("modusflow.pullActivePrompt", async () => {
+            const node = await client.getActiveCanvasNode();
+            if (!node || !node.id) {
+                vscode.window.showWarningMessage("No active ModusFlowTextEditor node found on the ComfyUI canvas.");
+                return;
+            }
+
+            const promptText = [
+                `/* Category: Canvas | Style: ${node.prompt_style || "Tags (SDXL / Pony)"} */`,
+                "",
+                `# ── Positive Prompt ───────────────────────`,
+                node.positive || "",
+                "",
+                `# ── Negative Prompt ───────────────────────`,
+                node.negative || ""
+            ].join("\n");
+
+            const uri = vscode.Uri.from({
+                scheme: "modusflow",
+                path: `/prompts/Canvas_Node_${node.id}.prompt`
+            });
+            fsProvider.clearCache(uri);
+            const doc = await vscode.workspace.openTextDocument(uri);
+            const editor = await vscode.window.showTextDocument(doc, { preview: false });
+            if (doc.getText() !== promptText) {
+                const fullRange = new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length));
+                await editor.edit(eb => eb.replace(fullRange, promptText));
+            }
+            vscode.window.showInformationMessage(`📥 Pulled prompt from canvas node #${node.id}!`);
         }),
 
         vscode.commands.registerCommand("modusflow.queueGeneration", async () => {
