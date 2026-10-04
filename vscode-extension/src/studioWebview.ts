@@ -2,6 +2,15 @@ import * as vscode from "vscode";
 import { ComfyClient } from "./comfyClient";
 import { NEGATIVE_PEDALS, AESTHETIC_RIBBON, prettifyAndDedupe, convertStyle } from "./editorTools";
 
+function escapeHtml(str: string): string {
+    return (str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 export class ModusFlowStudioPanel {
     public static currentPanel: ModusFlowStudioPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
@@ -464,6 +473,11 @@ export class ModusFlowStudioPanel {
             z-index: 2;
         }
 
+        textarea.plain-mode {
+            color: var(--text-main) !important;
+            -webkit-text-fill-color: var(--text-main) !important;
+        }
+
         textarea::selection {
             background: rgba(0, 240, 255, 0.3) !important;
             color: transparent !important;
@@ -551,9 +565,9 @@ export class ModusFlowStudioPanel {
     <div class="studio-header">
         <div class="meta-fields">
             <span class="meta-label">File:</span>
-            <input type="text" id="filenameInput" value="${this._activeFilename}" style="width: 220px;" />
+            <input type="text" id="filenameInput" value="${escapeHtml(this._activeFilename)}" style="width: 220px;" />
             <span class="meta-label">Category:</span>
-            <input type="text" id="categoryInput" value="${this._activeCategory}" style="width: 140px;" />
+            <input type="text" id="categoryInput" value="${escapeHtml(this._activeCategory)}" style="width: 140px;" />
             <span class="meta-label">Style:</span>
             <select id="styleSelect">
                 <option value="tags" ${this._promptStyle === "tags" ? "selected" : ""}>🏷️ Tags (SDXL / Pony)</option>
@@ -610,7 +624,7 @@ export class ModusFlowStudioPanel {
             </div>
             <div class="syntax-wrapper">
                 <div class="syntax-backdrop" id="posBackdrop"></div>
-                <textarea id="positiveArea" spellcheck="false" placeholder="Enter positive prompt tags or expressions...">${this._positiveText}</textarea>
+                <textarea id="positiveArea" spellcheck="false" placeholder="Enter positive prompt tags or expressions...">${escapeHtml(this._positiveText)}</textarea>
             </div>
             <div class="lora-deck" id="loraDeck" style="margin-top: 8px;"></div>
         </div>
@@ -630,7 +644,7 @@ export class ModusFlowStudioPanel {
             </div>
             <div class="syntax-wrapper">
                 <div class="syntax-backdrop" id="negBackdrop"></div>
-                <textarea id="negativeArea" spellcheck="false" placeholder="Enter negative prompts or click pedal guards above...">${this._negativeText}</textarea>
+                <textarea id="negativeArea" spellcheck="false" placeholder="Enter negative prompts or click pedal guards above...">${escapeHtml(this._negativeText)}</textarea>
             </div>
         </div>
     </div>
@@ -762,7 +776,7 @@ export class ModusFlowStudioPanel {
             const theme = SYNTAX_THEMES[themeName] || SYNTAX_THEMES["Modus Neon (Default)"];
             if (themeName === "Off") {
                 let esc = escapeHtml(text);
-                if (text.endsWith("\n")) esc += "<br>&nbsp;";
+                if (text.endsWith("\\n")) esc += "<br>&nbsp;";
                 return esc;
             }
 
@@ -779,35 +793,35 @@ export class ModusFlowStudioPanel {
             };
 
             // 0. Section banners: // [Name] or # [Name] or /* [Name] */
-            addMatches(/(?:\/\/|#|\/\*)\s*\[[^\]\r\n]+\](?:\s*\*\/)?/g, "section_header");
+            addMatches(/(?:\\/\\/|#|\\/\\*)\\s*\\[[^\\]\\r\\n]+\\](?:\\s*\\*\\/)?/g, "section_header");
             // 1. Block comments: /* ... */
-            addMatches(/\/\*[\s\S]*?\*\//g, "comment");
+            addMatches(/\\/\\*[\\s\\S]*?\\*\\//g, "comment");
             // 2. Hex colors: #RRGGBB or #RGB
-            addMatches(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g, "hex_color");
+            addMatches(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\\b/g, "hex_color");
             // 3. Line comments: // ... or # ...
-            addMatches(/(?:\/\/|#)[^\r\n]*/g, "comment");
+            addMatches(/(?:\\/\\/|#)[^\\r\\n]*/g, "comment");
             // 4. LoRA tags: <lora:...>
-            addMatches(/<lora:[^>\r\n]+>/gi, "lora");
+            addMatches(/<lora:[^>\\r\\n]+>/gi, "lora");
             // 5. Prompt variables: $name
-            addMatches(/\$[a-zA-Z0-9_-]+(?:\s*=\s*[^;\r\n]+;?)?/g, "variable");
+            addMatches(/\\$[a-zA-Z0-9_-]+(?:\\s*=\\s*[^;\\r\\n]+;?)?/g, "variable");
             // 6. Curator placeholders: {curator}, {curator2}
-            addMatches(/\{curator\d*\}/gi, "curator");
+            addMatches(/\\{curator\\d*\\}/gi, "curator");
             // 7. Shuffles: {shuffle:...}
-            addMatches(/\{shuffle:[^}]+\}/gi, "shuffle");
+            addMatches(/\\{shuffle:[^}]+\\}/gi, "shuffle");
             // 8. Pick-N & Ranges: {2$$...}, {1-3$$...}
-            addMatches(/\{\s*\d+(?:-\d+)?\$\$[^}]+\}/g, "choice");
+            addMatches(/\\{\\s*\\d+(?:-\\d+)?\\$\\$[^}]+\\}/g, "choice");
             // 9. Weighted odds: {80::a|20::b}
-            addMatches(/\{\s*\d+::[^}]+\}/g, "choice");
+            addMatches(/\\{\\s*\\d+::[^}]+\\}/g, "choice");
             // 10. Dynamic choices: {a|b|c}
-            addMatches(/\{[^{}]*\|[^{}]*\}/g, "choice");
+            addMatches(/\\{[^{}]*\\|[^{}]*\\}/g, "choice");
             // 11. Wildcards: __name__
             addMatches(/__[a-zA-Z0-9_/-]+__/g, "wildcard");
             // 12. Attention weights: (tag:1.3)
-            addMatches(/\([^():\r\n]+:\s*-?\d+(?:\.\d+)?\)/g, "weight");
+            addMatches(/\\([^():\\r\\n]+:\\s*-?\\d+(?:\\.\\d+)?\\)/g, "weight");
 
             // 13. Rainbow Parentheses & Unclosed Parens
             const RAINBOW_COLORS = ["#38bdf8", "#c084fc", "#f472b6", "#34d399", "#fbbf24", "#a78bfa"];
-            const isExcluded = pos => intervals.some(iv => pos >= iv.start && pos < iv.end && iv.type === "comment");
+            const isExcluded = pos => intervals.some(iv => pos >= iv.start && pos < iv.end);
             const pStack = [];
 
             for (let i = 0; i < text.length; i++) {
@@ -838,6 +852,7 @@ export class ModusFlowStudioPanel {
             let cursor = 0;
 
             for (const iv of intervals) {
+                if (iv.start < cursor) continue;
                 if (iv.start > cursor) {
                     html += escapeHtml(text.slice(cursor, iv.start));
                 }
@@ -876,7 +891,7 @@ export class ModusFlowStudioPanel {
                 html += escapeHtml(text.slice(cursor));
             }
 
-            if (text.endsWith("\n")) {
+            if (text.endsWith("\\n")) {
                 html += "<br>&nbsp;";
             }
 
@@ -885,6 +900,13 @@ export class ModusFlowStudioPanel {
 
         function renderAllSyntax() {
             const themeName = themeSelect ? themeSelect.value : "Modus Neon (Default)";
+            if (themeName === "Off") {
+                posArea.classList.add("plain-mode");
+                negArea.classList.add("plain-mode");
+            } else {
+                posArea.classList.remove("plain-mode");
+                negArea.classList.remove("plain-mode");
+            }
             posBackdrop.innerHTML = tokenizeToHtml(posArea.value, themeName);
             negBackdrop.innerHTML = tokenizeToHtml(negArea.value, themeName);
             syncScroll(posArea, posBackdrop);
@@ -1159,6 +1181,7 @@ export class ModusFlowStudioPanel {
                 if (msg.promptStyle) styleSelect.value = msg.promptStyle;
                 pushHistory();
                 updateUI();
+                renderAllSyntax();
             }
         });
 
