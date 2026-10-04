@@ -1198,61 +1198,103 @@ app.registerExtension({
                     }
                 }
 
-                // ── Dynamic AI Widget Visibility ──────────────────────────────
-                const aiControls = [
-                    aiProviderWidget,
-                    topicWidget,
-                    webSearchWidget,
-                    structureWidget,
-                    tempWidget,
-                    seedWidget
-                ].filter(Boolean);
+                // ── Helper to cleanly show/hide widgets in LiteGraph & ComfyUI ──
+                function setWidgetVisible(widget, visible) {
+                    if (!widget) return;
+                    if (widget.originalType === undefined) {
+                        widget.originalType = widget.type;
+                    }
+                    if (widget.originalComputeSize === undefined) {
+                        widget.originalComputeSize = widget.computeSize;
+                    }
 
+                    widget.hidden = !visible;
+                    widget.type = visible ? widget.originalType : "hidden";
+
+                    if (visible) {
+                        if (widget.originalComputeSize) {
+                            widget.computeSize = widget.originalComputeSize;
+                        } else {
+                            delete widget.computeSize;
+                        }
+                        if (widget.inputEl) {
+                            widget.inputEl.hidden = false;
+                            widget.inputEl.style.display = "";
+                            if (widget.inputEl.parentElement && widget.inputEl.parentElement.classList.contains("comfy-multiline-input")) {
+                                widget.inputEl.parentElement.hidden = false;
+                                widget.inputEl.parentElement.style.display = "";
+                            }
+                        }
+                    } else {
+                        widget.computeSize = () => [0, -4];
+                        if (widget.inputEl) {
+                            widget.inputEl.hidden = true;
+                            widget.inputEl.style.display = "none";
+                            if (widget.inputEl.parentElement && widget.inputEl.parentElement.classList.contains("comfy-multiline-input")) {
+                                widget.inputEl.parentElement.hidden = true;
+                                widget.inputEl.parentElement.style.display = "none";
+                            }
+                        }
+                    }
+                }
+
+                // ── Dynamic AI Widget Visibility ──────────────────────────────
                 const toggleAiWidgets = () => {
-                    const isAiEnabled = aiModeWidget && aiModeWidget.value !== "disabled";
-                    const provider = aiProviderWidget ? aiProviderWidget.value : "Ollama (Local)";
+                    const isAiEnabled = Boolean(aiModeWidget && aiModeWidget.value && aiModeWidget.value !== "disabled");
+                    const provider = String(aiProviderWidget ? aiProviderWidget.value : "Ollama (Local)");
                     const isCloud = provider.startsWith("Cloud");
 
-                    aiControls.forEach(w => {
-                        if (!w.originalType) w.originalType = w.type;
-                        w.type = isAiEnabled ? w.originalType : "hidden";
-                    });
+                    const seedControlWidget = node.widgets?.find(w => w.name === "control_after_generate" || w.label === "control after generate");
 
-                    if (ollamaModelWidget) {
-                        if (!ollamaModelWidget.originalType) ollamaModelWidget.originalType = ollamaModelWidget.type;
-                        ollamaModelWidget.type = (isAiEnabled && !isCloud) ? ollamaModelWidget.originalType : "hidden";
+                    // Base AI controls (only shown when ai_mode is enabled)
+                    setWidgetVisible(aiProviderWidget, isAiEnabled);
+                    setWidgetVisible(topicWidget, isAiEnabled);
+                    setWidgetVisible(webSearchWidget, isAiEnabled);
+                    setWidgetVisible(structureWidget, isAiEnabled);
+                    setWidgetVisible(tempWidget, isAiEnabled);
+                    setWidgetVisible(seedWidget, isAiEnabled);
+                    setWidgetVisible(seedControlWidget, isAiEnabled);
+
+                    // Provider-dependent controls
+                    setWidgetVisible(ollamaModelWidget, isAiEnabled && !isCloud);
+                    setWidgetVisible(refreshModelsBtn, isAiEnabled && !isCloud);
+                    setWidgetVisible(cloudModelWidget, isAiEnabled && isCloud);
+
+                    // Adjust canvas node height smoothly to fit visible widgets
+                    if (node.computeSize) {
+                        const minSize = node.computeSize();
+                        const targetHeight = Math.max(minSize[1] + 16, isAiEnabled ? 760 : 460);
+                        const targetWidth = Math.max(560, node.size ? node.size[0] : 560);
+                        node.setSize([targetWidth, targetHeight]);
                     }
 
-                    if (refreshModelsBtn) {
-                        if (!refreshModelsBtn.originalType) refreshModelsBtn.originalType = refreshModelsBtn.type;
-                        refreshModelsBtn.type = (isAiEnabled && !isCloud) ? refreshModelsBtn.originalType : "hidden";
-                    }
-
-                    if (cloudModelWidget) {
-                        if (!cloudModelWidget.originalType) cloudModelWidget.originalType = cloudModelWidget.type;
-                        cloudModelWidget.type = (isAiEnabled && isCloud) ? cloudModelWidget.originalType : "hidden";
-                    }
-
-                    node.computeSize?.();
+                    node.setDirtyCanvas?.(true, true);
                     app.graph?.setDirtyCanvas(true, true);
                 };
+
+                node._toggleAiWidgets = toggleAiWidgets;
 
                 if (aiModeWidget) {
                     const origModeCb = aiModeWidget.callback;
                     aiModeWidget.callback = function() {
-                        origModeCb?.apply(this, arguments);
+                        const ret = origModeCb?.apply(this, arguments);
                         toggleAiWidgets();
+                        return ret;
                     };
                 }
 
                 if (aiProviderWidget) {
                     const origProvCb = aiProviderWidget.callback;
                     aiProviderWidget.callback = function() {
-                        origProvCb?.apply(this, arguments);
+                        const ret = origProvCb?.apply(this, arguments);
                         toggleAiWidgets();
+                        return ret;
                     };
                 }
 
+                // Initial pass on creation
+                toggleAiWidgets();
+                requestAnimationFrame(toggleAiWidgets);
                 setTimeout(toggleAiWidgets, 50);
 
                 // ── Category filter combo ─────────────────────────────────────────
@@ -1300,7 +1342,7 @@ app.registerExtension({
                 node.addWidget("button", "🔄 Refresh List",    null, () => refreshSongs(node));
 
                 // ── Initial size & responsiveness ─────────────────────────────────
-                node.size = [560, 780];
+                node.size = [560, 500];
                 node.resizable = true;
 
                 // Auto-populate song list on first creation
@@ -1314,7 +1356,6 @@ app.registerExtension({
             nodeType.prototype.onConfigure = function(config) {
                 if (onConfigure) onConfigure.apply(this, arguments);
                 const vals = config?.widgets_values;
-                if (!vals) return;
 
                 const cfw = this.widgets?.find(w => w.name === "category_filter");
                 const scw = this.widgets?.find(w => w.name === "song_category");
@@ -1326,6 +1367,10 @@ app.registerExtension({
                     scw.value = this._serializedSongCategory;
                     if (scw.inputEl) scw.inputEl.value = this._serializedSongCategory;
                 }
+
+                this._toggleAiWidgets?.();
+                setTimeout(() => this._toggleAiWidgets?.(), 20);
+                setTimeout(() => this._toggleAiWidgets?.(), 100);
             };
 
             // ── onSerialize ───────────────────────────────────────────────────────
