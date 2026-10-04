@@ -216,9 +216,11 @@ The Text Editor is built as the ultimate prompt engineering cockpit in ComfyUI, 
 - **Warning State**: Warns when unclosed parentheses are detected or when tokens exceed standard single-chunk limits.
 
 ### 4. Prompt Health & Deduplication Linter
-- **Duplicate Tag Detection**: Analyzes comma-separated prompt tags in real-time. If duplicate tags are detected, a yellow health badge appears in the bottom-left corner (e.g. `🟡 2 duplicates [Fix]`).
-- **One-Click Auto-Dedupe**: Clicking the `[Fix]` badge instantly eliminates duplicates, normalizes spacing, and displays a toast confirming the clean-up while saving an undo snapshot to prompt history.
-- **Heavy Weight Warning**: Flags weights $>1.6$ to prevent unintentional prompt burning.
+- **Duplicate Tag Detection**: Analyzes comma-separated and space-separated prompt tags in real-time. If duplicate tags or repeated tokens are detected, a yellow health badge appears in the bottom-left corner (e.g. `🟡 2 duplicates [Fix]`).
+- **One-Click Auto-Dedupe**: Clicking the `[Fix]` badge instantly eliminates duplicates (including repeated parenthesized tags like `(tag:1.2) (tag:1.2)`), normalizes missing commas, and displays a toast confirming the clean-up while saving an undo snapshot.
+- **Heavy Weight Warning**: Flags weights strictly $>1.6$ to prevent unintentional prompt burning (safe weights $\le 1.6$ like $1.2$ or $1.4$ are not falsely flagged).
+- **Interactive Scrollbars**: Both Positive and Negative textareas on the canvas node include custom vertical scrollbars with pixel-perfect geometry synchronization to the underlying syntax highlighter.
+- **Seamless Canvas & Ollama Undo (`Ctrl+Z` / `Ctrl+Y`)**: Full undo and redo history stack covers all text modifications on both the canvas node and the Pop-Out Studio, allowing you to instantly revert Ollama enhancements, selection refinements, pedalboard guard toggles, and typing edits.
 
 ### 5. Negative Pedalboard (Tactile Guard Rack) with Style Awareness
 Directly above the Negative prompt box, a hardware-inspired pedalboard rack lets you toggle essential negative protection layers with illuminated active states:

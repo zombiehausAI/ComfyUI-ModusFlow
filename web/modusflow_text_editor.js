@@ -202,6 +202,27 @@ function injectSyntaxStyles() {
             background: rgba(56, 189, 248, 0.35) !important;
             color: transparent !important;
         }
+        .modusflow-syntax-ta {
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            scrollbar-width: thin !important;
+            scrollbar-color: rgba(137, 180, 250, 0.45) rgba(17, 17, 27, 0.6) !important;
+        }
+        .modusflow-syntax-ta::-webkit-scrollbar {
+            width: 8px !important;
+            display: block !important;
+        }
+        .modusflow-syntax-ta::-webkit-scrollbar-track {
+            background: rgba(17, 17, 27, 0.6) !important;
+            border-radius: 4px !important;
+        }
+        .modusflow-syntax-ta::-webkit-scrollbar-thumb {
+            background: rgba(137, 180, 250, 0.45) !important;
+            border-radius: 4px !important;
+        }
+        .modusflow-syntax-ta::-webkit-scrollbar-thumb:hover {
+            background: rgba(137, 180, 250, 0.8) !important;
+        }
         .modusflow-syntax-backdrop {
             position: absolute;
             pointer-events: none;
@@ -297,17 +318,12 @@ function injectSyntaxStyles() {
         }
         /* ── Section Banners ── */
         .modusflow-section-banner {
-            display: block;
-            margin: 6px 0 3px 0;
-            padding: 3px 8px;
-            background: linear-gradient(90deg, rgba(137, 180, 250, 0.16) 0%, rgba(203, 166, 247, 0.08) 60%, transparent 100%);
-            border-left: 3px solid #89b4fa;
-            border-radius: 0 4px 4px 0;
+            display: inline;
+            background: linear-gradient(90deg, rgba(137, 180, 250, 0.25) 0%, rgba(203, 166, 247, 0.15) 100%);
+            border-bottom: 2px solid #89b4fa;
             color: #89b4fa;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            font-size: 11px;
-            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: normal;
         }
 
         /* ── Waveform EQ Attention Bar ── */
@@ -1137,17 +1153,14 @@ function tokenizeAndHighlight(text, theme) {
         }
         const tokenText = escapeHtml(text.slice(iv.start, iv.end));
         if (iv.type === "section_header") {
-            const raw = text.slice(iv.start, iv.end);
-            const m = raw.match(/\[([^\]]+)\]/);
-            const title = m ? m[1].trim() : raw;
-            html += `<span class="modusflow-section-banner">§ ${escapeHtml(title)}</span>`;
+            html += `<span class="modusflow-section-banner">${tokenText}</span>`;
         } else if (iv.type === "rainbow_paren") {
             html += `<span style="color: ${iv.color}; font-weight: bold;">${tokenText}</span>`;
         } else if (iv.type === "unclosed_paren" || iv.type === "unmatched_paren") {
             html += `<span style="background: rgba(239, 68, 68, 0.4); color: #f87171; border-radius: 2px; text-decoration: underline wavy #ef4444; font-weight: bold;" title="${iv.type === 'unclosed_paren' ? 'Unclosed opening parenthesis!' : 'Unmatched closing parenthesis!'}">${tokenText}</span>`;
         } else if (iv.type === "hex_color") {
             const rawHex = text.slice(iv.start, iv.end);
-            html += `<span class="modusflow-hex-pill" data-hex="${rawHex}" style="color: ${rawHex}; font-weight: bold; background: ${rawHex}26; border-radius: 3px; box-shadow: 0 0 0 1px ${rawHex}88; text-decoration: underline dotted ${rawHex};" title="Hex Color: ${rawHex} (Click to inspect or convert)">${tokenText}</span>`;
+            html += `<span class="modusflow-hex-pill" data-hex="${rawHex}" style="color: ${rawHex}; font-weight: bold; background: ${rawHex}33; text-decoration: underline dotted ${rawHex};" title="Hex Color: ${rawHex} (Click to inspect or convert)">${tokenText}</span>`;
         } else if (iv.type === "weight") {
             const raw = text.slice(iv.start, iv.end);
             const wMatch = raw.match(/:(-?\d+(?:\.\d+)?)\)$/);
@@ -1156,12 +1169,12 @@ function tokenizeAndHighlight(text, theme) {
             let extraStyle = "";
             let title = `Weight: ${w.toFixed(2)}`;
             if (w > 1.0) {
-                const glowSpread = Math.min(14, Math.round((w - 1.0) * 12));
+                const glowSpread = Math.min(12, Math.round((w - 1.0) * 10));
                 const glowAlpha = Math.min(0.9, 0.25 + (w - 1.0) * 0.45);
-                const bgAlpha = Math.min(0.3, (w - 1.0) * 0.22);
-                extraStyle = `font-weight: 600; text-shadow: 0 0 ${glowSpread}px rgba(251, 191, 36, ${glowAlpha}); background: rgba(245, 158, 11, ${bgAlpha}); border-radius: 3px; padding: 0 3px;`;
-                if (w > 1.5) {
-                    title += " ⚠️ Strong attention weight (> 1.5)";
+                const bgAlpha = Math.min(0.35, (w - 1.0) * 0.22);
+                extraStyle = `font-weight: bold; text-shadow: 0 0 ${glowSpread}px rgba(251, 191, 36, ${glowAlpha}); background: rgba(245, 158, 11, ${bgAlpha});`;
+                if (w > 1.6) {
+                    title += " ⚠️ High attention weight (> 1.6)";
                 }
             } else if (w < 1.0 && w >= 0) {
                 const opacity = Math.max(0.4, w * 0.9);
@@ -1233,8 +1246,14 @@ function attachSyntaxHighlighter(widget, node) {
         ta.style.zIndex = "1";
         ta.style.fontFamily = MONOSPACE_FONT;
         ta.style.fontSize = "13px";
-        ta.style.lineHeight = "1.4";
+        ta.style.lineHeight = "1.45";
         ta.style.tabSize = "4";
+        ta.style.overflowY = "auto";
+        ta.style.overflowX = "hidden";
+        ta.style.whiteSpace = "pre-wrap";
+        ta.style.wordBreak = "break-word";
+        ta.style.overflowWrap = "break-word";
+        ta.style.letterSpacing = "normal";
 
         function syncGeometry() {
             if (!ta || !backdrop) return;
@@ -1242,22 +1261,36 @@ function attachSyntaxHighlighter(widget, node) {
             backdrop.style.left = ta.offsetLeft + "px";
             backdrop.style.width = ta.offsetWidth + "px";
             backdrop.style.height = ta.offsetHeight + "px";
-            backdrop.scrollTop = ta.scrollTop;
-            backdrop.scrollLeft = ta.scrollLeft;
 
             const cs = window.getComputedStyle(ta);
+            const borderLeft = parseFloat(cs.borderLeftWidth) || 0;
+            const borderRight = parseFloat(cs.borderRightWidth) || 0;
+            const scrollbarWidth = Math.max(0, ta.offsetWidth - ta.clientWidth - borderLeft - borderRight);
+
             backdrop.style.fontFamily = MONOSPACE_FONT;
             backdrop.style.fontSize = cs.fontSize || "13px";
-            backdrop.style.lineHeight = cs.lineHeight || "1.4";
-            backdrop.style.padding = cs.padding;
+            backdrop.style.lineHeight = cs.lineHeight || "1.45";
+            backdrop.style.letterSpacing = cs.letterSpacing || "normal";
+            backdrop.style.wordSpacing = cs.wordSpacing || "normal";
+            backdrop.style.whiteSpace = "pre-wrap";
+            backdrop.style.wordBreak = cs.wordBreak || "break-word";
+            backdrop.style.overflowWrap = cs.overflowWrap || "break-word";
+            backdrop.style.tabSize = "4";
+            backdrop.style.boxSizing = cs.boxSizing || "border-box";
+
+            backdrop.style.paddingTop = cs.paddingTop;
+            backdrop.style.paddingBottom = cs.paddingBottom;
+            backdrop.style.paddingLeft = cs.paddingLeft;
+            backdrop.style.paddingRight = (parseFloat(cs.paddingRight) || 0) + scrollbarWidth + "px";
+
             backdrop.style.border = cs.border;
             backdrop.style.borderColor = "transparent";
             backdrop.style.borderStyle = cs.borderStyle;
             backdrop.style.borderWidth = cs.borderWidth;
             backdrop.style.borderRadius = cs.borderRadius;
-            backdrop.style.boxSizing = cs.boxSizing || "border-box";
-            backdrop.style.letterSpacing = cs.letterSpacing;
-            backdrop.style.tabSize = "4";
+
+            backdrop.scrollTop = ta.scrollTop;
+            backdrop.scrollLeft = ta.scrollLeft;
         }
 
         const tokenBadge = document.createElement("div");
@@ -1319,7 +1352,14 @@ function attachSyntaxHighlighter(widget, node) {
                 }
                 seenTags.add(t);
             }
-            const heavyWeights = textVal.match(/\([^():\r\n]+:\s*(?:1\.[2-9]|[2-9]|\d{2,})(?:\.\d+)?\)/g) || [];
+            const heavyWeights = [];
+            const weightMatches = (ta.value || "").matchAll(/\([^():\r\n]+:\s*([0-9.]+)\)/g);
+            for (const m of weightMatches) {
+                const val = parseFloat(m[1]);
+                if (!isNaN(val) && val > 1.6) {
+                    heavyWeights.push(m[0]);
+                }
+            }
 
             // Update Waveform Strip
             const totalToks = stats.tokens || 0;
@@ -2015,6 +2055,85 @@ function pushPromptHistory(node, label) {
     }
 }
 
+// ── Canvas Node Undo / Redo Stack ───────────────────────────────────────────
+function pushCanvasUndo(node, desc) {
+    if (!node) return;
+    if (!node._canvasUndoStack) node._canvasUndoStack = [];
+    if (!node._canvasRedoStack) node._canvasRedoStack = [];
+    const pw = node.widgets?.find(w => w.name === "positive");
+    const nw = node.widgets?.find(w => w.name === "negative");
+    const state = {
+        pos: pw?.value || "",
+        neg: nw?.value || "",
+        desc: desc || "change"
+    };
+    if (node._canvasUndoStack.length > 0) {
+        const top = node._canvasUndoStack[node._canvasUndoStack.length - 1];
+        if (top.pos === state.pos && top.neg === state.neg) return;
+    }
+    node._canvasUndoStack.push(state);
+    if (node._canvasUndoStack.length > 50) node._canvasUndoStack.shift();
+    node._canvasRedoStack = [];
+}
+
+function doCanvasUndo(node) {
+    if (!node || !node._canvasUndoStack || node._canvasUndoStack.length <= 1) {
+        showStudioToast("Nothing to undo", "info");
+        return false;
+    }
+    const currentState = node._canvasUndoStack.pop();
+    if (!node._canvasRedoStack) node._canvasRedoStack = [];
+    node._canvasRedoStack.push(currentState);
+    const targetState = node._canvasUndoStack[node._canvasUndoStack.length - 1];
+
+    const pw = node.widgets?.find(w => w.name === "positive");
+    const nw = node.widgets?.find(w => w.name === "negative");
+    if (pw) {
+        pw.value = targetState.pos;
+        if (pw.inputEl) pw.inputEl.value = targetState.pos;
+        pw._updateSyntaxHighlight?.();
+    }
+    if (nw) {
+        nw.value = targetState.neg;
+        if (nw.inputEl) nw.inputEl.value = targetState.neg;
+        nw._updateSyntaxHighlight?.();
+    }
+    if (node._popoutSyncFromNode) {
+        node._popoutSyncFromNode();
+    }
+    app.graph?.setDirtyCanvas(true, true);
+    showStudioToast("↩ Undone");
+    return true;
+}
+
+function doCanvasRedo(node) {
+    if (!node || !node._canvasRedoStack || node._canvasRedoStack.length === 0) {
+        showStudioToast("Nothing to redo", "info");
+        return false;
+    }
+    const nextState = node._canvasRedoStack.pop();
+    node._canvasUndoStack.push(nextState);
+
+    const pw = node.widgets?.find(w => w.name === "positive");
+    const nw = node.widgets?.find(w => w.name === "negative");
+    if (pw) {
+        pw.value = nextState.pos;
+        if (pw.inputEl) pw.inputEl.value = nextState.pos;
+        pw._updateSyntaxHighlight?.();
+    }
+    if (nw) {
+        nw.value = nextState.neg;
+        if (nw.inputEl) nw.inputEl.value = nextState.neg;
+        nw._updateSyntaxHighlight?.();
+    }
+    if (node._popoutSyncFromNode) {
+        node._popoutSyncFromNode();
+    }
+    app.graph?.setDirtyCanvas(true, true);
+    showStudioToast("↪ Redone");
+    return true;
+}
+
 function showHistoryDialog(node) {
     let list = [];
     try {
@@ -2109,7 +2228,14 @@ function showHistoryDialog(node) {
 // ── Prompt Prettifier & Deduplicator ─────────────────────────────────────────
 function prettifyPromptText(text) {
     if (!text || typeof text !== "string") return "";
-    const lines = text.split("\n");
+    // Collapse consecutive duplicate parenthesized tags e.g. (realistic:1.2) (realistic:1.2)
+    let preprocessed = text.replace(/(\([^)]+\))(?:\s*,\s*|\s+)\1+/gi, "$1");
+    // Ensure comma separation between adjacent parenthesized tokens: ) ( -> ), (
+    preprocessed = preprocessed.replace(/\)\s*\(/g, "), (");
+    // Collapse consecutive duplicate words/tags
+    preprocessed = preprocessed.replace(/\b([a-zA-Z0-9_\-\\]+)(?:\s*,\s*|\s+)\1\b/gi, "$1");
+
+    const lines = preprocessed.split("\n");
     const newLines = lines.map(line => {
         const trimmed = line.trim();
         if (trimmed.startsWith("#") || trimmed.startsWith("//") || trimmed.startsWith("/*")) {
@@ -2130,6 +2256,15 @@ function prettifyPromptText(text) {
         return uniqueTags.join(", ");
     });
     return newLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function cleanEnhancedPromptText(text) {
+    if (!text || typeof text !== "string") return "";
+    let cleaned = text.trim();
+    cleaned = cleaned.replace(/(\([^)]+\))(?:\s*,\s*|\s+)\1+/gi, "$1");
+    cleaned = cleaned.replace(/\)\s*\(/g, "), (");
+    cleaned = cleaned.replace(/\b([a-zA-Z0-9_\-\\]+)(?:\s*,\s*|\s+)\1\b/gi, "$1");
+    return prettifyPromptText(cleaned);
 }
 
 function prettifyNodePrompts(node) {
@@ -2609,11 +2744,20 @@ async function enhancePromptWithOllama(node, btn) {
         });
         const res = await resp.json();
         if (res.success && res.enhanced) {
+            pushCanvasUndo(node, "Pre-AI Enhancement");
+            node._pushPopoutHistory?.();
             pushPromptHistory(node, "Pre-AI Enhancement");
-            pw.value = res.enhanced;
-            if (pw.inputEl) pw.inputEl.value = res.enhanced;
+
+            const sanitized = cleanEnhancedPromptText(res.enhanced);
+            pw.value = sanitized;
+            if (pw.inputEl) pw.inputEl.value = sanitized;
             pw._updateSyntaxHighlight?.();
+
+            pushCanvasUndo(node, "✨ Enhanced [" + styleLabel + "] with " + (res.model || model));
+            node._pushPopoutHistory?.();
+            node._popoutSyncFromNode?.();
             pushPromptHistory(node, "✨ Enhanced [" + styleLabel + "] with " + (res.model || model));
+
             showStudioToast("Prompt enhanced [" + styleLabel + "] with " + (res.model || model) + "!");
             app.graph?.setDirtyCanvas(true, true);
         } else {
@@ -2698,16 +2842,19 @@ async function executeSelectionRefinement(action, selected, start, end, ta, widg
             replacement = `{${filteredOpts.join("|")}}`;
         }
 
-        pushPromptHistory(node, `Pre-Refine (${actionLabel}): ${selected}`);
+        pushCanvasUndo(node, `Pre-Refine (${actionLabel}): ${selected}`);
         node._pushPopoutHistory?.();
+        pushPromptHistory(node, `Pre-Refine (${actionLabel}): ${selected}`);
         ta.setRangeText(replacement, start, end, "select");
         if (widget) {
             widget.value = ta.value;
             if (widget.inputEl && widget.inputEl !== ta) widget.inputEl.value = ta.value;
             widget._updateSyntaxHighlight?.();
         }
-        pushPromptHistory(node, `Refined (${actionLabel}): ${selected}`);
+        pushCanvasUndo(node, `Refined (${actionLabel}): ${selected}`);
         node._pushPopoutHistory?.();
+        node._popoutSyncFromNode?.();
+        pushPromptHistory(node, `Refined (${actionLabel}): ${selected}`);
         showStudioToast(`✓ Refined [${actionLabel}] with ${res.model || model}!`);
         if (typeof onInputCallback === "function") {
             onInputCallback();
@@ -2755,16 +2902,19 @@ function showSynonymsPickerModal(selected, options, start, end, ta, widget, node
     list.style.cssText = "display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto;";
 
     const replaceText = (replacement, desc) => {
-        pushPromptHistory(node, `Pre-Alternative: ${selected}`);
+        pushCanvasUndo(node, `Pre-Alternative: ${selected}`);
         node._pushPopoutHistory?.();
+        pushPromptHistory(node, `Pre-Alternative: ${selected}`);
         ta.setRangeText(replacement, start, end, "select");
         if (widget) {
             widget.value = ta.value;
             if (widget.inputEl && widget.inputEl !== ta) widget.inputEl.value = ta.value;
             widget._updateSyntaxHighlight?.();
         }
-        pushPromptHistory(node, `${desc}: ${replacement}`);
+        pushCanvasUndo(node, `${desc}: ${replacement}`);
         node._pushPopoutHistory?.();
+        node._popoutSyncFromNode?.();
+        pushPromptHistory(node, `${desc}: ${replacement}`);
         showStudioToast(`Applied: ${replacement}`);
         overlay.remove();
         if (typeof onInputCallback === "function") onInputCallback();
@@ -3875,22 +4025,46 @@ app.registerExtension({
                 const negativeWidget  = node.widgets?.find(w => w.name === "negative");
                 const dropdownWidget  = node.widgets?.find(w => w.name === "saved_prompt");
 
+                const hookCanvasUndoInput = (w) => {
+                    const el = w?.inputEl || w?.element;
+                    if (!el || el._hasCanvasUndoInputHook) return;
+                    el._hasCanvasUndoInputHook = true;
+                    let typeDebounce = null;
+                    el.addEventListener("input", () => {
+                        clearTimeout(typeDebounce);
+                        typeDebounce = setTimeout(() => {
+                            pushCanvasUndo(node, "Typing");
+                        }, 350);
+                    });
+                };
+
                 if (positiveWidget) {
                     positiveWidget.label = "Positive";
-                    attachCommentShortcuts(positiveWidget);
+                    attachCommentShortcuts(positiveWidget, node);
                     attachSyntaxHighlighter(positiveWidget, node);
                     attachAutocomplete(positiveWidget, node);
                     setupTagStudio(positiveWidget, node);
                     attachOllamaSelectionContextMenu(positiveWidget, positiveWidget, node);
+                    hookCanvasUndoInput(positiveWidget);
+                    requestAnimationFrame(() => {
+                        const ta = positiveWidget.inputEl || positiveWidget.element;
+                        if (ta) {
+                            ta.style.overflowY = "auto";
+                            ta.style.overflowX = "hidden";
+                        }
+                    });
                 }
                 if (negativeWidget) {
                     negativeWidget.label = "Negative";
-                    attachCommentShortcuts(negativeWidget);
+                    attachCommentShortcuts(negativeWidget, node);
                     attachSyntaxHighlighter(negativeWidget, node);
                     attachAutocomplete(negativeWidget, node);
                     attachNegativePedalboard(negativeWidget, node);
                     attachOllamaSelectionContextMenu(negativeWidget, negativeWidget, node);
+                    hookCanvasUndoInput(negativeWidget);
                 }
+
+                pushCanvasUndo(node, "Initial State");
 
                 // ── Negative widget height control ────────────────────────────────
                 const NEG_H = 95;
@@ -3900,7 +4074,11 @@ app.registerExtension({
                     };
                     requestAnimationFrame(() => {
                         const ta = negativeWidget.inputEl || negativeWidget.element;
-                        if (ta) { ta.style.resize = "none"; ta.style.overflow = "auto"; }
+                        if (ta) {
+                            ta.style.resize = "none";
+                            ta.style.overflowY = "auto";
+                            ta.style.overflowX = "hidden";
+                        }
                     });
                 }
 
@@ -4190,14 +4368,14 @@ app.registerExtension({
                 const pw = this.widgets?.find(w => w.name === "positive");
                 const nw = this.widgets?.find(w => w.name === "negative");
                 if (pw) {
-                    attachCommentShortcuts(pw);
+                    attachCommentShortcuts(pw, this);
                     attachSyntaxHighlighter(pw, this);
                     attachAutocomplete(pw, this);
                     setupTagStudio(pw, this);
                     attachOllamaSelectionContextMenu(pw, pw, this);
                 }
                 if (nw) {
-                    attachCommentShortcuts(nw);
+                    attachCommentShortcuts(nw, this);
                     attachSyntaxHighlighter(nw, this);
                     attachAutocomplete(nw, this);
                     attachNegativePedalboard(nw, this);
@@ -4247,7 +4425,7 @@ app.registerExtension({
             }
 
             // ── Helper: Attach comment keyboard shortcuts (Ctrl+/, Ctrl+Shift+/, Shift+Alt+A) ──
-            function attachCommentShortcuts(widget) {
+            function attachCommentShortcuts(widget, node) {
                 if (!widget) return;
                 const bindEl = (ta) => {
                     if (!ta || ta._hasCommentHandler) return;
@@ -4256,6 +4434,22 @@ app.registerExtension({
                     ta.addEventListener("keydown", (e) => {
                         const isMac = navigator.platform && navigator.platform.toUpperCase().indexOf("MAC") >= 0;
                         const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+
+                        // 0. Undo / Redo on Canvas Node: Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z
+                        if (ctrlOrCmd && !e.altKey && node) {
+                            const key = e.key.toLowerCase();
+                            if (key === "z" && !e.shiftKey) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                doCanvasUndo(node);
+                                return;
+                            } else if (key === "y" || (key === "z" && e.shiftKey)) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                doCanvasRedo(node);
+                                return;
+                            }
+                        }
 
                         // 1. Toggle Line Comment: Ctrl+/ or Cmd+/
                         if (ctrlOrCmd && !e.shiftKey && !e.altKey && (e.key === "/" || e.code === "Slash")) {
@@ -7868,6 +8062,20 @@ app.registerExtension({
                     if (negBox) negBox.style.backgroundColor = bgColor;
                 }
 
+                function syncPopoutBackdropGeometry(ta, backdrop) {
+                    if (!ta || !backdrop) return;
+                    const cs = window.getComputedStyle(ta);
+                    const borderLeft = parseFloat(cs.borderLeftWidth) || 0;
+                    const borderRight = parseFloat(cs.borderRightWidth) || 0;
+                    const scrollbarWidth = Math.max(0, ta.offsetWidth - ta.clientWidth - borderLeft - borderRight);
+                    backdrop.style.paddingTop = cs.paddingTop;
+                    backdrop.style.paddingBottom = cs.paddingBottom;
+                    backdrop.style.paddingLeft = cs.paddingLeft;
+                    backdrop.style.paddingRight = (parseFloat(cs.paddingRight) || 0) + scrollbarWidth + "px";
+                    backdrop.scrollTop = ta.scrollTop;
+                    backdrop.scrollLeft = ta.scrollLeft;
+                }
+
                 function onPosInput() {
                     pw.value = posTa.value;
                     if (pw.inputEl) pw.inputEl.value = posTa.value;
@@ -7877,8 +8085,7 @@ app.registerExtension({
                     if (themeName !== "Off (Plain Text)") {
                         const theme = getThemeByName(themeName);
                         posBackdrop.innerHTML = tokenizeAndHighlight(posTa.value || "", theme);
-                        posBackdrop.scrollTop = posTa.scrollTop;
-                        posBackdrop.scrollLeft = posTa.scrollLeft;
+                        syncPopoutBackdropGeometry(posTa, posBackdrop);
                     }
 
                     const stats = estimateTokens(posTa.value || "");
@@ -7902,8 +8109,7 @@ app.registerExtension({
                     if (themeName !== "Off (Plain Text)") {
                         const theme = getThemeByName(themeName);
                         negBackdrop.innerHTML = tokenizeAndHighlight(negTa.value || "", theme);
-                        negBackdrop.scrollTop = negTa.scrollTop;
-                        negBackdrop.scrollLeft = negTa.scrollLeft;
+                        syncPopoutBackdropGeometry(negTa, negBackdrop);
                     }
 
                     const stats = estimateTokens(negTa.value || "");
