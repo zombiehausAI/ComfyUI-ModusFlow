@@ -239,14 +239,20 @@ if (!window.modusflowShowSettings) {
 // ── Persistent ComfyUI Menu Button ───────────────────────────────────────────
 function attachComfyMenuButton() {
     if (document.getElementById("modusflow-sidebar-btn")) return;
-    const comfyMenu = document.querySelector(".comfy-menu") || document.querySelector("#comfy-menu");
+    const comfyMenu = document.querySelector(".comfy-menu") ||
+        document.querySelector("#comfy-menu") ||
+        document.querySelector(".comfyui-menu") ||
+        document.querySelector(".side-bar-button-selected")?.parentElement ||
+        document.querySelector(".comfyui-action-bar");
+
     if (comfyMenu) {
         const btn = document.createElement("button");
         btn.id = "modusflow-sidebar-btn";
         btn.type = "button";
         btn.textContent = "⚙️ ModusFlow";
         btn.title = "Open ModusFlow Studio & AI Configuration";
-        btn.style.cssText = "font-weight: 600; color: #89b4fa; border: 1px solid rgba(137, 180, 250, 0.4); margin: 2px 0;";
+        btn.className = "comfy-btn";
+        btn.style.cssText = "font-weight: 600; color: #89b4fa; border: 1px solid rgba(137, 180, 250, 0.4); margin: 2px 4px; padding: 4px 8px; border-radius: 4px; background: rgba(30, 30, 46, 0.8); cursor: pointer;";
         btn.onclick = (e) => {
             e.preventDefault();
             openModusFlowSettingsDialog();
@@ -255,369 +261,305 @@ function attachComfyMenuButton() {
     }
 }
 
+// ── Debounced Server Config Saver ─────────────────────────────────────────────
+let saveTimeout = null;
+const pendingChanges = {};
+
+const commitChanges = async () => {
+    const payload = Object.assign({}, pendingChanges);
+    for (const k of Object.keys(pendingChanges)) {
+        delete pendingChanges[k];
+    }
+    try {
+        await api.fetchApi("/modusflow/save_config", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+    } catch (err) {
+        console.error("[ModusFlow Settings] Failed to save config to server:", err);
+    }
+};
+
+const queueSave = (key, val) => {
+    pendingChanges[key] = val;
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(commitChanges, 400);
+};
+
+let cachedOllamaModels = [];
+let cachedOllamaOnline = false;
+
+const refreshOllamaStatusBackground = async () => {
+    try {
+        const resp = await api.fetchApi("/modusflow/ollama_status");
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data.success && data.available && Array.isArray(data.models)) {
+                cachedOllamaModels = data.models;
+                cachedOllamaOnline = true;
+                return data;
+            }
+        }
+    } catch (_) {}
+    cachedOllamaOnline = false;
+    return { available: false, models: [] };
+};
+
+// ── Shared Settings Definitions for ComfyUI ───────────────────────────────────
+function buildModusFlowSettingsList(serverConfig = {}) {
+    return [
+        {
+            id: "ModusFlow.OpenStudioSettings",
+            category: ["ModusFlow", "Studio & AI"],
+            name: "ModusFlow: Dedicated Configuration Dialog",
+            type: () => {
+                const wrap = document.createElement("div");
+                wrap.style.cssText = "display: flex; align-items: center; gap: 10px;";
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.textContent = "⚙️ Open ModusFlow Settings Dialog";
+                btn.style.cssText = "background: #1e1e2e; color: #89b4fa; border: 1px solid #89b4fa; border-radius: 6px; padding: 7px 14px; cursor: pointer; font-size: 12px; font-weight: 700; transition: all 0.2s ease;";
+                btn.onmouseenter = () => { btn.style.background = "#89b4fa"; btn.style.color = "#11111b"; };
+                btn.onmouseleave = () => { btn.style.background = "#1e1e2e"; btn.style.color = "#89b4fa"; };
+                btn.onclick = () => openModusFlowSettingsDialog();
+                wrap.appendChild(btn);
+                return wrap;
+            },
+            defaultValue: null,
+            tooltip: "Click to open the comprehensive floating ModusFlow configuration window",
+            sortOrder: 100
+        },
+        {
+            id: "ModusFlow.OllamaURL",
+            category: ["ModusFlow", "Local Ollama"],
+            name: "ModusFlow: Local Ollama URL",
+            type: "text",
+            defaultValue: serverConfig.ollama_url || "http://127.0.0.1:11434",
+            tooltip: "Endpoint for local Ollama instance (default: http://127.0.0.1:11434)",
+            sortOrder: 50,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
+                    const clean = newVal.trim().replace(/(\d+\.\d+\.\d+\.\d+)\.(?=:|/|$)/, "$1");
+                    queueSave("ollama_url", clean);
+                    refreshOllamaStatusBackground();
+                }
+            }
+        },
+        {
+            id: "ModusFlow.OllamaEnhanceModel",
+            category: ["ModusFlow", "Local Ollama"],
+            name: "ModusFlow: Text Editor Ollama Model",
+            type: "combo",
+            defaultValue: serverConfig.ollama_model || (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_ollama_model")) || "s1gnature/deepseek-r1-uncensored:8b",
+            options: (val) => {
+                const opts = [];
+                if (serverConfig.ollama_model) opts.push(serverConfig.ollama_model);
+                if (typeof localStorage !== "undefined") {
+                    const saved = localStorage.getItem("modusflow_ollama_model");
+                    if (saved) opts.push(saved);
+                }
+                if (cachedOllamaModels.length > 0) opts.push(...cachedOllamaModels);
+                if (val) opts.push(val);
+                opts.push("dolphin-mistral:latest", "llama3.2", "s1gnature/deepseek-r1-uncensored:8b");
+                const uniq = [...new Set(opts.filter(Boolean))];
+                return uniq.length ? uniq : ["--no models found--"];
+            },
+            tooltip: "Dropdown of local Ollama models for Text Editor one-click AI prompt enhancement",
+            sortOrder: 46,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal && newVal !== "--no models found--") {
+                    try { localStorage.setItem("modusflow_ollama_model", newVal); } catch (_) {}
+                    queueSave("ollama_model", newVal);
+                }
+            }
+        },
+        {
+            id: "ModusFlow.OllamaTimeout",
+            category: ["ModusFlow", "Local Ollama"],
+            name: "ModusFlow: Ollama Timeout (seconds)",
+            type: "number",
+            defaultValue: serverConfig.ollama_timeout || 120,
+            tooltip: "Timeout in seconds for Ollama requests (default: 120)",
+            sortOrder: 40,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
+                    queueSave("ollama_timeout", Number(newVal) || 120);
+                }
+            }
+        },
+        {
+            id: "ModusFlow.OllamaCloudURL",
+            category: ["ModusFlow", "Ollama Cloud"],
+            name: "ModusFlow: Ollama Cloud URL",
+            type: "text",
+            defaultValue: serverConfig.ollama_cloud_url || "",
+            tooltip: "Endpoint for remote/cloud Ollama server (e.g. https://ollama.yourdomain.com)",
+            sortOrder: 35,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
+                    queueSave("ollama_cloud_url", newVal);
+                }
+            }
+        },
+        {
+            id: "ModusFlow.OllamaCloudKey",
+            category: ["ModusFlow", "Ollama Cloud"],
+            name: "ModusFlow: Ollama Cloud API Key / Token",
+            type: "text",
+            defaultValue: serverConfig.ollama_cloud_api_key || "",
+            tooltip: "Bearer token or API key for remote/cloud Ollama instance",
+            sortOrder: 34,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
+                    queueSave("ollama_cloud_api_key", newVal);
+                }
+            }
+        },
+        {
+            id: "ModusFlow.CloudAPIURL",
+            category: ["ModusFlow", "Cloud LLMs"],
+            name: "ModusFlow: Cloud LLM Base URL",
+            type: "text",
+            defaultValue: serverConfig.cloud_api_url || "https://openrouter.ai/api/v1",
+            tooltip: "OpenAI-compatible chat completions base URL (default: https://openrouter.ai/api/v1)",
+            sortOrder: 30,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
+                    queueSave("cloud_api_url", newVal);
+                }
+            }
+        },
+        {
+            id: "ModusFlow.CloudAPIKey",
+            category: ["ModusFlow", "Cloud LLMs"],
+            name: "ModusFlow: Cloud LLM API Key",
+            type: "text",
+            defaultValue: serverConfig.cloud_api_key || "",
+            tooltip: "API key for OpenAI, OpenRouter, Groq, or DeepSeek cloud models",
+            sortOrder: 29,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
+                    queueSave("cloud_api_key", newVal);
+                }
+            }
+        },
+        {
+            id: "ModusFlow.CloudModel",
+            category: ["ModusFlow", "Cloud LLMs"],
+            name: "ModusFlow: Default Cloud Model",
+            type: "text",
+            defaultValue: serverConfig.cloud_model || "deepseek/deepseek-chat",
+            tooltip: "Default cloud model ID (e.g. deepseek/deepseek-chat, openai/gpt-4o-mini)",
+            sortOrder: 28,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
+                    queueSave("cloud_model", newVal);
+                }
+            }
+        },
+        {
+            id: "ModusFlow.CivitaiKey",
+            category: ["ModusFlow", "Civitai"],
+            name: "ModusFlow: Civitai API Key",
+            type: "text",
+            defaultValue: serverConfig.civitai_api_key || "",
+            tooltip: "API key for fetching Civitai LoRA preview images and metadata",
+            sortOrder: 20,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
+                    queueSave("civitai_api_key", newVal);
+                }
+            }
+        },
+        {
+            id: "ModusFlow.PromptsSaveDirectory",
+            category: ["ModusFlow", "Storage"],
+            name: "ModusFlow: Prompts Directory Override",
+            type: "text",
+            defaultValue: serverConfig.prompts_save_directory || "",
+            tooltip: "Custom directory to save prompt JSON files. Leave empty for default: BASE_DIR/saved_prompts",
+            sortOrder: 10,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
+                    queueSave("prompts_save_directory", newVal);
+                }
+            }
+        }
+    ];
+}
+
 // ── Extension Registration ───────────────────────────────────────────────────
 app.registerExtension({
     name: "ModusFlow.Settings",
+
+    // Export settings definitions directly so ComfyUI modern Vue frontend picks them up
+    settings: buildModusFlowSettingsList(),
 
     async setup() {
         attachComfyMenuButton();
         setTimeout(attachComfyMenuButton, 1000);
         setTimeout(attachComfyMenuButton, 3000);
 
+        // Fallback floating button if menu bar is hidden or customized
+        setTimeout(() => {
+            if (!document.getElementById("modusflow-sidebar-btn") && !document.getElementById("modusflow-floating-btn")) {
+                const floatBtn = document.createElement("button");
+                floatBtn.id = "modusflow-floating-btn";
+                floatBtn.type = "button";
+                floatBtn.textContent = "⚙️ ModusFlow";
+                floatBtn.title = "Open ModusFlow Studio & AI Configuration";
+                floatBtn.style.cssText = "position: fixed; bottom: 18px; left: 18px; z-index: 9999; background: #181825; color: #89b4fa; border: 1px solid #45475a; border-radius: 8px; padding: 7px 12px; font-weight: 700; font-size: 12px; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.6);";
+                floatBtn.onclick = (e) => {
+                    e.preventDefault();
+                    openModusFlowSettingsDialog();
+                };
+                document.body.appendChild(floatBtn);
+            }
+        }, 3500);
+
+        // Fetch backend config in background
+        let serverConfig = {};
+        try {
+            const resp = await api.fetchApi("/modusflow/get_config");
+            if (resp.ok) {
+                const res = await resp.json();
+                if (res.success && res.data) {
+                    serverConfig = res.data;
+                }
+            }
+        } catch (_) {}
+
+        refreshOllamaStatusBackground();
+
         const getSettingsManager = () => {
-            return app.ui?.settings || app.settings;
+            return app.ui?.settings || app.settings || app.extensionManager?.setting;
         };
 
-        let attempts = 0;
-        const maxAttempts = 25;
-
-        const tryRegisterSettings = async () => {
+        const registerAllInManager = () => {
             const sm = getSettingsManager();
-            if (!sm || typeof sm.addSetting !== "function") {
-                if (++attempts <= maxAttempts) {
-                    setTimeout(tryRegisterSettings, 200);
-                }
-                return;
-            }
-
-            // Guard against duplicate registration
-            if (sm._modusflowRegistered) {
-                return;
-            }
+            if (!sm || typeof sm.addSetting !== "function") return false;
+            if (sm._modusflowRegistered) return true;
             sm._modusflowRegistered = true;
 
-            // Fetch current configuration from backend
-            let serverConfig = {
-                ollama_url: "http://127.0.0.1:11434",
-                ollama_model: "",
-                ollama_timeout: 120,
-                ollama_cloud_url: "",
-                ollama_cloud_api_key: "",
-                cloud_api_url: "https://openrouter.ai/api/v1",
-                cloud_api_key: "",
-                cloud_model: "deepseek/deepseek-chat",
-                civitai_api_key: "",
-                prompts_save_directory: "",
-                prompt_style: "Tags (SDXL / Pony)",
-                syntax_theme: "Modus Neon (Default)",
-                popout_font_family: "Monospace",
-                popout_font_size: 14
-            };
-
-            try {
-                const resp = await api.fetchApi("/modusflow/get_config");
-                if (resp.ok) {
-                    const res = await resp.json();
-                    if (res.success && res.data) {
-                        serverConfig = Object.assign(serverConfig, res.data);
-                    }
-                }
-            } catch (e) {
-                console.warn("[ModusFlow Settings] Could not fetch server config:", e);
-            }
-
-            // Debounced saver to prevent rapid POST spam during typing
-            let saveTimeout = null;
-            const pendingChanges = {};
-
-            const commitChanges = async () => {
-                const payload = Object.assign({}, pendingChanges);
-                for (const k of Object.keys(pendingChanges)) {
-                    delete pendingChanges[k];
-                }
+            const list = buildModusFlowSettingsList(serverConfig);
+            for (const s of list) {
                 try {
-                    await api.fetchApi("/modusflow/save_config", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(payload)
-                    });
+                    sm.addSetting(s);
                 } catch (err) {
-                    console.error("[ModusFlow Settings] Failed to save config to server:", err);
+                    console.warn("[ModusFlow Settings] addSetting error for", s.id, err);
                 }
-            };
-
-            const queueSave = (key, val) => {
-                pendingChanges[key] = val;
-                if (saveTimeout) {
-                    clearTimeout(saveTimeout);
-                }
-                saveTimeout = setTimeout(commitChanges, 400);
-            };
-
-            // Fetch current Ollama status and models for the dropdown
-            let ollamaModels = [];
-            let ollamaOnline = false;
-            let ollamaTestedUrl = "";
-
-            const refreshOllamaStatus = async () => {
-                try {
-                    const resp = await api.fetchApi("/modusflow/ollama_status");
-                    if (resp.ok) {
-                        const data = await resp.json();
-                        if (data.success && data.available && Array.isArray(data.models)) {
-                            ollamaModels = data.models;
-                            ollamaOnline = true;
-                            ollamaTestedUrl = data.url || "";
-                            return data;
-                        }
-                        ollamaTestedUrl = data.tested_url || "";
-                    }
-                } catch (_) {}
-                ollamaOnline = false;
-                return { available: false, models: [], tested_url: ollamaTestedUrl };
-            };
-
-            await refreshOllamaStatus();
-
-            // 0. Dedicated ModusFlow Settings Dialog Launcher
-            sm.addSetting({
-                id: "ModusFlow.OpenStudioSettings",
-                category: ["ModusFlow", "Studio & AI"],
-                name: "ModusFlow: Dedicated Configuration Dialog",
-                type: () => {
-                    const wrap = document.createElement("div");
-                    wrap.style.cssText = "display: flex; align-items: center; gap: 10px;";
-
-                    const btn = document.createElement("button");
-                    btn.type = "button";
-                    btn.textContent = "⚙️ Open ModusFlow Settings Dialog";
-                    btn.style.cssText = "background: #1e1e2e; color: #89b4fa; border: 1px solid #89b4fa; border-radius: 6px; padding: 7px 14px; cursor: pointer; font-size: 12px; font-weight: 700; transition: all 0.2s ease;";
-                    btn.onmouseenter = () => { btn.style.background = "#89b4fa"; btn.style.color = "#11111b"; };
-                    btn.onmouseleave = () => { btn.style.background = "#1e1e2e"; btn.style.color = "#89b4fa"; };
-                    btn.onclick = () => {
-                        openModusFlowSettingsDialog();
-                    };
-
-                    wrap.appendChild(btn);
-                    return wrap;
-                },
-                defaultValue: null,
-                tooltip: "Click to open the comprehensive floating ModusFlow configuration window",
-                sortOrder: 100
-            });
-
-            // 1. Ollama Server URL (Local)
-            sm.addSetting({
-                id: "ModusFlow.OllamaURL",
-                category: ["ModusFlow", "Local Ollama"],
-                name: "ModusFlow: Local Ollama URL",
-                type: "text",
-                defaultValue: serverConfig.ollama_url || "http://127.0.0.1:11434",
-                tooltip: "Endpoint for local Ollama instance (default: http://127.0.0.1:11434)",
-                sortOrder: 50,
-                onChange: (newVal, oldVal) => {
-                    if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
-                        const clean = newVal.trim().replace(/(\d+\.\d+\.\d+\.\d+)\.(?=:|/|$)/, "$1");
-                        queueSave("ollama_url", clean);
-                        refreshOllamaStatus();
-                    }
-                }
-            });
-
-            // 1b. Ollama Prompt Enhancement Model for Text Editor (Dropdown with Persistence)
-            const savedEnhanceModel = serverConfig.ollama_model ||
-                (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_ollama_model")) ||
-                "";
-
-            sm.addSetting({
-                id: "ModusFlow.OllamaEnhanceModel",
-                category: ["ModusFlow", "Local Ollama"],
-                name: "ModusFlow: Text Editor Ollama Model",
-                type: "combo",
-                defaultValue: savedEnhanceModel || (ollamaModels.length ? ollamaModels[0] : "s1gnature/deepseek-r1-uncensored:8b"),
-                options: (val) => {
-                    const opts = [];
-                    if (savedEnhanceModel) opts.push(savedEnhanceModel);
-                    if (ollamaModels.length > 0) opts.push(...ollamaModels);
-                    if (val) opts.push(val);
-                    const uniq = [...new Set(opts.filter(Boolean))];
-                    return uniq.length ? uniq : ["--no models found--"];
-                },
-                tooltip: "Dropdown of local Ollama models for Text Editor one-click AI prompt enhancement (persists across sessions)",
-                sortOrder: 46,
-                onChange: (newVal, oldVal) => {
-                    if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal && newVal !== "--no models found--") {
-                        try { localStorage.setItem("modusflow_ollama_model", newVal); } catch (_) {}
-                        queueSave("ollama_model", newVal);
-                    }
-                }
-            });
-
-            // 1c. Quick Check Ollama Status Button
-            sm.addSetting({
-                id: "ModusFlow.OllamaCheckStatus",
-                category: ["ModusFlow", "Local Ollama"],
-                name: "ModusFlow: Check Ollama Status",
-                type: () => {
-                    const wrap = document.createElement("div");
-                    wrap.style.cssText = "display: flex; align-items: center; gap: 10px;";
-
-                    const btn = document.createElement("button");
-                    btn.type = "button";
-                    btn.textContent = "🔍 Check Status / Refresh";
-                    btn.style.cssText = "background: #1e1e2e; color: #89b4fa; border: 1px solid #45475a; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s ease;";
-
-                    const statusSpan = document.createElement("span");
-                    statusSpan.style.cssText = "font-size: 12px; color: #a6adc8;";
-                    statusSpan.textContent = ollamaOnline ? `🟢 Online (${ollamaModels.length} models detected)` : "⚪ Click to test connection";
-
-                    btn.onmouseenter = () => { btn.style.background = "#313244"; btn.style.borderColor = "#89b4fa"; };
-                    btn.onmouseleave = () => { btn.style.background = "#1e1e2e"; btn.style.borderColor = "#45475a"; };
-
-                    btn.onclick = async () => {
-                        btn.textContent = "⏳ Testing...";
-                        const data = await refreshOllamaStatus();
-                        btn.textContent = "🔍 Check Status / Refresh";
-
-                        if (data && data.available) {
-                            statusSpan.textContent = `🟢 Online (${data.models.length} models detected)`;
-                            statusSpan.style.color = "#a6e3a1";
-                            alert(`🟢 Ollama is Online!\n\nConnected to: ${data.url}\n\nAvailable Models (${data.models.length}):\n• ${data.models.join("\n• ")}`);
-                        } else {
-                            statusSpan.textContent = `🔴 Offline`;
-                            statusSpan.style.color = "#f38ba8";
-                            alert(`🔴 Ollama is Offline\n\nTried URL: ${data?.tested_url || 'configured URL'}\nError: ${data?.error || 'Connection failed'}\n\nPlease check your Ollama URL in settings and ensure 'ollama serve' is running.`);
-                        }
-                    };
-
-                    wrap.appendChild(btn);
-                    wrap.appendChild(statusSpan);
-                    return wrap;
-                },
-                defaultValue: null,
-                tooltip: "Click to immediately test connection to Ollama and refresh available models",
-                sortOrder: 44
-            });
-
-            // 2. Ollama Request Timeout
-            sm.addSetting({
-                id: "ModusFlow.OllamaTimeout",
-                category: ["ModusFlow", "Local Ollama"],
-                name: "ModusFlow: Ollama Timeout (seconds)",
-                type: "number",
-                defaultValue: serverConfig.ollama_timeout || 120,
-                tooltip: "Timeout in seconds for Ollama requests (default: 120)",
-                sortOrder: 40,
-                onChange: (newVal, oldVal) => {
-                    if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
-                        queueSave("ollama_timeout", Number(newVal) || 120);
-                    }
-                }
-            });
-
-            // 3. Ollama Cloud URL
-            sm.addSetting({
-                id: "ModusFlow.OllamaCloudURL",
-                category: ["ModusFlow", "Ollama Cloud"],
-                name: "ModusFlow: Ollama Cloud URL",
-                type: "text",
-                defaultValue: serverConfig.ollama_cloud_url || "",
-                tooltip: "Endpoint for remote/cloud Ollama server (e.g. https://ollama.yourdomain.com)",
-                sortOrder: 35,
-                onChange: (newVal, oldVal) => {
-                    if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
-                        queueSave("ollama_cloud_url", newVal);
-                    }
-                }
-            });
-
-            // 4. Ollama Cloud API Key / Token
-            sm.addSetting({
-                id: "ModusFlow.OllamaCloudKey",
-                category: ["ModusFlow", "Ollama Cloud"],
-                name: "ModusFlow: Ollama Cloud API Key / Token",
-                type: "text",
-                defaultValue: serverConfig.ollama_cloud_api_key || "",
-                tooltip: "Bearer token or API key for remote/cloud Ollama instance",
-                sortOrder: 34,
-                onChange: (newVal, oldVal) => {
-                    if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
-                        queueSave("ollama_cloud_api_key", newVal);
-                    }
-                }
-            });
-
-            // 5. Cloud LLM API URL (OpenAI / OpenRouter / Groq / DeepSeek)
-            sm.addSetting({
-                id: "ModusFlow.CloudAPIURL",
-                category: ["ModusFlow", "Cloud LLMs"],
-                name: "ModusFlow: Cloud LLM Base URL",
-                type: "text",
-                defaultValue: serverConfig.cloud_api_url || "https://openrouter.ai/api/v1",
-                tooltip: "OpenAI-compatible chat completions base URL (default: https://openrouter.ai/api/v1)",
-                sortOrder: 30,
-                onChange: (newVal, oldVal) => {
-                    if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
-                        queueSave("cloud_api_url", newVal);
-                    }
-                }
-            });
-
-            // 6. Cloud LLM API Key
-            sm.addSetting({
-                id: "ModusFlow.CloudAPIKey",
-                category: ["ModusFlow", "Cloud LLMs"],
-                name: "ModusFlow: Cloud LLM API Key",
-                type: "text",
-                defaultValue: serverConfig.cloud_api_key || "",
-                tooltip: "API key for OpenAI, OpenRouter, Groq, or DeepSeek cloud models",
-                sortOrder: 29,
-                onChange: (newVal, oldVal) => {
-                    if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
-                        queueSave("cloud_api_key", newVal);
-                    }
-                }
-            });
-
-            // 7. Default Cloud Model
-            sm.addSetting({
-                id: "ModusFlow.CloudModel",
-                category: ["ModusFlow", "Cloud LLMs"],
-                name: "ModusFlow: Default Cloud Model",
-                type: "text",
-                defaultValue: serverConfig.cloud_model || "deepseek/deepseek-chat",
-                tooltip: "Default cloud model ID (e.g. deepseek/deepseek-chat, anthropic/claude-3.5-sonnet, openai/gpt-4o-mini)",
-                sortOrder: 28,
-                onChange: (newVal, oldVal) => {
-                    if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
-                        queueSave("cloud_model", newVal);
-                    }
-                }
-            });
-
-            // 8. Civitai API Key
-            sm.addSetting({
-                id: "ModusFlow.CivitaiKey",
-                category: ["ModusFlow", "Civitai"],
-                name: "ModusFlow: Civitai API Key",
-                type: "text",
-                defaultValue: serverConfig.civitai_api_key || "",
-                tooltip: "API key for fetching Civitai LoRA preview images and metadata",
-                sortOrder: 20,
-                onChange: (newVal, oldVal) => {
-                    if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
-                        queueSave("civitai_api_key", newVal);
-                    }
-                }
-            });
-
-            // 9. Prompts Save Directory Override
-            sm.addSetting({
-                id: "ModusFlow.PromptsSaveDirectory",
-                category: ["ModusFlow", "Storage"],
-                name: "ModusFlow: Prompts Directory Override",
-                type: "text",
-                defaultValue: serverConfig.prompts_save_directory || "",
-                tooltip: "Custom directory to save prompt JSON files. Leave empty for default: BASE_DIR/saved_prompts",
-                sortOrder: 10,
-                onChange: (newVal, oldVal) => {
-                    if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
-                        queueSave("prompts_save_directory", newVal);
-                    }
-                }
-            });
+            }
+            return true;
         };
 
-        tryRegisterSettings();
+        if (!registerAllInManager()) {
+            let attempts = 0;
+            const timer = setInterval(() => {
+                if (registerAllInManager() || ++attempts > 20) {
+                    clearInterval(timer);
+                }
+            }, 250);
+        }
     }
 });

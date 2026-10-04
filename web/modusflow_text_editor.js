@@ -2691,6 +2691,7 @@ async function executeSelectionRefinement(action, selected, start, end, ta, widg
         }
 
         pushPromptHistory(node, `Pre-Refine (${actionLabel}): ${selected}`);
+        node._pushPopoutHistory?.();
         ta.setRangeText(replacement, start, end, "select");
         if (widget) {
             widget.value = ta.value;
@@ -2698,6 +2699,7 @@ async function executeSelectionRefinement(action, selected, start, end, ta, widg
             widget._updateSyntaxHighlight?.();
         }
         pushPromptHistory(node, `Refined (${actionLabel}): ${selected}`);
+        node._pushPopoutHistory?.();
         showStudioToast(`✓ Refined [${actionLabel}] with ${res.model || model}!`);
         if (typeof onInputCallback === "function") {
             onInputCallback();
@@ -2746,6 +2748,7 @@ function showSynonymsPickerModal(selected, options, start, end, ta, widget, node
 
     const replaceText = (replacement, desc) => {
         pushPromptHistory(node, `Pre-Alternative: ${selected}`);
+        node._pushPopoutHistory?.();
         ta.setRangeText(replacement, start, end, "select");
         if (widget) {
             widget.value = ta.value;
@@ -2753,6 +2756,7 @@ function showSynonymsPickerModal(selected, options, start, end, ta, widget, node
             widget._updateSyntaxHighlight?.();
         }
         pushPromptHistory(node, `${desc}: ${replacement}`);
+        node._pushPopoutHistory?.();
         showStudioToast(`Applied: ${replacement}`);
         overlay.remove();
         if (typeof onInputCallback === "function") onInputCallback();
@@ -7271,6 +7275,9 @@ app.registerExtension({
                 toolbar.appendChild(fontSel);
                 toolbar.appendChild(sizeGroup);
 
+                const undoBtn = addToolBtn("↩ Undo", "Undo last prompt change (Ctrl+Z)", () => doPopoutUndo());
+                const redoBtn = addToolBtn("↪ Redo", "Redo last prompt change (Ctrl+Y / Ctrl+Shift+Z)", () => doPopoutRedo());
+
                 const tagStudioBtn = addToolBtn("🏷 Tag Studio", "Toggle Tag Matrix / Chip Flow", () => togglePopoutTagStudio());
                 addToolBtn("🎞 Aesthetic", "Visual Aesthetic Ribbon (Optics, Films, Rigs)", () => showAestheticRibbonModal(node));
                 addToolBtn("✍️ Prosify", "Format into fluent natural prose (Flux/SD3)", () => {
@@ -7586,16 +7593,143 @@ app.registerExtension({
                     app.graph?.setDirtyCanvas(true, true);
                 }
 
-                posTa.addEventListener("input", onPosInput);
+                // ── Popout Studio Undo / Redo History Stack ──
+                const MAX_POPOUT_UNDO = 60;
+                let popoutUndoStack = [];
+                let popoutRedoStack = [];
+                let isApplyingPopoutHistory = false;
+
+                function getPopoutState() {
+                    return {
+                        pos: posTa ? posTa.value : "",
+                        neg: negTa ? negTa.value : "",
+                        posStart: posTa ? posTa.selectionStart : 0,
+                        posEnd: posTa ? posTa.selectionEnd : 0,
+                        negStart: negTa ? negTa.selectionStart : 0,
+                        negEnd: negTa ? negTa.selectionEnd : 0
+                    };
+                }
+
+                function updateUndoRedoButtons() {
+                    if (undoBtn) {
+                        undoBtn.disabled = popoutUndoStack.length <= 1;
+                        undoBtn.style.opacity = popoutUndoStack.length <= 1 ? "0.4" : "1";
+                    }
+                    if (redoBtn) {
+                        redoBtn.disabled = popoutRedoStack.length === 0;
+                        redoBtn.style.opacity = popoutRedoStack.length === 0 ? "0.4" : "1";
+                    }
+                }
+
+                function pushPopoutHistory() {
+                    if (isApplyingPopoutHistory) return;
+                    const current = getPopoutState();
+                    if (popoutUndoStack.length > 0) {
+                        const top = popoutUndoStack[popoutUndoStack.length - 1];
+                        if (top.pos === current.pos && top.neg === current.neg) return;
+                    }
+                    popoutUndoStack.push(current);
+                    if (popoutUndoStack.length > MAX_POPOUT_UNDO) {
+                        popoutUndoStack.shift();
+                    }
+                    popoutRedoStack = [];
+                    updateUndoRedoButtons();
+                }
+
+                function doPopoutUndo() {
+                    if (popoutUndoStack.length <= 1) return;
+                    const currentState = popoutUndoStack.pop();
+                    popoutRedoStack.push(currentState);
+                    const targetState = popoutUndoStack[popoutUndoStack.length - 1];
+
+                    isApplyingPopoutHistory = true;
+                    if (posTa) {
+                        posTa.value = targetState.pos;
+                        posTa.setSelectionRange(targetState.posStart, targetState.posEnd);
+                    }
+                    if (negTa) {
+                        negTa.value = targetState.neg;
+                        negTa.setSelectionRange(targetState.negStart, targetState.negEnd);
+                    }
+                    onPosInput();
+                    onNegInput();
+                    isApplyingPopoutHistory = false;
+                    updateUndoRedoButtons();
+                    showStudioToast("↩ Undone");
+                }
+
+                function doPopoutRedo() {
+                    if (popoutRedoStack.length === 0) return;
+                    const nextState = popoutRedoStack.pop();
+                    popoutUndoStack.push(nextState);
+
+                    isApplyingPopoutHistory = true;
+                    if (posTa) {
+                        posTa.value = nextState.pos;
+                        posTa.setSelectionRange(nextState.posStart, nextState.posEnd);
+                    }
+                    if (negTa) {
+                        negTa.value = nextState.neg;
+                        negTa.setSelectionRange(nextState.negStart, nextState.negEnd);
+                    }
+                    onPosInput();
+                    onNegInput();
+                    isApplyingPopoutHistory = false;
+                    updateUndoRedoButtons();
+                    showStudioToast("↪ Redone");
+                }
+
+                node._pushPopoutHistory = pushPopoutHistory;
+
+                let popoutTypeDebounce = null;
+                const onTypeWithHistory = () => {
+                    clearTimeout(popoutTypeDebounce);
+                    popoutTypeDebounce = setTimeout(pushPopoutHistory, 320);
+                };
+
+                posTa.addEventListener("input", () => {
+                    onPosInput();
+                    onTypeWithHistory();
+                });
                 posTa.addEventListener("scroll", () => {
                     posBackdrop.scrollTop = posTa.scrollTop;
                     posBackdrop.scrollLeft = posTa.scrollLeft;
                 });
 
-                negTa.addEventListener("input", onNegInput);
+                negTa.addEventListener("input", () => {
+                    onNegInput();
+                    onTypeWithHistory();
+                });
                 negTa.addEventListener("scroll", () => {
                     negBackdrop.scrollTop = negTa.scrollTop;
                     negBackdrop.scrollLeft = negTa.scrollLeft;
+                });
+
+                const handleUndoRedoShortcuts = (e) => {
+                    const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+                    const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+                    if (ctrlOrCmd && !e.altKey) {
+                        const key = e.key.toLowerCase();
+                        if (key === "z" && !e.shiftKey) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            doPopoutUndo();
+                            return true;
+                        } else if (key === "y" || (key === "z" && e.shiftKey)) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            doPopoutRedo();
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+
+                posTa.addEventListener("keydown", (e) => {
+                    handleUndoRedoShortcuts(e);
+                });
+                negTa.addEventListener("keydown", (e) => {
+                    handleUndoRedoShortcuts(e);
                 });
 
                 attachOllamaSelectionContextMenu(posTa, pw, node, onPosInput);
@@ -7632,6 +7766,7 @@ app.registerExtension({
                 node._popoutSyncFromNode = syncFromNode;
 
                 win.addEventListener("keydown", (e) => {
+                    if (handleUndoRedoShortcuts(e)) return;
                     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                         e.preventDefault();
                         queueBtn.click();
@@ -7762,6 +7897,7 @@ app.registerExtension({
                 updatePopoutBackdrops();
                 onPosInput();
                 onNegInput();
+                pushPopoutHistory();
                 posTa.focus();
                 showStudioToast("Prompt Studio popped out! (Drag header to move, 🚀 Queue to run)");
             }
