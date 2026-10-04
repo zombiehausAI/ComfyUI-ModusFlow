@@ -1117,7 +1117,7 @@ function tokenizeAndHighlight(text, theme) {
 
     // 13. Rainbow & Matching Parentheses + Unclosed Warning
     const RAINBOW_PAREN_COLORS = ["#38bdf8", "#c084fc", "#f472b6", "#34d399", "#fbbf24", "#a78bfa"];
-    const isExcluded = (pos) => intervals.some(iv => pos >= iv.start && pos < iv.end && iv.type === "comment");
+    const isExcluded = (pos) => intervals.some(iv => pos >= iv.start && pos < iv.end);
     const pStack = [];
 
     for (let i = 0; i < text.length; i++) {
@@ -1129,9 +1129,11 @@ function tokenizeAndHighlight(text, theme) {
             if (pStack.length > 0) {
                 const open = pStack.pop();
                 const color = RAINBOW_PAREN_COLORS[open.depth % RAINBOW_PAREN_COLORS.length];
-                intervals.push({ start: open.index, end: open.index + 1, type: "rainbow_paren", color });
-                intervals.push({ start: i, end: i + 1, type: "rainbow_paren", color });
-            } else {
+                if (!isExcluded(open.index) && !isExcluded(i)) {
+                    intervals.push({ start: open.index, end: open.index + 1, type: "rainbow_paren", color });
+                    intervals.push({ start: i, end: i + 1, type: "rainbow_paren", color });
+                }
+            } else if (!isExcluded(i)) {
                 intervals.push({ start: i, end: i + 1, type: "unmatched_paren" });
             }
         }
@@ -1139,15 +1141,24 @@ function tokenizeAndHighlight(text, theme) {
 
     while (pStack.length > 0) {
         const unclosed = pStack.pop();
-        intervals.push({ start: unclosed.index, end: unclosed.index + 1, type: "unclosed_paren" });
+        if (!isExcluded(unclosed.index)) {
+            intervals.push({ start: unclosed.index, end: unclosed.index + 1, type: "unclosed_paren" });
+        }
     }
 
-    intervals.sort((a, b) => a.start - b.start);
+    intervals.sort((a, b) => {
+        if (a.start !== b.start) return a.start - b.start;
+        return (b.end - b.start) - (a.end - a.start);
+    });
 
     let html = "";
     let cursor = 0;
 
     for (const iv of intervals) {
+        if (iv.start < cursor) {
+            // Overlapping interval safety: skip completely so cursor never regresses and text is never duplicated
+            continue;
+        }
         if (iv.start > cursor) {
             html += escapeHtml(text.slice(cursor, iv.start));
         }
@@ -1355,6 +1366,7 @@ function attachSyntaxHighlighter(widget, node) {
             const heavyWeights = [];
             const weightMatches = (ta.value || "").matchAll(/\([^():\r\n]+:\s*([0-9.]+)\)/g);
             for (const m of weightMatches) {
+                if (/^\(\s*\d+\s*:\s*\d+\s*\)$/.test(m[0])) continue;
                 const val = parseFloat(m[1]);
                 if (!isNaN(val) && val > 1.6) {
                     heavyWeights.push(m[0]);

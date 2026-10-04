@@ -606,6 +606,9 @@ export class ModusFlowStudioPanel {
         .syntax-backdrop {
             position: absolute;
             inset: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
             padding: 10px;
             font-family: "JetBrains Mono", Consolas, monospace;
             font-size: 13px;
@@ -620,6 +623,7 @@ export class ModusFlowStudioPanel {
             z-index: 1;
             scrollbar-width: none;
             box-sizing: border-box;
+            background: transparent !important;
         }
         .syntax-backdrop::-webkit-scrollbar { display: none; }
 
@@ -628,6 +632,7 @@ export class ModusFlowStudioPanel {
             inset: 0;
             width: 100%;
             height: 100%;
+            margin: 0;
             padding: 10px;
             font-family: "JetBrains Mono", Consolas, monospace;
             font-size: 13px;
@@ -635,6 +640,7 @@ export class ModusFlowStudioPanel {
             white-space: pre-wrap;
             word-wrap: break-word;
             background: transparent !important;
+            background-color: transparent !important;
             color: transparent !important;
             -webkit-text-fill-color: transparent !important;
             caret-color: var(--accent-cyan) !important;
@@ -645,6 +651,8 @@ export class ModusFlowStudioPanel {
             overflow-x: hidden;
             z-index: 2;
             box-sizing: border-box;
+            -webkit-appearance: none;
+            appearance: none;
         }
         textarea.plain-mode {
             color: var(--text-main) !important;
@@ -1132,7 +1140,9 @@ export class ModusFlowStudioPanel {
                 for (const iv of intervals) {
                     if (iv.start < cursor) continue;
                     if (iv.start > cursor) {
-                        html += escapeHtml(text.slice(cursor, iv.start));
+                        const plain = escapeHtml(text.slice(cursor, iv.start));
+                        const plainColor = theme.plain_text || "#cdd6f4";
+                        html += '<span style="color: ' + plainColor + ';">' + plain + '</span>';
                     }
                     const tokenText = escapeHtml(text.slice(iv.start, iv.end));
 
@@ -1151,7 +1161,9 @@ export class ModusFlowStudioPanel {
                 }
 
                 if (cursor < text.length) {
-                    html += escapeHtml(text.slice(cursor));
+                    const plain = escapeHtml(text.slice(cursor));
+                    const plainColor = theme.plain_text || "#cdd6f4";
+                    html += '<span style="color: ' + plainColor + ';">' + plain + '</span>';
                 }
                 if (text.endsWith("\n")) {
                     html += "<br>&nbsp;";
@@ -1161,31 +1173,41 @@ export class ModusFlowStudioPanel {
                 console.warn("Syntax highlight error:", err);
                 let esc = escapeHtml(text);
                 if (text.endsWith("\n")) esc += "<br>&nbsp;";
-                return esc;
+                const plainColor = (theme && theme.plain_text) || "#cdd6f4";
+                return '<span style="color: ' + plainColor + ';">' + esc + '</span>';
             }
         }
 
         function renderAllSyntax() {
-            const themeName = themeSelect ? themeSelect.value : "Modus Neon (Default)";
-            const isOff = themeName === "Off";
-            posArea.classList.toggle("plain-mode", isOff);
-            negArea.classList.toggle("plain-mode", isOff);
-            lyricsArea.classList.toggle("plain-mode", isOff);
-            songAddStyleArea.classList.toggle("plain-mode", isOff);
-            songNegStyleArea.classList.toggle("plain-mode", isOff);
+            try {
+                const themeName = themeSelect ? themeSelect.value : "Modus Neon (Default)";
+                const isOff = themeName === "Off";
+                posArea.classList.toggle("plain-mode", isOff);
+                negArea.classList.toggle("plain-mode", isOff);
+                lyricsArea.classList.toggle("plain-mode", isOff);
+                songAddStyleArea.classList.toggle("plain-mode", isOff);
+                songNegStyleArea.classList.toggle("plain-mode", isOff);
 
-            if (currentMode === "songwriter") {
-                lyricsBackdrop.innerHTML = tokenizeToHtml(lyricsArea.value, themeName);
-                songAddStyleBackdrop.innerHTML = tokenizeToHtml(songAddStyleArea.value, themeName);
-                songNegStyleBackdrop.innerHTML = tokenizeToHtml(songNegStyleArea.value, themeName);
-                syncScroll(lyricsArea, lyricsBackdrop);
-                syncScroll(songAddStyleArea, songAddStyleBackdrop);
-                syncScroll(songNegStyleArea, songNegStyleBackdrop);
-            } else {
-                posBackdrop.innerHTML = tokenizeToHtml(posArea.value, themeName);
-                negBackdrop.innerHTML = tokenizeToHtml(negArea.value, themeName);
-                syncScroll(posArea, posBackdrop);
-                syncScroll(negArea, negBackdrop);
+                if (currentMode === "songwriter") {
+                    lyricsBackdrop.innerHTML = tokenizeToHtml(lyricsArea.value, themeName);
+                    songAddStyleBackdrop.innerHTML = tokenizeToHtml(songAddStyleArea.value, themeName);
+                    songNegStyleBackdrop.innerHTML = tokenizeToHtml(songNegStyleArea.value, themeName);
+                    syncScroll(lyricsArea, lyricsBackdrop);
+                    syncScroll(songAddStyleArea, songAddStyleBackdrop);
+                    syncScroll(songNegStyleArea, songNegStyleBackdrop);
+                } else {
+                    posBackdrop.innerHTML = tokenizeToHtml(posArea.value, themeName);
+                    negBackdrop.innerHTML = tokenizeToHtml(negArea.value, themeName);
+                    syncScroll(posArea, posBackdrop);
+                    syncScroll(negArea, negBackdrop);
+                }
+            } catch (err) {
+                console.error("renderAllSyntax error:", err);
+                posArea.classList.add("plain-mode");
+                negArea.classList.add("plain-mode");
+                lyricsArea.classList.add("plain-mode");
+                songAddStyleArea.classList.add("plain-mode");
+                songNegStyleArea.classList.add("plain-mode");
             }
         }
 
@@ -1204,6 +1226,7 @@ export class ModusFlowStudioPanel {
         // Populate Aesthetic Ribbon
         function populateSelect(elemId, items) {
             const el = document.getElementById(elemId);
+            if (!el || !items) return;
             items.forEach(item => {
                 const opt = document.createElement("option");
                 opt.value = item.tag;
@@ -1221,24 +1244,30 @@ export class ModusFlowStudioPanel {
                 }
             });
         }
-        populateSelect("filmStockSelect", ribbonData.filmStocks);
-        populateSelect("opticsSelect", ribbonData.optics);
-        populateSelect("lightingSelect", ribbonData.lighting);
-        populateSelect("cameraSelect", ribbonData.cameras);
+        if (ribbonData) {
+            populateSelect("filmStockSelect", ribbonData.filmStocks);
+            populateSelect("opticsSelect", ribbonData.optics);
+            populateSelect("lightingSelect", ribbonData.lighting);
+            populateSelect("cameraSelect", ribbonData.cameras);
+        }
 
         // Negative Pedals
         document.querySelectorAll(".pedal-btn[data-pedal]").forEach(btn => {
             btn.addEventListener("click", () => {
                 const pType = btn.getAttribute("data-pedal");
-                const pTags = pedalsData[pType]?.tags || [];
+                const pedal = pedalsData ? pedalsData[pType] : null;
+                if (!pedal) return;
+                const isExpr = styleSelect && styleSelect.value === "expressions";
+                const snippet = (isExpr ? pedal.expressions : pedal.tags) || "";
+                const alt = (isExpr ? pedal.tags : pedal.expressions) || "";
                 let neg = negArea.value;
-                const hasAll = pTags.length && pTags.every(t => neg.includes(t));
-                if (hasAll) {
-                    pTags.forEach(t => { neg = neg.replace(t, ""); });
-                    neg = neg.replace(/,\\s*,/g, ",").replace(/^\\s*,|\\s*,$/g, "").trim();
+                const has = (snippet && neg.includes(snippet)) || (alt && neg.includes(alt));
+                if (has) {
+                    if (snippet) neg = neg.replace(snippet, "");
+                    if (alt) neg = neg.replace(alt, "");
+                    neg = neg.replace(/,\s*,/g, ",").replace(/^\s*,|\s*,$/g, "").trim();
                 } else {
-                    const cleanTags = pTags.filter(t => !neg.includes(t)).join(", ");
-                    neg = neg.trim() ? neg.trim() + ", " + cleanTags : cleanTags;
+                    neg = neg.trim() ? neg.trim() + ", " + snippet : snippet;
                 }
                 negArea.value = neg;
                 notifyContent();
@@ -1248,30 +1277,36 @@ export class ModusFlowStudioPanel {
         });
 
         function updateUI() {
-            if (currentMode === "songwriter") {
-                const lText = lyricsArea.value;
-                const words = (lText.trim().match(/\\S+/g) || []).length;
-                const lines = lText.split("\\n").filter(l => l.trim().length > 0).length;
-                const totalSec = Math.round((words / 130) * 60);
-                const mins = Math.floor(totalSec / 60);
-                const secs = totalSec % 60;
-                lyricsStats.textContent = lines + " lines · " + words + " words · ~" + mins + ":" + (secs < 10 ? "0" : "") + secs;
-                document.getElementById("totalTokenBadge").textContent = words + " lyrics words";
-            } else {
-                const pText = posArea.value;
-                const nText = negArea.value;
-                const pWords = (pText.trim().match(/\\S+/g) || []).length;
-                const nWords = (nText.trim().match(/\\S+/g) || []).length;
-                posStats.textContent = pWords + "w";
-                negStats.textContent = nWords + "w";
-                document.getElementById("totalTokenBadge").textContent = (pWords + nWords) + " total words";
+            try {
+                if (currentMode === "songwriter") {
+                    const lText = lyricsArea.value;
+                    const words = (lText.trim().match(/\S+/g) || []).length;
+                    const lines = lText.split("\n").filter(l => l.trim().length > 0).length;
+                    const totalSec = Math.round((words / 130) * 60);
+                    const mins = Math.floor(totalSec / 60);
+                    const secs = totalSec % 60;
+                    lyricsStats.textContent = lines + " lines · " + words + " words · ~" + mins + ":" + (secs < 10 ? "0" : "") + secs;
+                    document.getElementById("totalTokenBadge").textContent = words + " lyrics words";
+                } else {
+                    const pText = posArea.value;
+                    const nText = negArea.value;
+                    const pWords = (pText.trim().match(/\S+/g) || []).length;
+                    const nWords = (nText.trim().match(/\S+/g) || []).length;
+                    posStats.textContent = pWords + "w";
+                    negStats.textContent = nWords + "w";
+                    document.getElementById("totalTokenBadge").textContent = (pWords + nWords) + " total words";
 
-                document.querySelectorAll(".pedal-btn[data-pedal]").forEach(btn => {
-                    const pType = btn.getAttribute("data-pedal");
-                    const pTags = pedalsData[pType]?.tags || [];
-                    const active = pTags.length && pTags.every(t => nText.includes(t));
-                    btn.classList.toggle("active", !!active);
-                });
+                    document.querySelectorAll(".pedal-btn[data-pedal]").forEach(btn => {
+                        const pType = btn.getAttribute("data-pedal");
+                        const pedal = pedalsData ? pedalsData[pType] : null;
+                        if (!pedal) return;
+                        const active = (pedal.tags && nText.includes(pedal.tags)) ||
+                                       (pedal.expressions && nText.includes(pedal.expressions));
+                        btn.classList.toggle("active", !!active);
+                    });
+                }
+            } catch (err) {
+                console.error("updateUI error:", err);
             }
             renderAllSyntax();
         }
