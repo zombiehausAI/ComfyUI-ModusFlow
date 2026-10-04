@@ -67,6 +67,31 @@ app.registerExtension({
             saveTimeout = setTimeout(commitChanges, 400);
         };
 
+        // Fetch current Ollama status and models for the dropdown
+        let ollamaModels = [];
+        let ollamaOnline = false;
+        let ollamaTestedUrl = "";
+
+        const refreshOllamaStatus = async () => {
+            try {
+                const resp = await api.fetchApi("/modusflow/ollama_status");
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data.success && data.available && Array.isArray(data.models)) {
+                        ollamaModels = data.models;
+                        ollamaOnline = true;
+                        ollamaTestedUrl = data.url || "";
+                        return data;
+                    }
+                    ollamaTestedUrl = data.tested_url || "";
+                }
+            } catch (_) {}
+            ollamaOnline = false;
+            return { available: false, models: [], tested_url: ollamaTestedUrl };
+        };
+
+        await refreshOllamaStatus();
+
         // 1. Ollama Server URL (Local)
         app.ui.settings.addSetting({
             id: "ModusFlow.OllamaURL",
@@ -78,20 +103,74 @@ app.registerExtension({
             sortOrder: 50,
             onChange: (newVal, oldVal) => {
                 if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
-                    queueSave("ollama_url", newVal);
+                    const clean = newVal.trim().replace(/(\d+\.\d+\.\d+\.\d+)\.(?=:|/|$)/, "$1");
+                    queueSave("ollama_url", clean);
+                    refreshOllamaStatus();
                 }
             }
         });
 
-        // 1b. Ollama Prompt Enhancement Model for Text Editor
+        // 1b. Ollama Prompt Enhancement Model for Text Editor (Dropdown)
         app.ui.settings.addSetting({
             id: "ModusFlow.OllamaEnhanceModel",
             category: ["ModusFlow", "Local Ollama", "OllamaEnhanceModel"],
             name: "ModusFlow: Text Editor Ollama Model",
-            type: "text",
-            defaultValue: "llama3.2",
-            tooltip: "Model name for Text Editor one-click AI prompt enhancement (e.g. llama3.2, mistral, qwen2.5)",
-            sortOrder: 45
+            type: "combo",
+            defaultValue: ollamaModels.length ? ollamaModels[0] : "s1gnature/deepseek-r1-uncensored:8b",
+            options: (val) => {
+                if (ollamaModels.length > 0) {
+                    return ollamaModels;
+                }
+                return val ? [val] : ["--no models found--"];
+            },
+            tooltip: "Dropdown of local Ollama models for Text Editor one-click AI prompt enhancement",
+            sortOrder: 46
+        });
+
+        // 1c. Quick Check Ollama Status Button
+        app.ui.settings.addSetting({
+            id: "ModusFlow.OllamaCheckStatus",
+            category: ["ModusFlow", "Local Ollama", "OllamaCheckStatus"],
+            name: "ModusFlow: Check Ollama Status",
+            type: (name, setter, value) => {
+                const wrap = document.createElement("div");
+                wrap.style.cssText = "display: flex; align-items: center; gap: 10px;";
+
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.textContent = "🔍 Check Status / Refresh";
+                btn.style.cssText = "background: #1e1e2e; color: #89b4fa; border: 1px solid #45475a; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s ease;";
+
+                const statusSpan = document.createElement("span");
+                statusSpan.style.cssText = "font-size: 12px; color: #a6adc8;";
+                statusSpan.textContent = ollamaOnline ? `🟢 Online (${ollamaModels.length} models detected)` : "⚪ Click to test connection";
+
+                btn.onmouseenter = () => { btn.style.background = "#313244"; btn.style.borderColor = "#89b4fa"; };
+                btn.onmouseleave = () => { btn.style.background = "#1e1e2e"; btn.style.borderColor = "#45475a"; };
+
+                btn.onclick = async () => {
+                    btn.textContent = "⏳ Testing...";
+                    const data = await refreshOllamaStatus();
+                    btn.textContent = "🔍 Check Status / Refresh";
+
+                    if (data && data.available) {
+                        statusSpan.textContent = `🟢 Online (${data.models.length} models detected)`;
+                        statusSpan.style.color = "#a6e3a1";
+                        alert(`🟢 Ollama is Online!\n\nConnected to: ${data.url}\n\nAvailable Models (${data.models.length}):\n• ${data.models.join("\n• ")}`);
+                    } else {
+                        statusSpan.textContent = `🔴 Offline`;
+                        statusSpan.style.color = "#f38ba8";
+                        alert(`🔴 Ollama is Offline\n\nTried URL: ${data?.tested_url || 'configured URL'}\nError: ${data?.error || 'Connection failed'}\n\nPlease check your Ollama URL in settings and ensure 'ollama serve' is running.`);
+                    }
+                };
+
+                wrap.appendChild(btn);
+                wrap.appendChild(statusSpan);
+                return wrap;
+            },
+            defaultValue: null,
+            tooltip: "Click to immediately test connection to Ollama and refresh available models",
+            sortOrder: 44
         });
 
         // 2. Ollama Request Timeout

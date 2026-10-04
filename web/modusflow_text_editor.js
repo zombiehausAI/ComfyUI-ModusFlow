@@ -1499,31 +1499,201 @@ function showResolvedPreviewModal(node) {
 let _ollamaCheckPromise = null;
 let _ollamaAvailable = false;
 let _ollamaModels = [];
+let _ollamaUrl = "";
+let _ollamaError = "";
+
+function updateOllamaButtonsOnGraph(available) {
+    if (!app.graph || !app.graph._nodes) return;
+    for (const n of app.graph._nodes) {
+        if (n.type === "ModusFlowTextEditor") {
+            const btn = n.widgets?.find(w => w.name && w.name.includes("Enhance with Ollama"));
+            if (btn) {
+                btn.name = available ? "✨ Enhance with Ollama" : "✨ Enhance with Ollama (Offline)";
+            }
+        }
+    }
+    app.graph?.setDirtyCanvas(true, true);
+}
 
 function checkOllamaStatus(force = false) {
     if (_ollamaCheckPromise && !force) return _ollamaCheckPromise;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2000);
-    _ollamaCheckPromise = fetch("/modusflow/ollama_status", { signal: controller.signal })
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const url = "/modusflow/ollama_status" + (force ? "?force=1" : "");
+    _ollamaCheckPromise = fetch(url, { signal: controller.signal })
         .then(r => r.json())
         .then(data => {
             clearTimeout(timer);
             if (data.success && data.available) {
                 _ollamaAvailable = true;
                 _ollamaModels = data.models || [];
+                _ollamaUrl = data.url || "";
+                _ollamaError = "";
             } else {
                 _ollamaAvailable = false;
-                _ollamaModels = [];
+                _ollamaModels = data.models || [];
+                _ollamaUrl = data.url || "";
+                _ollamaError = data.error || data.message || "Ollama server unreachable";
             }
-            return { available: _ollamaAvailable, models: _ollamaModels };
+            updateOllamaButtonsOnGraph(_ollamaAvailable);
+            return { available: _ollamaAvailable, models: _ollamaModels, url: _ollamaUrl, error: _ollamaError };
         })
-        .catch(() => {
+        .catch(err => {
             clearTimeout(timer);
             _ollamaAvailable = false;
             _ollamaModels = [];
-            return { available: false, models: [] };
+            _ollamaError = err.name === "AbortError" ? "Connection check timed out (5s)" : (err.message || "Failed to reach Ollama endpoint");
+            updateOllamaButtonsOnGraph(false);
+            return { available: false, models: [], url: _ollamaUrl, error: _ollamaError };
         });
     return _ollamaCheckPromise;
+}
+
+function showOllamaStatusModal(node, btn) {
+    const overlay = document.createElement("div");
+    overlay.className = "modusflow-modal-overlay";
+    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.78); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+
+    const dialog = document.createElement("div");
+    dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 22px; width: 540px; max-width: 92vw; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 20px 45px rgba(0,0,0,0.7); color: #cdd6f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;";
+
+    const header = document.createElement("div");
+    header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #313244; padding-bottom: 10px;";
+    header.innerHTML = '<h3 style="margin: 0; font-size: 16px; color: #89b4fa; display: flex; align-items: center; gap: 8px;">🤖 <span>Ollama Status &amp; Models</span></h3>';
+
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "✕";
+    closeBtn.style.cssText = "background: none; border: none; color: #6c7086; font-size: 18px; cursor: pointer; padding: 2px 6px; border-radius: 4px;";
+    closeBtn.onclick = () => overlay.remove();
+    header.appendChild(closeBtn);
+    dialog.appendChild(header);
+
+    const body = document.createElement("div");
+    body.style.cssText = "display: flex; flex-direction: column; gap: 14px;";
+
+    const statusBox = document.createElement("div");
+    statusBox.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px;";
+    body.appendChild(statusBox);
+
+    const modelRow = document.createElement("div");
+    modelRow.style.cssText = "display: flex; flex-direction: column; gap: 6px;";
+    const modelLabel = document.createElement("label");
+    modelLabel.style.cssText = "font-size: 12px; font-weight: 600; color: #a6adc8;";
+    modelLabel.textContent = "Enhancement Model:";
+    modelRow.appendChild(modelLabel);
+
+    const modelSelect = document.createElement("select");
+    modelSelect.style.cssText = "background: #1e1e2e; border: 1px solid #313244; border-radius: 6px; padding: 8px 10px; color: #cdd6f4; font-size: 13px; outline: none; cursor: pointer;";
+    modelRow.appendChild(modelSelect);
+    body.appendChild(modelRow);
+
+    const actionRow = document.createElement("div");
+    actionRow.style.cssText = "display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap;";
+
+    const testBtn = document.createElement("button");
+    testBtn.textContent = "🔍 Check Status / Refresh";
+    testBtn.style.cssText = "background: #313244; border: 1px solid #45475a; border-radius: 6px; padding: 7px 14px; color: #cdd6f4; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s ease;";
+    testBtn.onmouseenter = () => { testBtn.style.background = "#45475a"; };
+    testBtn.onmouseleave = () => { testBtn.style.background = "#313244"; };
+
+    const enhanceNowBtn = document.createElement("button");
+    enhanceNowBtn.textContent = "✨ Enhance Prompt Now";
+    enhanceNowBtn.style.cssText = "background: #89b4fa; border: none; border-radius: 6px; padding: 7px 16px; color: #11111b; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s ease;";
+    enhanceNowBtn.onmouseenter = () => { enhanceNowBtn.style.background = "#b4befe"; };
+    enhanceNowBtn.onmouseleave = () => { enhanceNowBtn.style.background = "#89b4fa"; };
+
+    actionRow.appendChild(testBtn);
+    actionRow.appendChild(enhanceNowBtn);
+    body.appendChild(actionRow);
+
+    dialog.appendChild(body);
+    overlay.appendChild(dialog);
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+    function updateView(st) {
+        const isOnline = !!st.available;
+        const urlStr = st.url || _ollamaUrl || "http://127.0.0.1:11434";
+        const models = st.models || [];
+
+        let currentSettingModel = app.ui?.settings?.getSettingValue?.("ModusFlow.OllamaEnhanceModel") || "";
+
+        statusBox.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 13px; font-weight: 600; color: #cdd6f4;">Status:</span>
+                <span style="font-size: 12px; font-weight: bold; padding: 2px 8px; border-radius: 4px; ${isOnline ? 'background: rgba(166, 227, 161, 0.2); color: #a6e3a1; border: 1px solid #a6e3a1;' : 'background: rgba(243, 139, 168, 0.2); color: #f38ba8; border: 1px solid #f38ba8;'}">
+                    ${isOnline ? '🟢 Online (' + models.length + ' model' + (models.length === 1 ? '' : 's') + ')' : '🔴 Offline'}
+                </span>
+            </div>
+            <div style="font-size: 12px; color: #a6adc8; display: flex; justify-content: space-between; align-items: center;">
+                <span>Endpoint:</span>
+                <code style="font-size: 11px; background: #181825; padding: 2px 6px; border-radius: 4px; color: #89b4fa;">${urlStr}</code>
+            </div>
+            ${!isOnline && st.error ? `
+            <div style="font-size: 11px; color: #f38ba8; background: rgba(243, 139, 168, 0.1); border: 1px solid rgba(243, 139, 168, 0.3); border-radius: 4px; padding: 6px 8px; margin-top: 4px; line-height: 1.4;">
+                <strong>Error:</strong> ${escapeHtml(st.error)}<br>
+                <span style="color: #a6adc8;">Tip: Run 'ollama serve' or check the Ollama URL in ModusFlow settings. If connecting across LAN, set OLLAMA_HOST=0.0.0.0 on the host PC.</span>
+            </div>` : ''}
+        `;
+
+        modelSelect.innerHTML = "";
+        if (models.length > 0) {
+            for (const m of models) {
+                const opt = document.createElement("option");
+                opt.value = m;
+                opt.textContent = m;
+                if (m === currentSettingModel) opt.selected = true;
+                modelSelect.appendChild(opt);
+            }
+            if (!currentSettingModel || !models.includes(currentSettingModel)) {
+                currentSettingModel = models[0];
+                app.ui?.settings?.setSettingValue?.("ModusFlow.OllamaEnhanceModel", currentSettingModel);
+            }
+            modelSelect.disabled = false;
+        } else {
+            const opt = document.createElement("option");
+            opt.value = "";
+            opt.textContent = isOnline ? "-- No models found --" : "-- Ollama Offline --";
+            modelSelect.appendChild(opt);
+            modelSelect.disabled = true;
+        }
+
+        enhanceNowBtn.disabled = !isOnline;
+        enhanceNowBtn.style.opacity = isOnline ? "1" : "0.5";
+        enhanceNowBtn.style.cursor = isOnline ? "pointer" : "not-allowed";
+    }
+
+    modelSelect.onchange = (e) => {
+        const val = e.target.value;
+        if (val) {
+            app.ui?.settings?.setSettingValue?.("ModusFlow.OllamaEnhanceModel", val);
+        }
+    };
+
+    testBtn.onclick = async () => {
+        testBtn.textContent = "⏳ Checking...";
+        testBtn.disabled = true;
+        try {
+            const st = await checkOllamaStatus(true);
+            updateView(st);
+        } finally {
+            testBtn.textContent = "🔍 Check Status / Refresh";
+            testBtn.disabled = false;
+        }
+    };
+
+    enhanceNowBtn.onclick = () => {
+        overlay.remove();
+        enhancePromptWithOllama(node, btn);
+    };
+
+    document.body.appendChild(overlay);
+
+    checkOllamaStatus(false).then(st => {
+        updateView(st);
+        if (!st.available) {
+            testBtn.click();
+        }
+    });
 }
 
 async function enhancePromptWithOllama(node, btn) {
@@ -1533,14 +1703,20 @@ async function enhancePromptWithOllama(node, btn) {
         return;
     }
 
-    const status = await checkOllamaStatus();
+    let status = await checkOllamaStatus(false);
     if (!status.available) {
-        alert("Ollama is not running or accessible.\n\nPlease start Ollama ('ollama serve') or verify your Ollama URL in ModusFlow settings.");
+        if (btn) btn.name = "⏳ Testing Ollama...";
+        app.graph?.setDirtyCanvas(true, true);
+        status = await checkOllamaStatus(true);
+    }
+
+    if (!status.available) {
+        showOllamaStatusModal(node, btn);
         return;
     }
 
     let model = app.ui?.settings?.getSettingValue?.("ModusFlow.OllamaEnhanceModel");
-    if (!model || !model.trim()) {
+    if (!model || !model.trim() || model === "-- none --") {
         model = status.models.length ? status.models[0] : "llama3.2";
     }
 
@@ -2383,7 +2559,14 @@ app.registerExtension({
                 negPresetWidget.label = "Negative Presets";
 
                 // ── Action buttons ────────────────────────────────────────────────
-                const enhanceBtn = node.addWidget("button", "✨ Enhance with Ollama", null, () => enhancePromptWithOllama(node, enhanceBtn));
+                const enhanceBtn = node.addWidget("button", "✨ Enhance with Ollama", null, () => {
+                    if (window.event?.shiftKey || window.event?.altKey || !_ollamaAvailable) {
+                        showOllamaStatusModal(node, enhanceBtn);
+                    } else {
+                        enhancePromptWithOllama(node, enhanceBtn);
+                    }
+                });
+                enhanceBtn.tooltip = "Enhance prompt with local Ollama LLM. Shift+Click or click when offline to check status & select model.";
                 node.addWidget("button", "⚡ Quick Chips",          null, () => showQuickChipsModal(node));
                 node.addWidget("button", "🔍 Prompt Diff",          null, () => showPromptDiffModal(node));
                 node.addWidget("button", "Save Prompt",             null, () => showSaveDialog(node));
@@ -2409,6 +2592,16 @@ app.registerExtension({
                 requestAnimationFrame(() => refreshPrompts(node));
 
                 return r;
+            };
+
+            // ── getExtraMenuOptions ───────────────────────────────────────────────
+            const origGetExtraMenuOptions = nodeType.prototype.getExtraMenuOptions;
+            nodeType.prototype.getExtraMenuOptions = function(canvas, options) {
+                if (origGetExtraMenuOptions) origGetExtraMenuOptions.apply(this, arguments);
+                options.push({
+                    content: "🤖 Ollama Status & Model Settings...",
+                    callback: () => showOllamaStatusModal(this, this.widgets?.find(w => w.name && w.name.includes("Enhance with Ollama")))
+                });
             };
 
             // ── onConfigure (workflow load / paste) ───────────────────────────────

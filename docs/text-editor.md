@@ -74,7 +74,7 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **Drag & Drop Image Metadata**: Drop any `.png` or `.webp` generated image onto the node (or directly into the text boxes) to instantly extract the positive prompt, negative prompt, and seed. Tailored specifically for `ModusFlowTextEditor`: when a workflow contains multiple text editor nodes, it intelligently traces the execution graph and canvas link topology to extract from **the node actively connected to downstream samplers, pipelines, and conditionings** rather than inactive or draft nodes. Also seamlessly falls back to standard ComfyUI CLIP/KSampler pairs and A1111/Forge `parameters`.
 
 ### Action Toolbar
-- **✨ Enhance with Ollama**: One-click local AI prompt expansion! Sends the current positive prompt to your local Ollama LLM to enrich lighting, atmosphere, and sensory details in-place. Configurable via `ModusFlow.OllamaEnhanceModel` in ComfyUI Settings, with non-blocking availability checks that never stall canvas loading.
+- **✨ Enhance with Ollama**: One-click local AI prompt expansion! Sends the current positive prompt to your local Ollama LLM to enrich lighting, atmosphere, and sensory details in-place. Features automatic model detection via a dynamic dropdown in ComfyUI Settings, live status diagnostics, and non-blocking availability checks that never stall canvas loading. Shift+Click or click when offline (or right-click $\rightarrow$ **🤖 Ollama Status & Model Settings...**) to inspect connection status, test endpoints, or switch models on the fly.
 - **⚡ Quick Chips**: Opens an interactive modal with curated visual tag chips organized into *Lighting & Atmosphere*, *Optics & Framing*, *Style & Aesthetics*, and *Mood & Color Palette*. Features a real-time filter search and one-click insertion at the cursor.
 - **🔍 Prompt Diff**: Visual side-by-side or token diff viewer comparing the active prompt against any recent history snapshot or disk save, clearly highlighting added and removed tags.
 - **💾 Save Prompt**: Prompts for a filename and optional category, then saves both texts as a `.json` file
@@ -83,6 +83,20 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **🧹 Prettify / Dedupe**: One-click cleanup to eliminate duplicate tags, collapse duplicate commas, and normalize tag spacing
 - **🔍 Preview Resolved**: Opens a live simulation modal showing exactly how dynamic prompts `{a|b}`, `{shuffle}`, and weight translation resolve with any seed
 - **🕒 Prompt History**: Browse and restore recent session snapshots from local storage
+
+## Ollama AI Integration & Status Diagnostics
+
+The Text Editor integrates directly with your local Ollama instance for instant prompt enhancement:
+
+### Settings Panel (`ComfyUI Settings -> ModusFlow`)
+1. **Ollama Server URL (`ModusFlow.OllamaURL`)**: Endpoint for your Ollama service (defaults to `http://127.0.0.1:11434` or custom LAN IP like `http://192.168.x.x:11434`). Automatically sanitizes whitespace, trailing slashes, and accidental trailing dots (e.g., `205.:11434`).
+2. **Enhancement Model Dropdown (`ModusFlow.OllamaEnhanceModel`)**: Automatically discovers installed models from your Ollama server (e.g. `deepseek-r1`, `dolphin-mistral`, `llama3.2`, `qwen2.5`, etc.) and presents them in a dropdown combo for easy selection.
+3. **Check Status / Connection Test (`ModusFlow.OllamaCheckStatus`)**: A dedicated **"🔍 Check Status / Refresh"** button that immediately probes the endpoint and displays a live badge: `🟢 Online (X models detected)` or `🔴 Offline`.
+
+### On-Node Status & Model Modal
+- **Clicking when Offline**: If Ollama was offline or recovering, clicking **✨ Enhance with Ollama (Offline)** runs an immediate live probe and, if still unreachable, opens the diagnostic modal with exact error details and troubleshooting tips.
+- **Shift+Click or Alt+Click**: Opens the **Ollama Status & Models** modal anytime from the node button.
+- **Right-Click Context Menu**: Right-click the `ModusFlowTextEditor` node and choose **🤖 Ollama Status & Model Settings...** to check connection status and switch active models directly on the canvas without opening settings.
 
 ## Live Syntax Highlighting & Themes
 
@@ -338,3 +352,8 @@ All comments remain preserved in your editor UI, in saved JSON files, and in wor
 - **File not found**: Ensure directory exists and has write permissions
 - **Not loading**: Click refresh or check dropdown for file
 - **Missing files**: Verify `.txt` files are in correct directory
+- **Ollama says "(Offline)" when it is running**:
+  1. Click the button or Shift+Click to open the **Ollama Status & Models** modal and click **Check Status / Refresh**.
+  2. Open ComfyUI Settings $\rightarrow$ ModusFlow and click **"🔍 Check Status / Refresh"** to view the live connection test.
+  3. Ensure the URL does not contain typos or accidental trailing characters (e.g. `192.168.x.x.:11434` is automatically cleaned up, but ensure the port is `11434`).
+  4. If Ollama is running on a different machine on your local network, ensure that machine has `OLLAMA_HOST=0.0.0.0` set so it listens for network connections, and verify your firewall allows port 11434.

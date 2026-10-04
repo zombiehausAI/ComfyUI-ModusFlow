@@ -55,13 +55,27 @@ import re
 from PIL import Image
 from PIL.PngImagePlugin import PngInfo
 
+def sanitize_ollama_url(url: str) -> str:
+    """Sanitizes Ollama URL: strips whitespace, trailing slashes, and fixes trailing dots in IP/host."""
+    if not url or not isinstance(url, str):
+        return "http://127.0.0.1:11434"
+    clean = url.strip().rstrip("/")
+    clean = re.sub(r'(\d+\.\d+\.\d+\.\d+)\.(?=:|/|$)', r'\1', clean)
+    clean = re.sub(r'([a-zA-Z0-9_-]+)\.(?=:)', r'\1', clean)
+    if not clean.startswith("http://") and not clean.startswith("https://"):
+        clean = f"http://{clean}"
+    return clean
+
 @server.PromptServer.instance.routes.get("/modusflow/refresh_ollama_models")
 async def refresh_ollama_models(request):
     """API endpoint to force a refresh of the Ollama models list."""
-    ollama_url = settings.get('ollama_url')
+    ollama_url = sanitize_ollama_url(settings.get('ollama_url'))
     try:
-        # Call the utility function directly with force_refresh=True
         models = get_ollama_models(ollama_url, force_refresh=True)
+        if models == ["ollama-not-running"] and "127.0.0.1" not in ollama_url:
+            fb_models = get_ollama_models("http://127.0.0.1:11434", force_refresh=True)
+            if fb_models != ["ollama-not-running"]:
+                models = fb_models
         return web.json_response({"success": True, "data": models})
     except Exception as e:
         msg = f"API Error refreshing Ollama models: {e}"
@@ -70,22 +84,40 @@ async def refresh_ollama_models(request):
 
 @server.PromptServer.instance.routes.get("/modusflow/ollama_status")
 async def ollama_status(request):
-    """Fast check to see if Ollama is accessible without stalling UI."""
-    ollama_url = settings.get('ollama_url', 'http://127.0.0.1:11434')
-    try:
-        response = requests.get(f"{ollama_url}/api/tags", timeout=1.5)
-        if response.status_code == 200:
-            data = response.json()
-            raw_models = data.get("models", [])
-            models = sorted([m["name"] for m in raw_models if "name" in m])
-            return web.json_response({
-                "success": True,
-                "available": True,
-                "models": models
-            })
-        return web.json_response({"success": True, "available": False, "models": []})
-    except Exception:
-        return web.json_response({"success": True, "available": False, "models": []})
+    """Check to see if Ollama is accessible with URL sanitization and fallback."""
+    raw_url = settings.get('ollama_url', 'http://127.0.0.1:11434')
+    ollama_url = sanitize_ollama_url(raw_url)
+    timeout_val = 3.5
+
+    urls_to_try = [ollama_url]
+    if "127.0.0.1" not in ollama_url and "localhost" not in ollama_url:
+        urls_to_try.append("http://127.0.0.1:11434")
+
+    last_error = None
+    for target_url in urls_to_try:
+        try:
+            response = requests.get(f"{target_url}/api/tags", timeout=timeout_val)
+            if response.status_code == 200:
+                data = response.json()
+                raw_models = data.get("models", [])
+                models = sorted([m["name"] for m in raw_models if "name" in m])
+                return web.json_response({
+                    "success": True,
+                    "available": True,
+                    "models": models,
+                    "url": target_url
+                })
+        except Exception as e:
+            last_error = str(e)
+            print(f"[ModusFlow Ollama Status] Connection to {target_url} failed: {e}")
+
+    return web.json_response({
+        "success": True,
+        "available": False,
+        "models": [],
+        "tested_url": ollama_url,
+        "error": last_error
+    })
 
 @server.PromptServer.instance.routes.post("/modusflow/enhance_prompt")
 async def enhance_prompt(request):
@@ -98,19 +130,22 @@ async def enhance_prompt(request):
         if not prompt_text:
             return web.json_response({"success": False, "message": "Prompt is empty"})
 
-        ollama_url = settings.get('ollama_url', 'http://127.0.0.1:11434')
+        ollama_url = sanitize_ollama_url(settings.get('ollama_url', 'http://127.0.0.1:11434'))
         timeout_val = settings.get('ollama_timeout', 60)
 
         # Fallback to first available model if none provided
         if not model:
-            try:
-                tags_resp = requests.get(f"{ollama_url}/api/tags", timeout=1.5)
-                if tags_resp.status_code == 200:
-                    models_list = tags_resp.json().get("models", [])
-                    if models_list:
-                        model = models_list[0].get("name", "")
-            except Exception:
-                pass
+            for test_url in [ollama_url, "http://127.0.0.1:11434"]:
+                try:
+                    tags_resp = requests.get(f"{test_url}/api/tags", timeout=3.0)
+                    if tags_resp.status_code == 200:
+                        models_list = tags_resp.json().get("models", [])
+                        if models_list:
+                            model = models_list[0].get("name", "")
+                            ollama_url = test_url
+                            break
+                except Exception:
+                    pass
 
         if not model:
             return web.json_response({"success": False, "message": "No Ollama model specified or available"})
