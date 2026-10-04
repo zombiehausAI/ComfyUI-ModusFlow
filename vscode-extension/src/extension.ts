@@ -3,7 +3,7 @@ import { ComfyClient } from "./comfyClient";
 import { ModusFlowColorProvider } from "./colorProvider";
 import { ModusFlowHoverProvider } from "./hoverProvider";
 import { ModusFlowCompletionProvider } from "./completionProvider";
-import { PromptsTreeProvider, WildcardsTreeProvider, ConnectedCanvasNodeProvider } from "./treeViews";
+import { PromptsTreeProvider, WildcardsTreeProvider, ConnectedCanvasNodeProvider, SongsTreeProvider } from "./treeViews";
 import { runOllamaRefinerAction } from "./ollamaRefiner";
 import { ModusFlowStudioPanel } from "./studioWebview";
 import { TokenCounterStatusBar } from "./tokenCounter";
@@ -225,6 +225,9 @@ export function activate(context: vscode.ExtensionContext) {
     const wildcardsProvider = new WildcardsTreeProvider(client);
     vscode.window.registerTreeDataProvider("modusflow.wildcardsView", wildcardsProvider);
 
+    const songsProvider = new SongsTreeProvider(client);
+    vscode.window.registerTreeDataProvider("modusflow.songsView", songsProvider);
+
     const activeNodeProvider = new ConnectedCanvasNodeProvider(client);
     vscode.window.registerTreeDataProvider("modusflow.activeNodeView", activeNodeProvider);
 
@@ -262,6 +265,7 @@ export function activate(context: vscode.ExtensionContext) {
             updateConnectionStatus();
             promptsProvider.refresh();
             wildcardsProvider.refresh();
+            songsProvider.refresh();
             activeNodeProvider.refresh();
         }),
 
@@ -269,8 +273,14 @@ export function activate(context: vscode.ExtensionContext) {
             fsProvider.clearCache();
             promptsProvider.refresh();
             wildcardsProvider.refresh();
+            songsProvider.refresh();
             activeNodeProvider.refresh();
             vscode.window.showInformationMessage("🔄 ModusFlow library & canvas node refreshed");
+        }),
+
+        vscode.commands.registerCommand("modusflow.refreshSongs", () => {
+            songsProvider.refresh();
+            vscode.window.showInformationMessage("🔄 ModusFlow song library refreshed");
         }),
 
         vscode.commands.registerCommand("modusflow.pushActivePrompt", async () => {
@@ -427,6 +437,25 @@ export function activate(context: vscode.ExtensionContext) {
                     negative: data.negative || ""
                 });
             }
+        }),
+
+        vscode.commands.registerCommand("modusflow.openSongFile", async (filename: string) => {
+            const song = await client.loadSong(filename);
+            if (song) {
+                ModusFlowStudioPanel.createOrShowSong(context.extensionUri, client, song);
+            } else {
+                vscode.window.showErrorMessage(`Could not load song file: ${filename}`);
+            }
+        }),
+
+        vscode.commands.registerCommand("modusflow.openSongwriterStudio", () => {
+            ModusFlowStudioPanel.createOrShowSong(context.extensionUri, client, {
+                filename: "New_Song.json",
+                title: "New Song",
+                genre: "Synthwave",
+                vocal_style: "Female lead, expressive",
+                mood: "Atmospheric, energetic"
+            });
         }),
 
         // ── Native Editor Prompt Tools & Keybindings ──
