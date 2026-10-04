@@ -340,7 +340,7 @@ function buildModusFlowSettingsList(serverConfig = {}) {
             sortOrder: 50,
             onChange: (newVal, oldVal) => {
                 if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
-                    const clean = newVal.trim().replace(/(\d+\.\d+\.\d+\.\d+)\.(?=:|/|$)/, "$1");
+                    const clean = newVal.trim().replace(/(\d+\.\d+\.\d+\.\d+)\.(?=:|\/|$)/, "$1");
                     queueSave("ollama_url", clean);
                     refreshOllamaStatusBackground();
                 }
@@ -495,6 +495,16 @@ app.registerExtension({
 
     // Export settings definitions directly so ComfyUI modern Vue frontend picks them up
     settings: buildModusFlowSettingsList(),
+
+    init(app) {
+        // Register synchronously during init for maximum compatibility across ComfyUI versions
+        try {
+            const list = buildModusFlowSettingsList();
+            for (const s of list) {
+                app.ui?.settings?.addSetting(s);
+            }
+        } catch (_) {}
+    },
 
     async setup() {
         attachComfyMenuButton();
