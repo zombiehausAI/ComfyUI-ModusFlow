@@ -67,10 +67,16 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **Negative**: Smaller default height but fully resizable
 - Both support multi-line, word wrapping, undo/redo (Ctrl+Z / Ctrl+Y)
 - **Tag Weight Stepping**: Select a tag (or place cursor inside a word) and press `Ctrl + Up` or `Ctrl + Down` (Cmd+Up/Down on Mac) to adjust numerical weights by $\pm 0.05$ (e.g. `tag` $\rightarrow$ `(tag:1.05)` $\rightarrow$ `(tag:1.1)`). Stepping down to 1.0 automatically unwraps to clean plain text.
+- **Front-Load Priority Hotkey (`Alt + Home` / `Alt + Left`)**: Teleports the tag under the cursor or active selection directly to the very beginning of the prompt, granting it immediate CLIP/T5 priority.
+- **Tag Randomizer on Selection (`Alt + D`)**: Instantly resolves dynamic choices `{a|b|c}` or `{shuffle: ...}` within the selection or at cursor into a single random outcome in-place.
 - **Negative Presets**: Quick-fill dropdown for curated quality baselines (*SDXL Quality*, *Pony Score Baseline*, *Photorealistic*, *Anime / 2D Quality*, *Flux / Chroma Minimal*).
-- **Live Token & Word Counter**: Real-time counter badge at the bottom-right corner showing word count, estimated CLIP tokens, and 75-token chunks (e.g. `14w · ~18 tok (1 chunk)`). Warns in amber when crossing standard 75-token chunks!
+- **Live Token & Word Counter + Unclosed Parentheses Warning**: Real-time counter badge at the bottom-right corner showing word count, estimated CLIP tokens, and 75-token chunks. Flags unmatched or unclosed parentheses with an immediate alert badge (e.g., `⚠️ 1 unclosed ( )`).
+- **Drag & Drop Image Metadata**: Drop any `.png` or `.webp` generated image onto the node (or directly into the text boxes) to instantly extract the positive prompt, negative prompt, and seed. Tailored specifically for `ModusFlowTextEditor`: when a workflow contains multiple text editor nodes, it intelligently traces the execution graph and canvas link topology to extract from **the node actively connected to downstream samplers, pipelines, and conditionings** rather than inactive or draft nodes. Also seamlessly falls back to standard ComfyUI CLIP/KSampler pairs and A1111/Forge `parameters`.
 
 ### Action Toolbar
+- **✨ Enhance with Ollama**: One-click local AI prompt expansion! Sends the current positive prompt to your local Ollama LLM to enrich lighting, atmosphere, and sensory details in-place. Configurable via `ModusFlow.OllamaEnhanceModel` in ComfyUI Settings, with non-blocking availability checks that never stall canvas loading.
+- **⚡ Quick Chips**: Opens an interactive modal with curated visual tag chips organized into *Lighting & Atmosphere*, *Optics & Framing*, *Style & Aesthetics*, and *Mood & Color Palette*. Features a real-time filter search and one-click insertion at the cursor.
+- **🔍 Prompt Diff**: Visual side-by-side or token diff viewer comparing the active prompt against any recent history snapshot or disk save, clearly highlighting added and removed tags.
 - **💾 Save Prompt**: Prompts for a filename and optional category, then saves both texts as a `.json` file
 - **✏️ Update Selected**: Overwrites the currently selected prompt with current text
 - **🔄 Refresh List**: Reloads the dropdown to reflect newly added prompt files

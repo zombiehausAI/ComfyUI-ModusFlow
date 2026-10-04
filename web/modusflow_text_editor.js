@@ -371,6 +371,33 @@ function tokenizeAndHighlight(text, theme) {
     // 10. Attention Weights: (tag:1.3)
     addMatches(/\([^():\r\n]+:\s*-?\d+(?:\.\d+)?\)/g, "weight");
 
+    // 11. Rainbow & Matching Parentheses + Unclosed Warning
+    const RAINBOW_PAREN_COLORS = ["#38bdf8", "#c084fc", "#f472b6", "#34d399", "#fbbf24", "#a78bfa"];
+    const isExcluded = (pos) => intervals.some(iv => pos >= iv.start && pos < iv.end && iv.type === "comment");
+    const pStack = [];
+
+    for (let i = 0; i < text.length; i++) {
+        if (isExcluded(i)) continue;
+        const ch = text[i];
+        if (ch === "(") {
+            pStack.push({ index: i, depth: pStack.length });
+        } else if (ch === ")") {
+            if (pStack.length > 0) {
+                const open = pStack.pop();
+                const color = RAINBOW_PAREN_COLORS[open.depth % RAINBOW_PAREN_COLORS.length];
+                intervals.push({ start: open.index, end: open.index + 1, type: "rainbow_paren", color });
+                intervals.push({ start: i, end: i + 1, type: "rainbow_paren", color });
+            } else {
+                intervals.push({ start: i, end: i + 1, type: "unmatched_paren" });
+            }
+        }
+    }
+
+    while (pStack.length > 0) {
+        const unclosed = pStack.pop();
+        intervals.push({ start: unclosed.index, end: unclosed.index + 1, type: "unclosed_paren" });
+    }
+
     intervals.sort((a, b) => a.start - b.start);
 
     let html = "";
@@ -381,8 +408,14 @@ function tokenizeAndHighlight(text, theme) {
             html += escapeHtml(text.slice(cursor, iv.start));
         }
         const tokenText = escapeHtml(text.slice(iv.start, iv.end));
-        const color = theme[iv.type] || theme.plain_text || "#e2e8f0";
-        html += `<span style="color: ${color};">${tokenText}</span>`;
+        if (iv.type === "rainbow_paren") {
+            html += `<span style="color: ${iv.color}; font-weight: bold;">${tokenText}</span>`;
+        } else if (iv.type === "unclosed_paren" || iv.type === "unmatched_paren") {
+            html += `<span style="background: rgba(239, 68, 68, 0.4); color: #f87171; border-radius: 2px; text-decoration: underline wavy #ef4444; font-weight: bold;" title="${iv.type === 'unclosed_paren' ? 'Unclosed opening parenthesis!' : 'Unmatched closing parenthesis!'}">${tokenText}</span>`;
+        } else {
+            const color = theme[iv.type] || theme.plain_text || "#e2e8f0";
+            html += `<span style="color: ${color};">${tokenText}</span>`;
+        }
         cursor = iv.end;
     }
 
@@ -395,6 +428,23 @@ function tokenizeAndHighlight(text, theme) {
     }
 
     return html;
+}
+
+function countUnclosedParens(text) {
+    if (!text) return 0;
+    const clean = text
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/(?:^|\n)\s*(?:#|\/\/)[^\n]*/g, "");
+    let depth = 0;
+    let unclosed = 0;
+    for (let i = 0; i < clean.length; i++) {
+        if (clean[i] === "(") depth++;
+        else if (clean[i] === ")") {
+            if (depth > 0) depth--;
+            else unclosed++;
+        }
+    }
+    return unclosed + depth;
 }
 
 function attachSyntaxHighlighter(widget, node) {
@@ -460,14 +510,19 @@ function attachSyntaxHighlighter(widget, node) {
 
         function render() {
             const stats = estimateTokens(ta.value || "");
-            if (stats.tokens > 0) {
+            const unclosed = countUnclosedParens(ta.value || "");
+            if (stats.tokens > 0 || unclosed > 0) {
                 tokenBadge.style.display = "block";
-                tokenBadge.textContent = `${stats.words}w · ~${stats.tokens} tok (${stats.chunks} chunk${stats.chunks > 1 ? 's' : ''})`;
-                if (stats.tokens > 75) {
+                let textDesc = `${stats.words}w · ~${stats.tokens} tok (${stats.chunks} chunk${stats.chunks > 1 ? 's' : ''})`;
+                if (unclosed > 0) {
+                    textDesc += ` · ⚠️ ${unclosed} unclosed ( )`;
+                    tokenBadge.classList.add("token-warning");
+                } else if (stats.tokens > 75) {
                     tokenBadge.classList.add("token-warning");
                 } else {
                     tokenBadge.classList.remove("token-warning");
                 }
+                tokenBadge.textContent = textDesc;
             } else {
                 tokenBadge.style.display = "none";
             }
@@ -1440,6 +1495,758 @@ function showResolvedPreviewModal(node) {
     document.body.appendChild(overlay);
 }
 
+// ── Ollama Local AI Enhancer ──────────────────────────────────────────────────
+let _ollamaCheckPromise = null;
+let _ollamaAvailable = false;
+let _ollamaModels = [];
+
+function checkOllamaStatus(force = false) {
+    if (_ollamaCheckPromise && !force) return _ollamaCheckPromise;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2000);
+    _ollamaCheckPromise = fetch("/modusflow/ollama_status", { signal: controller.signal })
+        .then(r => r.json())
+        .then(data => {
+            clearTimeout(timer);
+            if (data.success && data.available) {
+                _ollamaAvailable = true;
+                _ollamaModels = data.models || [];
+            } else {
+                _ollamaAvailable = false;
+                _ollamaModels = [];
+            }
+            return { available: _ollamaAvailable, models: _ollamaModels };
+        })
+        .catch(() => {
+            clearTimeout(timer);
+            _ollamaAvailable = false;
+            _ollamaModels = [];
+            return { available: false, models: [] };
+        });
+    return _ollamaCheckPromise;
+}
+
+async function enhancePromptWithOllama(node, btn) {
+    const pw = node.widgets?.find(w => w.name === "positive");
+    if (!pw || !pw.value || !pw.value.trim()) {
+        alert("Please enter a positive prompt before enhancing.");
+        return;
+    }
+
+    const status = await checkOllamaStatus();
+    if (!status.available) {
+        alert("Ollama is not running or accessible.\n\nPlease start Ollama ('ollama serve') or verify your Ollama URL in ModusFlow settings.");
+        return;
+    }
+
+    let model = app.ui?.settings?.getSettingValue?.("ModusFlow.OllamaEnhanceModel");
+    if (!model || !model.trim()) {
+        model = status.models.length ? status.models[0] : "llama3.2";
+    }
+
+    const origLabel = btn?.name || "✨ Enhance with Ollama";
+    if (btn) btn.name = "⏳ Enhancing (" + model + ")...";
+    app.graph?.setDirtyCanvas(true, true);
+
+    try {
+        const resp = await fetch("/modusflow/enhance_prompt", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: pw.value, model: model })
+        });
+        const res = await resp.json();
+        if (res.success && res.enhanced) {
+            pushPromptHistory(node, "Pre-AI Enhancement");
+            pw.value = res.enhanced;
+            if (pw.inputEl) pw.inputEl.value = res.enhanced;
+            pw._updateSyntaxHighlight?.();
+            pushPromptHistory(node, "✨ Enhanced with " + (res.model || model));
+            app.graph?.setDirtyCanvas(true, true);
+        } else {
+            alert("Ollama enhancement failed: " + (res.message || "Unknown error"));
+        }
+    } catch (err) {
+        alert("Error calling Ollama: " + err.message);
+    } finally {
+        if (btn) btn.name = origLabel;
+        app.graph?.setDirtyCanvas(true, true);
+    }
+}
+
+// ── Quick Chips Modal ────────────────────────────────────────────────────────
+const QUICK_CHIPS_DATA = {
+    "💡 Lighting & Atmosphere": [
+        "cinematic volumetric lighting", "golden hour sunlight", "dramatic rim lighting",
+        "moody chiaroscuro", "soft studio lighting", "cyberpunk neon glow",
+        "bioluminescent illumination", "god rays", "misty ambient fog", "dramatic backlighting"
+    ],
+    "📷 Optics & Framing": [
+        "85mm f/1.4 portrait lens", "shallow depth of field", "anamorphic lens flare",
+        "subtle creamy bokeh", "macro close-up photography", "wide-angle dynamic shot",
+        "Dutch angle", "cinematic film grain 35mm", "low-angle heroic composition", "eye-level framing"
+    ],
+    "🎨 Style & Aesthetics": [
+        "photorealistic RAW photo", "hyperdetailed textures", "award-winning photography",
+        "editorial magazine cover", "octane render 8k", "tactile fabric weave",
+        "subsurface scattering skin", "subtle skin pores", "film still aesthetic", "masterpiece quality"
+    ],
+    "🎭 Mood & Color Palette": [
+        "monochromatic elegance", "desaturated film grading", "vibrant high contrast",
+        "warm nostalgic tones", "cool blue shadows", "duotone cyberpunk palette",
+        "pastel tones aesthetic", "moody atmospheric gloom"
+    ]
+};
+
+function insertChipIntoPrompt(node, chipText) {
+    const pw = node.widgets?.find(w => w.name === "positive");
+    if (!pw) return;
+    const ta = pw.inputEl || pw.element;
+    const current = pw.value || "";
+
+    if (ta && document.activeElement === ta) {
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        const before = current.slice(0, start);
+        const after = current.slice(end);
+
+        let insert = chipText;
+        if (before.trim() && !before.trim().endsWith(",")) insert = ", " + insert;
+        if (after.trim() && !after.trim().startsWith(",")) insert = insert + ", ";
+
+        ta.setRangeText(insert, start, end, "end");
+        pw.value = ta.value;
+    } else {
+        let updated = current.trim();
+        if (updated && !updated.endsWith(",")) {
+            updated += ", " + chipText;
+        } else if (updated) {
+            updated += " " + chipText;
+        } else {
+            updated = chipText;
+        }
+        pw.value = updated;
+        if (ta) ta.value = updated;
+    }
+    pw._updateSyntaxHighlight?.();
+    pushPromptHistory(node, "Added chip: " + chipText);
+    app.graph?.setDirtyCanvas(true, true);
+}
+
+function showQuickChipsModal(node) {
+    const overlay = document.createElement("div");
+    overlay.className = "modusflow-modal-overlay";
+    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+
+    const dialog = document.createElement("div");
+    dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 620px; max-height: 85vh; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); color: #cdd6f4; font-family: sans-serif;";
+
+    const header = document.createElement("div");
+    header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #313244; padding-bottom: 8px;";
+    header.innerHTML = '<h3 style="margin: 0; font-size: 16px; color: #89b4fa;">⚡ Quick Chips — Visual Tags</h3>';
+
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "✕";
+    closeBtn.style.cssText = "background: none; border: none; color: #6c7086; font-size: 18px; cursor: pointer;";
+    closeBtn.onclick = () => overlay.remove();
+    header.appendChild(closeBtn);
+    dialog.appendChild(header);
+
+    const searchInput = document.createElement("input");
+    searchInput.placeholder = "Filter chips (e.g. lighting, lens, bokeh)...";
+    searchInput.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 6px; padding: 8px 12px; color: #cdd6f4; font-size: 13px; outline: none;";
+    dialog.appendChild(searchInput);
+
+    const bodyContainer = document.createElement("div");
+    bodyContainer.style.cssText = "overflow-y: auto; display: flex; flex-direction: column; gap: 14px; max-height: 520px; padding-right: 4px;";
+
+    function renderChips(filter = "") {
+        bodyContainer.innerHTML = "";
+        const q = filter.toLowerCase().trim();
+
+        for (const [category, chips] of Object.entries(QUICK_CHIPS_DATA)) {
+            const matching = chips.filter(c => !q || c.toLowerCase().includes(q));
+            if (!matching.length) continue;
+
+            const catSec = document.createElement("div");
+            catSec.innerHTML = `<div style="font-size: 12px; font-weight: bold; color: #cba6f7; margin-bottom: 6px;">${category}</div>`;
+
+            const chipGrid = document.createElement("div");
+            chipGrid.style.cssText = "display: flex; flex-wrap: wrap; gap: 6px;";
+
+            for (const chip of matching) {
+                const btn = document.createElement("button");
+                btn.textContent = chip;
+                btn.style.cssText = "background: #1e1e2e; border: 1px solid #313244; border-radius: 6px; padding: 5px 10px; color: #cdd6f4; font-size: 12px; cursor: pointer; transition: all 0.15s ease;";
+                btn.onmouseenter = () => { btn.style.borderColor = "#89b4fa"; btn.style.background = "#26263b"; };
+                btn.onmouseleave = () => { btn.style.borderColor = "#313244"; btn.style.background = "#1e1e2e"; };
+
+                btn.onclick = () => {
+                    insertChipIntoPrompt(node, chip);
+                    const origText = btn.textContent;
+                    btn.textContent = "✓ Added";
+                    btn.style.borderColor = "#a6e3a1";
+                    btn.style.color = "#a6e3a1";
+                    setTimeout(() => {
+                        btn.textContent = origText;
+                        btn.style.borderColor = "#313244";
+                        btn.style.color = "#cdd6f4";
+                    }, 800);
+                };
+                chipGrid.appendChild(btn);
+            }
+
+            catSec.appendChild(chipGrid);
+            bodyContainer.appendChild(catSec);
+        }
+    }
+
+    searchInput.oninput = () => renderChips(searchInput.value);
+    renderChips();
+
+    dialog.appendChild(bodyContainer);
+    overlay.appendChild(dialog);
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+}
+
+// ── Prompt Diff Viewer ────────────────────────────────────────────────────────
+function computeTokenDiff(oldText, newText) {
+    const oldTokens = (oldText || "").split(/([,\n]|\s+)/).filter(Boolean);
+    const newTokens = (newText || "").split(/([,\n]|\s+)/).filter(Boolean);
+
+    const diff = [];
+    let i = 0, j = 0;
+    while (i < oldTokens.length || j < newTokens.length) {
+        if (i < oldTokens.length && j < newTokens.length && oldTokens[i] === newTokens[j]) {
+            diff.push({ type: "same", text: oldTokens[i] });
+            i++; j++;
+        } else if (j < newTokens.length && (!oldTokens.slice(i, i + 6).includes(newTokens[j]))) {
+            diff.push({ type: "add", text: newTokens[j] });
+            j++;
+        } else if (i < oldTokens.length) {
+            diff.push({ type: "del", text: oldTokens[i] });
+            i++;
+        } else {
+            diff.push({ type: "add", text: newTokens[j] });
+            j++;
+        }
+    }
+    return diff;
+}
+
+function showPromptDiffModal(node) {
+    let list = [];
+    try {
+        const raw = localStorage.getItem(HISTORY_KEY);
+        list = raw ? JSON.parse(raw) : [];
+    } catch (_) {}
+
+    const pw = node.widgets?.find(w => w.name === "positive");
+    const currentPos = pw?.value || "";
+
+    const overlay = document.createElement("div");
+    overlay.className = "modusflow-modal-overlay";
+    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+
+    const dialog = document.createElement("div");
+    dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 680px; max-height: 85vh; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); color: #cdd6f4; font-family: sans-serif;";
+
+    const header = document.createElement("div");
+    header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #313244; padding-bottom: 8px;";
+    header.innerHTML = '<h3 style="margin: 0; font-size: 16px; color: #89b4fa;">🔍 Prompt Diff Viewer</h3>';
+
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "✕";
+    closeBtn.style.cssText = "background: none; border: none; color: #6c7086; font-size: 18px; cursor: pointer;";
+    closeBtn.onclick = () => overlay.remove();
+    header.appendChild(closeBtn);
+    dialog.appendChild(header);
+
+    const selectorRow = document.createElement("div");
+    selectorRow.style.cssText = "display: flex; align-items: center; gap: 10px; font-size: 12px;";
+    selectorRow.innerHTML = '<span style="color: #a6adc8;">Compare current with:</span>';
+
+    const select = document.createElement("select");
+    select.style.cssText = "flex: 1; background: #11111b; border: 1px solid #313244; border-radius: 6px; padding: 6px 10px; color: #cdd6f4; outline: none;";
+
+    if (list.length) {
+        list.forEach((it, idx) => {
+            const opt = document.createElement("option");
+            opt.value = idx;
+            opt.textContent = `#${idx + 1} · ${it.label || "Snapshot"} (${it.time})`;
+            select.appendChild(opt);
+        });
+    } else {
+        const opt = document.createElement("option");
+        opt.value = -1;
+        opt.textContent = "-- No history snapshots available --";
+        select.appendChild(opt);
+    }
+    selectorRow.appendChild(select);
+    dialog.appendChild(selectorRow);
+
+    const diffBox = document.createElement("div");
+    diffBox.style.cssText = "overflow-y: auto; background: #11111b; border: 1px solid #313244; border-radius: 8px; padding: 14px; font-family: monospace; font-size: 12px; line-height: 1.6; max-height: 400px; white-space: pre-wrap; word-break: break-word;";
+    dialog.appendChild(diffBox);
+
+    function updateDiff() {
+        const idx = parseInt(select.value, 10);
+        if (idx < 0 || !list[idx]) {
+            diffBox.innerHTML = '<span style="color: #6c7086; font-style: italic;">No comparison target selected.</span>';
+            return;
+        }
+        const target = list[idx].positive || "";
+        const diffTokens = computeTokenDiff(target, currentPos);
+
+        let out = "";
+        for (const token of diffTokens) {
+            const escaped = escapeHtml(token.text);
+            if (token.type === "add") {
+                out += `<span style="background: rgba(166, 227, 161, 0.22); color: #a6e3a1; font-weight: bold; border-radius: 2px; padding: 1px 3px;">+${escaped}</span>`;
+            } else if (token.type === "del") {
+                out += `<span style="background: rgba(243, 139, 168, 0.22); color: #f38ba8; text-decoration: line-through; border-radius: 2px; padding: 1px 3px;">-${escaped}</span>`;
+            } else {
+                out += `<span style="color: #cdd6f4;">${escaped}</span>`;
+            }
+        }
+        diffBox.innerHTML = out || '<span style="color: #a6e3a1;">(No differences detected)</span>';
+    }
+
+    select.onchange = updateDiff;
+    updateDiff();
+
+    const footer = document.createElement("div");
+    footer.style.cssText = "display: flex; justify-content: space-between; align-items: center; margin-top: 6px;";
+
+    const restoreBtn = document.createElement("button");
+    restoreBtn.textContent = "Restore Target Snapshot";
+    restoreBtn.style.cssText = "background: #313244; color: #89b4fa; border: none; border-radius: 6px; padding: 8px 14px; cursor: pointer; font-size: 12px;";
+    restoreBtn.onclick = () => {
+        const idx = parseInt(select.value, 10);
+        if (idx >= 0 && list[idx]) {
+            const item = list[idx];
+            if (pw) {
+                pw.value = item.positive || "";
+                if (pw.inputEl) pw.inputEl.value = item.positive || "";
+                pw._updateSyntaxHighlight?.();
+            }
+            const nw = node.widgets?.find(w => w.name === "negative");
+            if (nw && item.negative !== undefined) {
+                nw.value = item.negative || "";
+                if (nw.inputEl) nw.inputEl.value = item.negative || "";
+                nw._updateSyntaxHighlight?.();
+            }
+            pushPromptHistory(node, "Restored: " + (item.label || "Snapshot"));
+            overlay.remove();
+        }
+    };
+    footer.appendChild(restoreBtn);
+
+    const legend = document.createElement("div");
+    legend.style.cssText = "font-size: 11px; color: #a6adc8; display: flex; gap: 10px;";
+    legend.innerHTML = '<span style="color: #a6e3a1;">● Added in current</span> <span style="color: #f38ba8;">● Removed from target</span>';
+    footer.appendChild(legend);
+
+    dialog.appendChild(footer);
+    overlay.appendChild(dialog);
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+}
+
+// ── Image Metadata Reader (PNG & WebP Drag & Drop) ───────────────────────────
+function findBestModusFlowTextEditor(promptObj, workflowObj) {
+    const candidates = new Map(); // id -> { id, promptNode, workflowNode, score: 0, positive: "", negative: "", seed: null, weight_mode: null }
+
+    // 1. Collect from promptObj (ComfyUI execution graph)
+    if (promptObj && typeof promptObj === "object") {
+        for (const [id, node] of Object.entries(promptObj)) {
+            if (!node || typeof node !== "object") continue;
+            const cls = node.class_type || "";
+            if (cls === "ModusFlowTextEditor") {
+                const inputs = node.inputs || {};
+                candidates.set(String(id), {
+                    id: String(id),
+                    promptNode: node,
+                    workflowNode: null,
+                    score: 1, // base score for being in execution graph
+                    positive: typeof inputs.positive === "string" ? inputs.positive : "",
+                    negative: typeof inputs.negative === "string" ? inputs.negative : "",
+                    seed: (inputs.seed !== undefined && inputs.seed !== null) ? parseInt(inputs.seed, 10) : null,
+                    weight_mode: typeof inputs.weight_mode === "string" ? inputs.weight_mode : null
+                });
+            }
+        }
+    }
+
+    // 2. Collect from workflowObj (LiteGraph canvas graph)
+    if (workflowObj && Array.isArray(workflowObj.nodes)) {
+        for (const wfNode of workflowObj.nodes) {
+            if (!wfNode || wfNode.type !== "ModusFlowTextEditor") continue;
+            const id = String(wfNode.id);
+            let cand = candidates.get(id);
+            if (!cand) {
+                cand = {
+                    id: id,
+                    promptNode: null,
+                    workflowNode: wfNode,
+                    score: 0,
+                    positive: "",
+                    negative: "",
+                    seed: null,
+                    weight_mode: null
+                };
+                candidates.set(id, cand);
+            } else {
+                cand.workflowNode = wfNode;
+            }
+        }
+    }
+
+    if (candidates.size === 0) return null;
+
+    // 3. Analyze downstream connections in promptObj
+    if (promptObj && typeof promptObj === "object") {
+        for (const [consumerId, consumerNode] of Object.entries(promptObj)) {
+            if (!consumerNode || !consumerNode.inputs) continue;
+            const targetCls = (consumerNode.class_type || "").toLowerCase();
+            const isSampler = targetCls.includes("sampler") || targetCls.includes("detailer");
+            const isCond = targetCls.includes("conditioning") || targetCls.includes("clip") || targetCls.includes("pipe");
+            const isSave = targetCls.includes("save") || targetCls.includes("preview");
+
+            for (const [inputKey, val] of Object.entries(consumerNode.inputs)) {
+                if (Array.isArray(val) && val.length >= 2) {
+                    const sourceId = String(val[0]);
+                    const cand = candidates.get(sourceId);
+                    if (cand) {
+                        cand.score += 20; // Connected to another node
+                        if (isSampler) {
+                            cand.score += 100; // Directly feeds sampler/detailer
+                            if ((cand.seed === null || cand.seed === 0) && consumerNode.inputs.seed !== undefined) {
+                                const s = parseInt(consumerNode.inputs.seed, 10);
+                                if (!isNaN(s) && s > 0) cand.seed = s;
+                            }
+                        } else if (isCond) {
+                            cand.score += 60; // Feeds conditioning/pipe/clip
+                        } else if (isSave) {
+                            cand.score += 30;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. Analyze output links in workflowObj
+    if (workflowObj && Array.isArray(workflowObj.nodes)) {
+        const linkMap = new Map();
+        if (Array.isArray(workflowObj.links)) {
+            for (const l of workflowObj.links) {
+                if (Array.isArray(l) && l.length >= 5) {
+                    linkMap.set(l[0], { originId: String(l[1]), targetId: String(l[3]) });
+                }
+            }
+        }
+
+        const nodeTypeMap = new Map();
+        for (const n of workflowObj.nodes) {
+            if (n && n.id !== undefined) nodeTypeMap.set(String(n.id), (n.type || "").toLowerCase());
+        }
+
+        for (const cand of candidates.values()) {
+            if (!cand.workflowNode) continue;
+            const outputs = cand.workflowNode.outputs || [];
+            let activeLinks = 0;
+            for (const out of outputs) {
+                if (Array.isArray(out.links) && out.links.length > 0) {
+                    activeLinks += out.links.length;
+                    for (const lId of out.links) {
+                        const linkInfo = linkMap.get(lId);
+                        if (linkInfo) {
+                            const targetType = nodeTypeMap.get(linkInfo.targetId) || "";
+                            if (targetType.includes("sampler") || targetType.includes("detailer")) {
+                                cand.score += 100;
+                            } else if (targetType.includes("clip") || targetType.includes("pipe") || targetType.includes("cond")) {
+                                cand.score += 50;
+                            } else {
+                                cand.score += 15;
+                            }
+                        }
+                    }
+                }
+            }
+            cand.score += activeLinks * 10;
+
+            // Fallback for widgets_values if promptNode was not present
+            if ((!cand.positive || !cand.negative) && Array.isArray(cand.workflowNode.widgets_values)) {
+                const vals = cand.workflowNode.widgets_values;
+                for (const wv of vals) {
+                    if (typeof wv === "string" && wv.length > 5) {
+                        if (!cand.positive) cand.positive = wv;
+                        else if (!cand.negative && wv !== cand.positive) cand.negative = wv;
+                    } else if (typeof wv === "number" && wv > 1000 && cand.seed === null) {
+                        cand.seed = wv;
+                    }
+                }
+            }
+        }
+    }
+
+    // Bonus for meaningful prompt text length
+    for (const cand of candidates.values()) {
+        if (cand.positive && cand.positive.trim().length > 0) {
+            cand.score += 10;
+        }
+    }
+
+    const sorted = Array.from(candidates.values()).sort((a, b) => b.score - a.score);
+    return sorted[0] || null;
+}
+
+function findConnectedClipTextEncode(promptObj, workflowObj) {
+    if (!promptObj || typeof promptObj !== "object") return null;
+    let posText = "";
+    let negText = "";
+    let seed = null;
+
+    for (const [id, node] of Object.entries(promptObj)) {
+        if (!node || typeof node !== "object") continue;
+        const cls = (node.class_type || "").toLowerCase();
+        if (cls.includes("sampler") && node.inputs) {
+            if (node.inputs.seed !== undefined) seed = parseInt(node.inputs.seed, 10);
+
+            const posRef = node.inputs.positive;
+            if (Array.isArray(posRef)) {
+                const posNode = promptObj[String(posRef[0])];
+                if (posNode && posNode.inputs && posNode.inputs.text) {
+                    posText = posNode.inputs.text;
+                }
+            }
+
+            const negRef = node.inputs.negative;
+            if (Array.isArray(negRef)) {
+                const negNode = promptObj[String(negRef[0])];
+                if (negNode && negNode.inputs && negNode.inputs.text) {
+                    negText = negNode.inputs.text;
+                }
+            }
+        }
+    }
+
+    if (posText || negText) {
+        return { positive: posText, negative: negText, seed: seed };
+    }
+    return null;
+}
+
+function extractMetadataFromBuffer(buffer, filename) {
+    const bytes = new Uint8Array(buffer);
+    const result = { positive: "", negative: "", seed: null, weight_mode: null, source: "" };
+    const decoder = new TextDecoder("utf-8");
+
+    let promptObj = null;
+    let workflowObj = null;
+    let parametersStr = "";
+
+    const readUint32BE = (offset) => {
+        return ((bytes[offset] << 24) >>> 0) + (bytes[offset + 1] << 16) + (bytes[offset + 2] << 8) + bytes[offset + 3];
+    };
+
+    // 1. PNG Parsing
+    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
+        let offset = 8;
+        while (offset < bytes.length - 8) {
+            const length = readUint32BE(offset);
+            const chunkType = String.fromCharCode(bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7]);
+            const dataOffset = offset + 8;
+
+            if (chunkType === "tEXt" || chunkType === "iTXt") {
+                let nullSep = -1;
+                for (let i = dataOffset; i < dataOffset + length; i++) {
+                    if (bytes[i] === 0) { nullSep = i; break; }
+                }
+                if (nullSep !== -1) {
+                    const keyword = decoder.decode(bytes.subarray(dataOffset, nullSep));
+                    let text = "";
+                    if (chunkType === "tEXt") {
+                        text = decoder.decode(bytes.subarray(nullSep + 1, dataOffset + length));
+                    } else if (chunkType === "iTXt") {
+                        let pos = nullSep + 3;
+                        while (pos < dataOffset + length && bytes[pos] !== 0) pos++;
+                        pos++;
+                        while (pos < dataOffset + length && bytes[pos] !== 0) pos++;
+                        pos++;
+                        text = decoder.decode(bytes.subarray(pos, dataOffset + length));
+                    }
+
+                    if (keyword === "prompt") {
+                        try { promptObj = JSON.parse(text); } catch (_) {}
+                    } else if (keyword === "workflow") {
+                        try { workflowObj = JSON.parse(text); } catch (_) {}
+                    } else if (keyword === "parameters") {
+                        parametersStr = text;
+                    }
+                }
+            }
+            offset += 12 + length;
+        }
+    } else {
+        // 2. WebP RIFF or Raw Stream Parsing
+        const rawString = decoder.decode(bytes);
+
+        // Search for JSON prompt and workflow chunks in WebP/raw
+        const promptIdx = rawString.indexOf('"ModusFlowTextEditor"');
+        if (promptIdx !== -1) {
+            const firstBrace = rawString.lastIndexOf("{", promptIdx);
+            if (firstBrace !== -1) {
+                // Try scanning forward for valid JSON
+                for (let end = promptIdx + 50; end < Math.min(rawString.length, promptIdx + 50000); end += 500) {
+                    const closeBrace = rawString.indexOf("}", end);
+                    if (closeBrace === -1) break;
+                    try {
+                        const parsed = JSON.parse(rawString.slice(firstBrace, closeBrace + 1));
+                        if (parsed && typeof parsed === "object") {
+                            if (parsed.nodes) workflowObj = parsed;
+                            else promptObj = parsed;
+                            break;
+                        }
+                    } catch (_) {}
+                }
+            }
+        }
+
+        if (rawString.includes("Negative prompt:") || rawString.includes("Steps:")) {
+            parametersStr = rawString;
+        }
+    }
+
+    // Step A: Priority 1 — Tailored specifically for ModusFlowTextEditor (connected candidate)
+    const bestEditor = findBestModusFlowTextEditor(promptObj, workflowObj);
+    if (bestEditor && (bestEditor.positive || bestEditor.negative || bestEditor.seed !== null)) {
+        result.positive = bestEditor.positive;
+        result.negative = bestEditor.negative;
+        result.seed = bestEditor.seed;
+        result.weight_mode = bestEditor.weight_mode;
+        result.source = `ModusFlowTextEditor (Node #${bestEditor.id} · Connected)`;
+        return result;
+    }
+
+    // Step B: Priority 2 — Connected standard ComfyUI CLIP nodes
+    const clipMeta = findConnectedClipTextEncode(promptObj, workflowObj);
+    if (clipMeta && (clipMeta.positive || clipMeta.negative)) {
+        result.positive = clipMeta.positive;
+        result.negative = clipMeta.negative;
+        result.seed = clipMeta.seed;
+        result.source = "ComfyUI CLIPTextEncode";
+        return result;
+    }
+
+    // Step C: Priority 3 — A1111 / WebUI / Forge Parameters
+    if (parametersStr) {
+        parseA1111Parameters(parametersStr, result);
+        result.source = "A1111 Parameters";
+        return result;
+    }
+
+    return result;
+}
+
+function parseA1111Parameters(text, result) {
+    if (!text) return;
+    const negMatch = text.match(/Negative prompt:\s*([\s\S]*?)(?=\nSteps:|\n[A-Z][a-zA-Z\s]+:|$)/i);
+    const stepsMatch = text.match(/\nSteps:\s*[\s\S]*$/i);
+
+    if (negMatch) {
+        result.positive = text.slice(0, negMatch.index).trim();
+        result.negative = negMatch[1].trim();
+    } else if (stepsMatch) {
+        result.positive = text.slice(0, stepsMatch.index).trim();
+    } else {
+        result.positive = text.trim();
+    }
+
+    const seedMatch = text.match(/\bSeed:\s*(\d+)/i);
+    if (seedMatch) {
+        result.seed = parseInt(seedMatch[1], 10);
+    }
+}
+
+async function handleImageFileDrop(file, node) {
+    if (!file) return;
+    try {
+        const buffer = await file.arrayBuffer();
+        const meta = extractMetadataFromBuffer(buffer, file.name);
+        if (meta && (meta.positive || meta.negative || meta.seed !== null)) {
+            const pw = node.widgets?.find(w => w.name === "positive");
+            const nw = node.widgets?.find(w => w.name === "negative");
+            const sw = node.widgets?.find(w => w.name === "seed");
+            const wmw = node.widgets?.find(w => w.name === "weight_mode");
+
+            if (pw && meta.positive !== undefined) {
+                pw.value = meta.positive;
+                if (pw.inputEl) pw.inputEl.value = meta.positive;
+                pw._updateSyntaxHighlight?.();
+            }
+            if (nw && meta.negative !== undefined) {
+                nw.value = meta.negative;
+                if (nw.inputEl) nw.inputEl.value = meta.negative;
+                nw._updateSyntaxHighlight?.();
+            }
+            if (sw && meta.seed !== null && meta.seed !== undefined) {
+                sw.value = meta.seed;
+                if (sw.inputEl) sw.inputEl.value = meta.seed;
+            }
+            if (wmw && meta.weight_mode && wmw.options?.values?.includes(meta.weight_mode)) {
+                wmw.value = meta.weight_mode;
+            }
+
+            const sourceLabel = meta.source ? ` [${meta.source}]` : "";
+            pushPromptHistory(node, `Dropped Image: ${file.name}${sourceLabel}`);
+            app.graph?.setDirtyCanvas(true, true);
+        }
+    } catch (err) {
+        console.warn("[ModusFlow TextEditor] Error parsing image metadata:", err);
+    }
+}
+
+function attachImageDropHandlers(node) {
+    const bindEl = (el) => {
+        if (!el || el._hasDropHandler) return;
+        el._hasDropHandler = true;
+
+        el.addEventListener("dragover", (e) => {
+            if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes("Files")) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.dataTransfer.dropEffect = "copy";
+                el.style.outline = "2px dashed #89b4fa";
+            }
+        });
+
+        el.addEventListener("dragleave", () => {
+            el.style.outline = "";
+        });
+
+        el.addEventListener("drop", async (e) => {
+            el.style.outline = "";
+            if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
+            const file = e.dataTransfer.files[0];
+            if (!file.name.match(/\.(png|webp|jpg|jpeg)$/i)) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+            await handleImageFileDrop(file, node);
+        });
+    };
+
+    requestAnimationFrame(() => {
+        const pw = node.widgets?.find(w => w.name === "positive");
+        const nw = node.widgets?.find(w => w.name === "negative");
+        if (pw?.inputEl) bindEl(pw.inputEl);
+        if (nw?.inputEl) bindEl(nw.inputEl);
+        if (node.element) bindEl(node.element);
+    });
+}
+
 app.registerExtension({
     name: "modusflow.TextEditor",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
@@ -1576,15 +2383,27 @@ app.registerExtension({
                 negPresetWidget.label = "Negative Presets";
 
                 // ── Action buttons ────────────────────────────────────────────────
-                node.addWidget("button", "Save Prompt",       null, () => showSaveDialog(node));
-                node.addWidget("button", "Update Selected",   null, () => updatePrompt(node));
-                node.addWidget("button", "Refresh List",      null, () => refreshPrompts(node));
-                node.addWidget("button", "Prettify / Dedupe", null, () => prettifyNodePrompts(node));
-                node.addWidget("button", "Preview Resolved",  null, () => showResolvedPreviewModal(node));
-                node.addWidget("button", "Prompt History",    null, () => showHistoryDialog(node));
+                const enhanceBtn = node.addWidget("button", "✨ Enhance with Ollama", null, () => enhancePromptWithOllama(node, enhanceBtn));
+                node.addWidget("button", "⚡ Quick Chips",          null, () => showQuickChipsModal(node));
+                node.addWidget("button", "🔍 Prompt Diff",          null, () => showPromptDiffModal(node));
+                node.addWidget("button", "Save Prompt",             null, () => showSaveDialog(node));
+                node.addWidget("button", "Update Selected",         null, () => updatePrompt(node));
+                node.addWidget("button", "Refresh List",            null, () => refreshPrompts(node));
+                node.addWidget("button", "Prettify / Dedupe",       null, () => prettifyNodePrompts(node));
+                node.addWidget("button", "Preview Resolved",        null, () => showResolvedPreviewModal(node));
+                node.addWidget("button", "Prompt History",          null, () => showHistoryDialog(node));
+
+                checkOllamaStatus().then(st => {
+                    if (!st.available && enhanceBtn) {
+                        enhanceBtn.name = "✨ Enhance with Ollama (Offline)";
+                        app.graph?.setDirtyCanvas(true, true);
+                    }
+                });
+
+                attachImageDropHandlers(node);
 
                 // ── Initial size ──────────────────────────────────────────────────
-                node.size = [540, 840];
+                node.size = [560, 930];
                 node.resizable = true;
 
                 requestAnimationFrame(() => refreshPrompts(node));
@@ -1645,6 +2464,17 @@ app.registerExtension({
             const onSerialize = nodeType.prototype.onSerialize;
             nodeType.prototype.onSerialize = function(o) {
                 if (onSerialize) onSerialize.apply(this, arguments);
+            };
+
+            // ── onDropFile (Canvas file drop) ──────────────────────────────────────
+            const origOnDropFile = nodeType.prototype.onDropFile;
+            nodeType.prototype.onDropFile = function(file) {
+                if (file && file.name && file.name.match(/\.(png|webp|jpg|jpeg)$/i)) {
+                    handleImageFileDrop(file, this);
+                    return true;
+                }
+                if (origOnDropFile) return origOnDropFile.apply(this, arguments);
+                return false;
             };
 
             // ── Helper: set widget value AND update the visible textarea ──────────
@@ -1818,6 +2648,84 @@ app.registerExtension({
                                 ta.setRangeText(newText, start, end, "select");
                                 widget.value = ta.value;
                                 widget._updateSyntaxHighlight?.();
+                            }
+                            return;
+                        }
+
+                        // 4. Front-Load Tag Hotkey: Alt+Home or Alt+ArrowLeft
+                        if (e.altKey && !ctrlOrCmd && !e.shiftKey && (e.key === "Home" || e.code === "Home" || e.key === "ArrowLeft" || e.code === "ArrowLeft")) {
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            const text = ta.value;
+                            let start = ta.selectionStart;
+                            let end = ta.selectionEnd;
+
+                            if (start === end) {
+                                let tagStart = start;
+                                while (tagStart > 0 && text[tagStart - 1] !== "," && text[tagStart - 1] !== "\n") tagStart--;
+                                let tagEnd = end;
+                                while (tagEnd < text.length && text[tagEnd] !== "," && text[tagEnd] !== "\n") tagEnd++;
+                                while (tagStart < tagEnd && /\s/.test(text[tagStart])) tagStart++;
+                                while (tagEnd > tagStart && /\s/.test(text[tagEnd - 1])) tagEnd--;
+                                start = tagStart;
+                                end = tagEnd;
+                            }
+
+                            if (start < end) {
+                                const tagToMove = text.slice(start, end).trim();
+                                if (tagToMove) {
+                                    let before = text.slice(0, start);
+                                    let after = text.slice(end);
+
+                                    if (before.endsWith(",")) {
+                                        before = before.slice(0, -1);
+                                    } else if (after.startsWith(",")) {
+                                        after = after.slice(1);
+                                    } else if (after.startsWith(" ,")) {
+                                        after = after.replace(/^\s*,/, "");
+                                    }
+
+                                    let remaining = (before + after).replace(/,\s*,+/g, ", ").trim();
+                                    remaining = remaining.replace(/^,\s*/, "").replace(/,\s*$/, "");
+
+                                    const newText = remaining ? `${tagToMove}, ${remaining}` : tagToMove;
+                                    ta.value = newText;
+                                    widget.value = newText;
+                                    ta.selectionStart = tagToMove.length + 2;
+                                    ta.selectionEnd = tagToMove.length + 2;
+                                    widget._updateSyntaxHighlight?.();
+                                }
+                            }
+                            return;
+                        }
+
+                        // 5. Randomize Selection Hotkey: Alt+D
+                        if (e.altKey && !ctrlOrCmd && !e.shiftKey && (e.key === "d" || e.key === "D" || e.code === "KeyD")) {
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            const text = ta.value;
+                            let start = ta.selectionStart;
+                            let end = ta.selectionEnd;
+
+                            if (start === end) {
+                                const openBrace = text.lastIndexOf("{", start - 1);
+                                const closeBrace = text.indexOf("}", end);
+                                if (openBrace !== -1 && closeBrace !== -1 && openBrace < closeBrace) {
+                                    start = openBrace;
+                                    end = closeBrace + 1;
+                                }
+                            }
+
+                            if (start < end) {
+                                const targetText = text.slice(start, end);
+                                const resolved = resolvePromptClientSide(targetText, Math.floor(Math.random() * 1000000));
+                                if (resolved !== targetText) {
+                                    ta.setRangeText(resolved, start, end, "select");
+                                    widget.value = ta.value;
+                                    widget._updateSyntaxHighlight?.();
+                                }
                             }
                             return;
                         }

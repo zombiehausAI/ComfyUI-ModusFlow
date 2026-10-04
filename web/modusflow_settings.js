@@ -83,6 +83,17 @@ app.registerExtension({
             }
         });
 
+        // 1b. Ollama Prompt Enhancement Model for Text Editor
+        app.ui.settings.addSetting({
+            id: "ModusFlow.OllamaEnhanceModel",
+            category: ["ModusFlow", "Local Ollama", "OllamaEnhanceModel"],
+            name: "ModusFlow: Text Editor Ollama Model",
+            type: "text",
+            defaultValue: "llama3.2",
+            tooltip: "Model name for Text Editor one-click AI prompt enhancement (e.g. llama3.2, mistral, qwen2.5)",
+            sortOrder: 45
+        });
+
         // 2. Ollama Request Timeout
         app.ui.settings.addSetting({
             id: "ModusFlow.OllamaTimeout",

@@ -68,6 +68,92 @@ async def refresh_ollama_models(request):
         print(f"[ModusFlow] {msg}")
         return web.json_response({"success": False, "message": msg})
 
+@server.PromptServer.instance.routes.get("/modusflow/ollama_status")
+async def ollama_status(request):
+    """Fast check to see if Ollama is accessible without stalling UI."""
+    ollama_url = settings.get('ollama_url', 'http://127.0.0.1:11434')
+    try:
+        response = requests.get(f"{ollama_url}/api/tags", timeout=1.5)
+        if response.status_code == 200:
+            data = response.json()
+            raw_models = data.get("models", [])
+            models = sorted([m["name"] for m in raw_models if "name" in m])
+            return web.json_response({
+                "success": True,
+                "available": True,
+                "models": models
+            })
+        return web.json_response({"success": True, "available": False, "models": []})
+    except Exception:
+        return web.json_response({"success": True, "available": False, "models": []})
+
+@server.PromptServer.instance.routes.post("/modusflow/enhance_prompt")
+async def enhance_prompt(request):
+    """Enhance a prompt with sensory, lighting, and atmospheric details using Ollama."""
+    try:
+        body = await request.json()
+        prompt_text = body.get("prompt", "").strip()
+        model = body.get("model", "").strip()
+
+        if not prompt_text:
+            return web.json_response({"success": False, "message": "Prompt is empty"})
+
+        ollama_url = settings.get('ollama_url', 'http://127.0.0.1:11434')
+        timeout_val = settings.get('ollama_timeout', 60)
+
+        # Fallback to first available model if none provided
+        if not model:
+            try:
+                tags_resp = requests.get(f"{ollama_url}/api/tags", timeout=1.5)
+                if tags_resp.status_code == 200:
+                    models_list = tags_resp.json().get("models", [])
+                    if models_list:
+                        model = models_list[0].get("name", "")
+            except Exception:
+                pass
+
+        if not model:
+            return web.json_response({"success": False, "message": "No Ollama model specified or available"})
+
+        system_prompt = (
+            "You are an expert AI prompt engineer specializing in visual image generation (Stable Diffusion, FLUX, Midjourney). "
+            "Your task is to enrich and enhance the user's prompt by adding vivid, atmospheric, lighting, textural, and sensory details. "
+            "Maintain the core subject and intent of the original prompt. "
+            "Return ONLY the enhanced prompt as a clean comma-separated list of descriptive visual tags or descriptive phrases. "
+            "Do NOT include explanations, quotes, preambles, or markdown formatting."
+        )
+
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Enrich this prompt: {prompt_text}"}
+            ],
+            "stream": False,
+            "options": {
+                "temperature": 0.7,
+                "num_predict": 300
+            }
+        }
+
+        response = requests.post(f"{ollama_url}/api/chat", json=payload, timeout=timeout_val)
+        response.raise_for_status()
+        data = response.json()
+        raw_content = data.get("message", {}).get("content", "").strip()
+
+        # Clean markdown wrappers or quotes
+        cleaned = re.sub(r"^```(?:markdown|text)?\n?", "", raw_content, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\n?```$", "", cleaned).strip()
+        cleaned = cleaned.strip('"\'')
+
+        return web.json_response({"success": True, "enhanced": cleaned, "model": model})
+    except requests.exceptions.Timeout:
+        return web.json_response({"success": False, "message": "Ollama request timed out"})
+    except requests.exceptions.ConnectionError:
+        return web.json_response({"success": False, "message": "Could not connect to Ollama server"})
+    except Exception as e:
+        return web.json_response({"success": False, "message": str(e)})
+
 @server.PromptServer.instance.routes.get("/modusflow/gallery/list")
 async def gallery_list(request):
     """API endpoint to list folders and images in the output directory."""
