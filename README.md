@@ -1,5 +1,8 @@
 # ModusFlow
 
+[![License](https://img.shields.io/badge/License-MIT-brightgreen)](LICENSE)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/zombiehaus)
+
 > [!NOTE]
 > **AI-Assisted Development**: These custom nodes, UI extensions, scripts, and documentation were created with AI assistance. In the spirit of complete transparency: if you prefer not to use AI-assisted code, please feel free to pass on this custom node suite.
 >
@@ -278,8 +281,12 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ---
 
-## 📞 Support
+## ☕ Support & Contributions
 
-- **Issues**: [Report bugs or request features](https://github.com/ModusFlow/ComfyUI-ModusFlow/issues)
-- **Discussions**: [Ask questions and share workflows](https://github.com/ModusFlow/ComfyUI-ModusFlow/discussions)
+If you find ModusFlow helpful for your ComfyUI generation pipelines and prompt workflows, consider supporting ongoing development:
+
+[![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/zombiehaus)
+
+- **Issues**: [Report bugs or request features](https://github.com/dworden42/ComfyUI-ModusFlow/issues)
+- **Discussions**: [Ask questions and share workflows](https://github.com/dworden42/ComfyUI-ModusFlow/discussions)
 
