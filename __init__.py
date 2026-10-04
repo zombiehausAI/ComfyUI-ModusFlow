@@ -583,6 +583,7 @@ async def get_config_endpoint(request):
         from .config import settings, DEFAULT_CONFIG
         config_data = {
             "ollama_url": settings.get("ollama_url", DEFAULT_CONFIG.get("ollama_url", "http://127.0.0.1:11434")),
+            "ollama_model": settings.get("ollama_model", ""),
             "ollama_timeout": settings.get("ollama_timeout", DEFAULT_CONFIG.get("ollama_timeout", 120)),
             "ollama_cloud_url": settings.get("ollama_cloud_url", ""),
             "ollama_cloud_api_key": settings.get("ollama_cloud_api_key", ""),
@@ -591,6 +592,10 @@ async def get_config_endpoint(request):
             "cloud_model": settings.get("cloud_model", DEFAULT_CONFIG.get("cloud_model", "deepseek/deepseek-chat")),
             "civitai_api_key": settings.get("civitai_api_key", ""),
             "prompts_save_directory": settings.get("prompts_save_directory", ""),
+            "prompt_style": settings.get("prompt_style", "Tags (SDXL / Pony)"),
+            "syntax_theme": settings.get("syntax_theme", "Modus Neon (Default)"),
+            "popout_font_family": settings.get("popout_font_family", "Monospace"),
+            "popout_font_size": settings.get("popout_font_size", 14),
         }
         return web.json_response({"success": True, "data": config_data})
     except Exception as e:
@@ -605,16 +610,17 @@ async def save_config_endpoint(request):
 
         current_config = settings.copy()
         for key in (
-            "ollama_url", "ollama_timeout", "ollama_cloud_url", "ollama_cloud_api_key",
-            "cloud_api_url", "cloud_api_key", "cloud_model", "civitai_api_key", "prompts_save_directory"
+            "ollama_url", "ollama_model", "ollama_timeout", "ollama_cloud_url", "ollama_cloud_api_key",
+            "cloud_api_url", "cloud_api_key", "cloud_model", "civitai_api_key", "prompts_save_directory",
+            "prompt_style", "syntax_theme", "popout_font_family", "popout_font_size"
         ):
             if key in data:
                 val = data[key]
-                if key == "ollama_timeout":
+                if key in ("ollama_timeout", "popout_font_size"):
                     try:
                         val = int(val)
                     except (ValueError, TypeError):
-                        val = 120
+                        val = 120 if key == "ollama_timeout" else 14
                 elif isinstance(val, str):
                     val = val.strip()
                 current_config[key] = val

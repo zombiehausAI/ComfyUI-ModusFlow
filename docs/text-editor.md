@@ -366,13 +366,34 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
 - **Smart Word Snapping**: If no text is explicitly highlighted, right-clicking automatically snaps to the word or token under the cursor, eliminating tedious selection dragging.
 - **Works Universally**: Fully supported across both Positive and Negative prompts in both the Pop-Out Studio and the standard ComfyUI canvas node.
 
+### 17. Full Cross-Session Persistence Architecture
+To prevent the frustration of resetting configurations whenever ComfyUI or the browser restarts, ModusFlow implements a unified multi-tier persistence pipeline (backed by `config.json`, browser `localStorage`, and native ComfyUI Settings):
+- **Ollama AI Enhancement Model**: The selected local model is saved immediately to `config.json`, `localStorage`, and ComfyUI settings whenever chosen in either the status modal, settings panel, or pop-out studio. It will never reset to the first model in your list or default to another tag.
+- **Default Prompt Style**: Global default prompt philosophy (`🏷️ Tags (SDXL / Pony)` vs `✍️ Expressions (Flux / SD3)`) persists across reboots and automatically initializes newly created Text Editor nodes.
+- **Syntax Highlighting Theme**: Active theme choices persist across reboots, synchronizing across both canvas textareas and the Pop-Out Studio.
+- **Pop-Out Studio Window Geometry**: Floating window position ($X, Y$) and custom dimensions (width & height) are saved to storage on every move, resize, and dock. When you pop out the studio in future sessions, it restores to your exact coordinates and scale.
+- **Pop-Out Typography (Font Family & Size)**: Font choices (e.g. `JetBrains Mono`, `Fira Code`, `Inter`, `Editorial Serif`) and base font size ($11\text{px}-28\text{px}$) persist across sessions and browser tabs.
+- **Prompt Category Filter**: The active category filter selected in the Pop-Out Studio persists across sessions so you don't have to re-navigate your preset library.
+- **Automatic URL Sanitization**: Ollama server endpoints automatically clean up whitespace, accidental trailing slashes, and trailing dots on IP addresses (e.g., `192.168.x.x.:11434` $\rightarrow$ `192.168.x.x:11434`), preventing offline connection errors.
+
 ## Configuration
 
-Set the save directory in `config.json`:
+Set configuration in `config.json` or through the **⚙️ ModusFlow Studio & AI Settings** dialog:
 
 ```json
 {
-  "prompts_save_directory": "C:/path/to/your/prompts"
+  "ollama_url": "http://127.0.0.1:11434",
+  "ollama_model": "deepseek-r1:8b",
+  "ollama_timeout": 120,
+  "cloud_api_url": "https://openrouter.ai/api/v1",
+  "cloud_api_key": "sk-...",
+  "cloud_model": "deepseek/deepseek-chat",
+  "civitai_api_key": "your_api_key",
+  "prompts_save_directory": "C:/path/to/your/prompts",
+  "prompt_style": "Tags (SDXL / Pony)",
+  "syntax_theme": "Modus Neon (Default)",
+  "popout_font_family": "Monospace",
+  "popout_font_size": 14
 }
 ```
 

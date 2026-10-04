@@ -80,12 +80,15 @@ function openModusFlowSettingsDialog() {
     (async () => {
         let cfg = {
             ollama_url: "http://127.0.0.1:11434",
+            ollama_model: "",
             ollama_timeout: 120,
             cloud_api_url: "https://openrouter.ai/api/v1",
             cloud_api_key: "",
             cloud_model: "deepseek/deepseek-chat",
             civitai_api_key: "",
-            prompts_save_directory: ""
+            prompts_save_directory: "",
+            prompt_style: "Tags (SDXL / Pony)",
+            syntax_theme: "Modus Neon (Default)"
         };
         try {
             const resp = await fetch("/modusflow/get_config");
@@ -95,9 +98,49 @@ function openModusFlowSettingsDialog() {
             }
         } catch (_) {}
 
+        if (typeof localStorage !== "undefined") {
+            if (!cfg.ollama_model && localStorage.getItem("modusflow_ollama_model")) {
+                cfg.ollama_model = localStorage.getItem("modusflow_ollama_model");
+            }
+            if (localStorage.getItem("modusflow_default_prompt_style")) {
+                cfg.prompt_style = localStorage.getItem("modusflow_default_prompt_style");
+            }
+            if (localStorage.getItem("modusflow_syntax_theme")) {
+                cfg.syntax_theme = localStorage.getItem("modusflow_syntax_theme");
+            }
+        }
+
         mkSection("1. Local Ollama AI LLM");
         const ollamaUrlInput = mkField("Local Ollama Server URL", mkInput(cfg.ollama_url, "http://127.0.0.1:11434"), "Endpoint for local Ollama instance (default: http://127.0.0.1:11434)");
 
+        // Dynamic model dropdown
+        const modelSelect = document.createElement("select");
+        modelSelect.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 6px; padding: 7px 10px; color: #a6e3a1; font-size: 12px; font-weight: 600; outline: none;";
+        const defaultModelOpt = document.createElement("option");
+        defaultModelOpt.value = cfg.ollama_model || "";
+        defaultModelOpt.textContent = cfg.ollama_model ? `Active: ${cfg.ollama_model}` : "-- Discovering models... --";
+        modelSelect.appendChild(defaultModelOpt);
+
+        fetch("/modusflow/ollama_status")
+            .then(r => r.json())
+            .then(data => {
+                if (data && data.success && Array.isArray(data.models) && data.models.length > 0) {
+                    modelSelect.innerHTML = "";
+                    const chosen = cfg.ollama_model || data.models[0];
+                    data.models.forEach(m => {
+                        const opt = document.createElement("option");
+                        opt.value = m;
+                        opt.textContent = m;
+                        if (m === chosen) opt.selected = true;
+                        modelSelect.appendChild(opt);
+                    });
+                } else if (!cfg.ollama_model) {
+                    defaultModelOpt.textContent = "-- No models detected (Ollama offline) --";
+                }
+            })
+            .catch(() => {});
+
+        mkField("Default Ollama Enhancement Model", modelSelect, "Model used for one-click prompt enhancement and selection refinement.");
         const timeoutInput = mkField("Ollama Timeout (seconds)", mkInput(cfg.ollama_timeout || 120, "120", "number"), "Timeout before canceling long LLM completions.");
 
         mkSection("2. Cloud LLMs (OpenAI, OpenRouter, Groq, DeepSeek)");
@@ -108,6 +151,17 @@ function openModusFlowSettingsDialog() {
         mkSection("3. Prompt Studio Defaults & Storage");
         const civitaiKeyInput = mkField("Civitai API Key", mkInput(cfg.civitai_api_key, "API Key"), "Used for high-resolution LoRA cards and metadata previews");
         const saveDirInput = mkField("Prompts Directory Override", mkInput(cfg.prompts_save_directory, "Leave blank for default: BASE_DIR/saved_prompts"), "Custom storage folder for prompt presets");
+
+        const styleSelect = document.createElement("select");
+        styleSelect.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 6px; padding: 7px 10px; color: #89b4fa; font-size: 12px; font-weight: 600; outline: none;";
+        ["Tags (SDXL / Pony)", "Expressions (Flux / SD3)"].forEach(s => {
+            const opt = document.createElement("option");
+            opt.value = s;
+            opt.textContent = s;
+            if (s === (cfg.prompt_style || "Tags (SDXL / Pony)")) opt.selected = true;
+            styleSelect.appendChild(opt);
+        });
+        mkField("Default Prompt Style", styleSelect, "Global prompt philosophy for newly created nodes and AI enhancements.");
 
         const footer = document.createElement("div");
         footer.style.cssText = "display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #313244; padding-top: 12px; margin-top: 8px;";
@@ -127,13 +181,24 @@ function openModusFlowSettingsDialog() {
 
             const payload = {
                 ollama_url: (ollamaUrlInput.value || "").trim().replace(/\/+$/, ""),
+                ollama_model: (modelSelect.value || "").trim(),
                 ollama_timeout: parseInt(timeoutInput.value, 10) || 120,
                 cloud_api_url: (cloudUrlInput.value || "").trim().replace(/\/+$/, ""),
                 cloud_api_key: (cloudKeyInput.value || "").trim(),
                 cloud_model: (cloudModelInput.value || "").trim(),
                 civitai_api_key: (civitaiKeyInput.value || "").trim(),
-                prompts_save_directory: (saveDirInput.value || "").trim()
+                prompts_save_directory: (saveDirInput.value || "").trim(),
+                prompt_style: styleSelect.value
             };
+
+            if (payload.ollama_model && typeof localStorage !== "undefined") {
+                try { localStorage.setItem("modusflow_ollama_model", payload.ollama_model); } catch (_) {}
+                app.ui?.settings?.setSettingValue?.("ModusFlow.OllamaEnhanceModel", payload.ollama_model);
+            }
+            if (payload.prompt_style && typeof localStorage !== "undefined") {
+                try { localStorage.setItem("modusflow_default_prompt_style", payload.prompt_style); } catch (_) {}
+                app.ui?.settings?.setSettingValue?.("ModusFlow.DefaultPromptStyle", payload.prompt_style);
+            }
 
             try {
                 const resp = await fetch("/modusflow/save_config", {
@@ -224,6 +289,7 @@ app.registerExtension({
             // Fetch current configuration from backend
             let serverConfig = {
                 ollama_url: "http://127.0.0.1:11434",
+                ollama_model: "",
                 ollama_timeout: 120,
                 ollama_cloud_url: "",
                 ollama_cloud_api_key: "",
@@ -231,7 +297,11 @@ app.registerExtension({
                 cloud_api_key: "",
                 cloud_model: "deepseek/deepseek-chat",
                 civitai_api_key: "",
-                prompts_save_directory: ""
+                prompts_save_directory: "",
+                prompt_style: "Tags (SDXL / Pony)",
+                syntax_theme: "Modus Neon (Default)",
+                popout_font_family: "Monospace",
+                popout_font_size: 14
             };
 
             try {
@@ -344,21 +414,33 @@ app.registerExtension({
                 }
             });
 
-            // 1b. Ollama Prompt Enhancement Model for Text Editor (Dropdown)
+            // 1b. Ollama Prompt Enhancement Model for Text Editor (Dropdown with Persistence)
+            const savedEnhanceModel = serverConfig.ollama_model ||
+                (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_ollama_model")) ||
+                "";
+
             sm.addSetting({
                 id: "ModusFlow.OllamaEnhanceModel",
                 category: ["ModusFlow", "Local Ollama"],
                 name: "ModusFlow: Text Editor Ollama Model",
                 type: "combo",
-                defaultValue: ollamaModels.length ? ollamaModels[0] : "s1gnature/deepseek-r1-uncensored:8b",
+                defaultValue: savedEnhanceModel || (ollamaModels.length ? ollamaModels[0] : "s1gnature/deepseek-r1-uncensored:8b"),
                 options: (val) => {
-                    if (ollamaModels.length > 0) {
-                        return ollamaModels;
-                    }
-                    return val ? [val] : ["--no models found--"];
+                    const opts = [];
+                    if (savedEnhanceModel) opts.push(savedEnhanceModel);
+                    if (ollamaModels.length > 0) opts.push(...ollamaModels);
+                    if (val) opts.push(val);
+                    const uniq = [...new Set(opts.filter(Boolean))];
+                    return uniq.length ? uniq : ["--no models found--"];
                 },
-                tooltip: "Dropdown of local Ollama models for Text Editor one-click AI prompt enhancement",
-                sortOrder: 46
+                tooltip: "Dropdown of local Ollama models for Text Editor one-click AI prompt enhancement (persists across sessions)",
+                sortOrder: 46,
+                onChange: (newVal, oldVal) => {
+                    if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal && newVal !== "--no models found--") {
+                        try { localStorage.setItem("modusflow_ollama_model", newVal); } catch (_) {}
+                        queueSave("ollama_model", newVal);
+                    }
+                }
             });
 
             // 1c. Quick Check Ollama Status Button

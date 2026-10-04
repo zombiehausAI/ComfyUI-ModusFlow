@@ -1,5 +1,6 @@
 import json
 import os
+import re
 
 # The directory where this config.py file is located
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -8,6 +9,7 @@ CONFIG_FILE_PATH = os.path.join(BASE_DIR, 'config.json')
 # Default configuration
 DEFAULT_CONFIG = {
     "ollama_url": "http://127.0.0.1:11434",
+    "ollama_model": "",
     "ollama_timeout": 120,
     "ollama_cloud_url": "",
     "ollama_cloud_api_key": "",
@@ -16,6 +18,10 @@ DEFAULT_CONFIG = {
     "cloud_model": "deepseek/deepseek-chat",
     "civitai_api_key": "",
     "prompts_save_directory": "",  # Empty string means use default: BASE_DIR/saved_prompts
+    "prompt_style": "Tags (SDXL / Pony)",
+    "syntax_theme": "Modus Neon (Default)",
+    "popout_font_family": "Monospace",
+    "popout_font_size": 14,
     "base_model_definitions": [
         {"type": "flux", "keywords": ["flux", "flux1.5", "flux1.d", "chroma", "flux.1-schnell"]},
         {"type": "sdxl", "keywords": ["sdxl", "sd_xl"]},
@@ -24,6 +30,14 @@ DEFAULT_CONFIG = {
         {"type": "sd35", "keywords": ["sd_v3", "v3-5", "sd35"]}
     ]
 }
+
+def _clean_ollama_url(url: str) -> str:
+    """Sanitize Ollama URL by removing accidental trailing dots in IP and trailing slashes."""
+    if not isinstance(url, str):
+        return "http://127.0.0.1:11434"
+    cleaned = url.strip()
+    cleaned = re.sub(r'(\d+\.\d+\.\d+\.\d+)\.(?=:|/|$)', r'\1', cleaned)
+    return cleaned.rstrip('/')
 
 def get_config():
     """
@@ -39,6 +53,9 @@ def get_config():
                 config.update(json.load(f))
         except (json.JSONDecodeError, TypeError) as e:
             print(f"[ModusFlow Config] Error loading config.json: {e}. Using defaults.")
+
+    if "ollama_url" in config:
+        config["ollama_url"] = _clean_ollama_url(config["ollama_url"])
 
     # 2. Override with environment variables
     if 'MODUSFLOW_OLLAMA_URL' in os.environ:
@@ -88,9 +105,12 @@ def save_config(new_config: dict):
     """
     global settings
     try:
+        cfg_to_save = dict(new_config)
+        if "ollama_url" in cfg_to_save and isinstance(cfg_to_save["ollama_url"], str):
+            cfg_to_save["ollama_url"] = _clean_ollama_url(cfg_to_save["ollama_url"])
         with open(CONFIG_FILE_PATH, 'w') as f:
-            json.dump(new_config, f, indent=4)
-        settings.update(new_config)
+            json.dump(cfg_to_save, f, indent=4)
+        settings.update(cfg_to_save)
         print(f"[ModusFlow Config] Successfully saved configuration to {CONFIG_FILE_PATH}")
         return True
     except Exception as e:

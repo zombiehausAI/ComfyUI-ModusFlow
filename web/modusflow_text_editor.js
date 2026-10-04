@@ -1391,6 +1391,11 @@ function setNodeTheme(node, themeName) {
     try {
         localStorage.setItem("modusflow_syntax_theme", themeName);
     } catch (_) {}
+    fetch("/modusflow/save_config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ syntax_theme: themeName })
+    }).catch(() => {});
 
     const theme = getThemeByName(themeName);
     const pw = node.widgets?.find(w => w.name === "positive");
@@ -2423,7 +2428,9 @@ function showOllamaStatusModal(node, btn) {
         const urlStr = st.url || _ollamaUrl || "http://127.0.0.1:11434";
         const models = st.models || [];
 
-        let currentSettingModel = app.ui?.settings?.getSettingValue?.("ModusFlow.OllamaEnhanceModel") || "";
+        let currentSettingModel = app.ui?.settings?.getSettingValue?.("ModusFlow.OllamaEnhanceModel") ||
+            (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_ollama_model")) ||
+            "";
 
         statusBox.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -2455,6 +2462,7 @@ function showOllamaStatusModal(node, btn) {
             if (!currentSettingModel || !models.includes(currentSettingModel)) {
                 currentSettingModel = models[0];
                 app.ui?.settings?.setSettingValue?.("ModusFlow.OllamaEnhanceModel", currentSettingModel);
+                try { localStorage.setItem("modusflow_ollama_model", currentSettingModel); } catch (_) {}
             }
             modelSelect.disabled = false;
         } else {
@@ -2474,6 +2482,12 @@ function showOllamaStatusModal(node, btn) {
         const val = e.target.value;
         if (val) {
             app.ui?.settings?.setSettingValue?.("ModusFlow.OllamaEnhanceModel", val);
+            try { localStorage.setItem("modusflow_ollama_model", val); } catch (_) {}
+            fetch("/modusflow/save_config", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ollama_model: val })
+            }).catch(() => {});
         }
     };
 
@@ -2523,8 +2537,10 @@ async function enhancePromptWithOllama(node, btn) {
         return;
     }
 
-    let model = app.ui?.settings?.getSettingValue?.("ModusFlow.OllamaEnhanceModel");
-    if (!model || !model.trim() || model === "-- none --") {
+    let model = app.ui?.settings?.getSettingValue?.("ModusFlow.OllamaEnhanceModel") ||
+        (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_ollama_model")) ||
+        "";
+    if (!model || !model.trim() || model === "-- none --" || model === "--no models found--") {
         model = status.models.length ? status.models[0] : "llama3.2";
     }
 
@@ -2576,8 +2592,10 @@ async function executeSelectionRefinement(action, selected, start, end, ta, widg
         return;
     }
 
-    let model = app.ui?.settings?.getSettingValue?.("ModusFlow.OllamaEnhanceModel");
-    if (!model || !model.trim() || model === "-- none --") {
+    let model = app.ui?.settings?.getSettingValue?.("ModusFlow.OllamaEnhanceModel") ||
+        (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_ollama_model")) ||
+        "";
+    if (!model || !model.trim() || model === "-- none --" || model === "--no models found--") {
         model = status.models.length ? status.models[0] : "llama3.2";
     }
 
@@ -3075,7 +3093,9 @@ async function showModusFlowSettingsModal(node) {
         };
 
         if (modelSel.value) {
+            payload.ollama_model = modelSel.value;
             app.ui?.settings?.setSettingValue?.("ModusFlow.OllamaEnhanceModel", modelSel.value);
+            try { localStorage.setItem("modusflow_ollama_model", modelSel.value); } catch (_) {}
         }
 
         try {
@@ -3844,7 +3864,9 @@ app.registerExtension({
                 node._currentSyntaxTheme = initialTheme;
 
                 // ── Prompt Style combo (Tags vs Expressions) ─────────────────────
-                const initialStyle = node.properties?.["prompt_style"] || "Tags (SDXL / Pony)";
+                const initialStyle = node.properties?.["prompt_style"] ||
+                    (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_default_prompt_style")) ||
+                    "Tags (SDXL / Pony)";
                 const styleWidget = node.addWidget(
                     "combo",
                     "prompt_style",
@@ -3852,6 +3874,14 @@ app.registerExtension({
                     (value) => {
                         node.properties = node.properties || {};
                         node.properties["prompt_style"] = value;
+                        try {
+                            localStorage.setItem("modusflow_default_prompt_style", value);
+                        } catch (_) {}
+                        fetch("/modusflow/save_config", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ prompt_style: value })
+                        }).catch(() => {});
                         node._popoutSyncStyle?.(value);
                         app.graph?.setDirtyCanvas(true, true);
                     },
@@ -4077,6 +4107,8 @@ app.registerExtension({
                     if (tw && tw.value) {
                         setNodeTheme(this, tw.value);
                     }
+                }
+
                 if (this.properties?.prompt_style) {
                     const sw = this.widgets?.find(w => w.name === "prompt_style");
                     if (sw) sw.value = this.properties.prompt_style;
@@ -6790,11 +6822,19 @@ app.registerExtension({
                 const defTop = Math.max(30, Math.floor((window.innerHeight - defH) / 2));
                 const defLeft = Math.max(30, Math.floor((window.innerWidth - defW) / 2));
 
-                if (node._popoutSavedRect) {
-                    win.style.top = node._popoutSavedRect.top;
-                    win.style.left = node._popoutSavedRect.left;
-                    win.style.width = node._popoutSavedRect.width;
-                    win.style.height = node._popoutSavedRect.height;
+                let savedRect = node._popoutSavedRect;
+                if (!savedRect && typeof localStorage !== "undefined") {
+                    try {
+                        const raw = localStorage.getItem("modusflow_popout_geometry");
+                        if (raw) savedRect = JSON.parse(raw);
+                    } catch (_) {}
+                }
+
+                if (savedRect && savedRect.width && savedRect.height) {
+                    win.style.top = savedRect.top;
+                    win.style.left = savedRect.left;
+                    win.style.width = savedRect.width;
+                    win.style.height = savedRect.height;
                 } else {
                     win.style.top = `${defTop}px`;
                     win.style.left = `${defLeft}px`;
@@ -6899,7 +6939,8 @@ app.registerExtension({
                     const all = node._allPrompts || [];
                     const cats = [...new Set(all.map(p => (p.category || "").trim()).filter(Boolean))].sort();
 
-                    const prevCat = catSel.value;
+                    const savedCat = (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_prompt_category_filter")) || "--all categories--";
+                    const prevCat = catSel.value || savedCat;
                     catSel.innerHTML = "";
                     const allOpt = document.createElement("option");
                     allOpt.value = "--all categories--";
@@ -6943,6 +6984,9 @@ app.registerExtension({
                 }
 
                 catSel.onchange = () => {
+                    try {
+                        localStorage.setItem("modusflow_prompt_category_filter", catSel.value);
+                    } catch (_) {}
                     populatePopoutPrompts();
                 };
 
@@ -7003,6 +7047,14 @@ app.registerExtension({
                     if (sw) sw.value = styleSel.value;
                     node.properties = node.properties || {};
                     node.properties["prompt_style"] = styleSel.value;
+                    try {
+                        localStorage.setItem("modusflow_default_prompt_style", styleSel.value);
+                    } catch (_) {}
+                    fetch("/modusflow/save_config", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ prompt_style: styleSel.value })
+                    }).catch(() => {});
                     showStudioToast(`Prompt style: ${styleSel.value}`);
                     app.graph?.setDirtyCanvas(true, true);
                 };
@@ -7020,17 +7072,24 @@ app.registerExtension({
 
                 const themeSel = document.createElement("select");
                 themeSel.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 5px; color: #cdd6f4; font-size: 11px; padding: 3px 6px; outline: none; cursor: pointer;";
+                const curTheme = node._currentSyntaxTheme ||
+                    (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_syntax_theme")) ||
+                    "Modus Neon (Default)";
                 getThemeOptions().forEach(t => {
                     const opt = document.createElement("option");
                     opt.value = t;
                     opt.textContent = t;
-                    if (t === (node._currentSyntaxTheme || "Modus Neon (Default)")) opt.selected = true;
+                    if (t === curTheme) opt.selected = true;
                     themeSel.appendChild(opt);
                 });
                 themeSel.onchange = () => {
                     setNodeTheme(node, themeSel.value);
                     const tw = node.widgets?.find(w => w.name === "syntax_theme");
                     if (tw) tw.value = themeSel.value;
+                    try {
+                        localStorage.setItem("modusflow_syntax_theme", themeSel.value);
+                    } catch (_) {}
+                    app.ui?.settings?.setSettingValue?.("ModusFlow.DefaultSyntaxTheme", themeSel.value);
                     updatePopoutBackdrops();
                 };
                 toolbar.appendChild(themeSel);
@@ -7139,6 +7198,14 @@ app.registerExtension({
                         localStorage.setItem("modusflow_popout_font_size", String(savedFontSize));
                         localStorage.setItem("modusflow_popout_font_family", savedFontKey);
                     } catch (_) {}
+                    fetch("/modusflow/save_config", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            popout_font_family: savedFontKey,
+                            popout_font_size: savedFontSize
+                        })
+                    }).catch(() => {});
 
                     onPosInput();
                     onNegInput();
@@ -7578,6 +7645,9 @@ app.registerExtension({
                                 width: win.style.width,
                                 height: win.style.height
                             };
+                            try {
+                                localStorage.setItem("modusflow_popout_geometry", JSON.stringify(node._popoutSavedRect));
+                            } catch (_) {}
                         }
                     };
 
@@ -7624,6 +7694,9 @@ app.registerExtension({
                             width: win.style.width,
                             height: win.style.height
                         };
+                        try {
+                            localStorage.setItem("modusflow_popout_geometry", JSON.stringify(node._popoutSavedRect));
+                        } catch (_) {}
                     }
                     node._popoutSyncStyle = null;
                     node._popoutSyncPromptsDropdown = null;
