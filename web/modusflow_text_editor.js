@@ -455,7 +455,7 @@ function injectSyntaxStyles() {
             box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.1);
             max-height: 230px;
             overflow-y: auto;
-            z-index: 1000;
+            z-index: 100030;
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
             display: none;
             box-sizing: border-box;
@@ -554,6 +554,13 @@ function injectSyntaxStyles() {
         @keyframes mfFadeIn {
             from { opacity: 0; transform: translateY(-4px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── ModusFlow Modal Overlays (Always on top of Studio & Canvas) ── */
+        .modusflow-modal-overlay {
+            position: fixed !important;
+            inset: 0 !important;
+            z-index: 100050 !important;
         }
 
         /* ── Pop-Out Floating Studio Window ── */
@@ -999,7 +1006,7 @@ function showStudioToast(message, type = "success", duration = 2600) {
     if (!container) {
         container = document.createElement("div");
         container.id = "modusflow-studio-toast-container";
-        container.style.cssText = "position: fixed; top: 24px; right: 28px; z-index: 10005; display: flex; flex-direction: column; gap: 8px; pointer-events: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;";
+        container.style.cssText = "position: fixed; top: 24px; right: 28px; z-index: 100100; display: flex; flex-direction: column; gap: 8px; pointer-events: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;";
         document.body.appendChild(container);
     }
 
@@ -2022,7 +2029,7 @@ function showHistoryDialog(node) {
 
     const overlay = document.createElement("div");
     overlay.className = "modusflow-modal-overlay";
-    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100050; backdrop-filter: blur(4px);";
 
     const dialog = document.createElement("div");
     dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 580px; max-height: 80vh; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); color: #cdd6f4; font-family: sans-serif;";
@@ -2256,7 +2263,7 @@ function showResolvedPreviewModal(node) {
 
     const overlay = document.createElement("div");
     overlay.className = "modusflow-modal-overlay";
-    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100050; backdrop-filter: blur(4px);";
 
     const dialog = document.createElement("div");
     dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 620px; max-height: 85vh; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); color: #cdd6f4; font-family: sans-serif;";
@@ -2405,7 +2412,7 @@ function checkOllamaStatus(force = false) {
 function showOllamaStatusModal(node, btn) {
     const overlay = document.createElement("div");
     overlay.className = "modusflow-modal-overlay";
-    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.78); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.78); display: flex; align-items: center; justify-content: center; z-index: 100050; backdrop-filter: blur(4px);";
 
     const dialog = document.createElement("div");
     dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 22px; width: 540px; max-width: 92vw; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 20px 45px rgba(0,0,0,0.7); color: #cdd6f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;";
@@ -2718,7 +2725,7 @@ function showSynonymsPickerModal(selected, options, start, end, ta, widget, node
     const overlay = document.createElement("div");
     overlay.id = "modusflow-synonyms-modal";
     overlay.className = "modusflow-modal-overlay";
-    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10009; backdrop-filter: blur(4px);";
+    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100060; backdrop-filter: blur(4px);";
 
     const dialog = document.createElement("div");
     dialog.style.cssText = "background: #181825; border: 1px solid #45475a; border-radius: 12px; padding: 18px; width: 480px; max-width: 92vw; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.75); color: #cdd6f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;";
@@ -2806,7 +2813,7 @@ function showOllamaSelectionMenu(x, y, selected, start, end, ta, widget, node, o
 
     const menu = document.createElement("div");
     menu.id = "modusflow-selection-menu";
-    menu.style.cssText = "position: fixed; z-index: 10008; background: #181825; border: 1px solid #45475a; border-radius: 9px; box-shadow: 0 16px 40px rgba(0,0,0,0.8), 0 0 1px 1px rgba(255,255,255,0.1); padding: 6px; min-width: 270px; color: #cdd6f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px;";
+    menu.style.cssText = "position: fixed; z-index: 100020; background: #181825; border: 1px solid #45475a; border-radius: 9px; box-shadow: 0 16px 40px rgba(0,0,0,0.8), 0 0 1px 1px rgba(255,255,255,0.1); padding: 6px; min-width: 270px; color: #cdd6f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px;";
 
     let posX = Math.min(window.innerWidth - 290, Math.max(10, x));
     let posY = Math.min(window.innerHeight - 380, Math.max(10, y));
@@ -2963,7 +2970,7 @@ async function showModusFlowSettingsModal(node) {
     const overlay = document.createElement("div");
     overlay.id = "modusflow-settings-modal";
     overlay.className = "modusflow-modal-overlay";
-    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 10006; backdrop-filter: blur(5px);";
+    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100050; backdrop-filter: blur(5px);";
 
     const dialog = document.createElement("div");
     dialog.style.cssText = "background: #181825; border: 1px solid #45475a; border-radius: 12px; padding: 22px; width: 620px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 24px 60px rgba(0,0,0,0.8); color: #cdd6f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; overflow-y: auto;";
@@ -3236,7 +3243,7 @@ function insertChipIntoPrompt(node, chipText) {
 function showQuickChipsModal(node) {
     const overlay = document.createElement("div");
     overlay.className = "modusflow-modal-overlay";
-    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100050; backdrop-filter: blur(4px);";
 
     const dialog = document.createElement("div");
     dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 620px; max-height: 85vh; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); color: #cdd6f4; font-family: sans-serif;";
@@ -4725,7 +4732,7 @@ app.registerExtension({
                 const overlay = document.createElement("div");
                 overlay.id = "modusflow-save-modal";
                 overlay.className = "modusflow-modal-overlay";
-                overlay.style.cssText = "position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.65); z-index: 10000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;";
+                overlay.style.cssText = "position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.65); z-index: 100050; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;";
 
                 const modal = document.createElement("div");
                 modal.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 10px; width: 380px; box-shadow: 0 10px 30px rgba(0,0,0,0.7); overflow: hidden; color: #cdd6f4;";
@@ -5162,7 +5169,7 @@ app.registerExtension({
 
                 const overlay = document.createElement("div");
                 overlay.className = "modusflow-modal-overlay";
-                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100050; backdrop-filter: blur(4px);";
 
                 const dialog = document.createElement("div");
                 dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 560px; max-width: 92vw; max-height: 85vh; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 45px rgba(0,0,0,0.7); color: #cdd6f4; font-family: sans-serif;";
@@ -5596,7 +5603,7 @@ app.registerExtension({
 
                 const overlay = document.createElement("div");
                 overlay.className = "modusflow-modal-overlay";
-                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10003; backdrop-filter: blur(4px);";
+                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100050; backdrop-filter: blur(4px);";
 
                 const dialog = document.createElement("div");
                 dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 680px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.75); color: #cdd6f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; overflow-y: auto;";
@@ -6695,7 +6702,7 @@ app.registerExtension({
 
                 const overlay = document.createElement("div");
                 overlay.className = "modusflow-modal-overlay";
-                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100050; backdrop-filter: blur(4px);";
 
                 const dialog = document.createElement("div");
                 dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 680px; max-width: 94vw; max-height: 85vh; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 45px rgba(0,0,0,0.7); color: #cdd6f4; font-family: sans-serif;";
@@ -6819,7 +6826,7 @@ app.registerExtension({
 
                 const overlay = document.createElement("div");
                 overlay.className = "modusflow-modal-overlay";
-                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100050; backdrop-filter: blur(4px);";
 
                 const dialog = document.createElement("div");
                 dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 660px; max-width: 94vw; max-height: 85vh; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 45px rgba(0,0,0,0.7); color: #cdd6f4; font-family: sans-serif;";
@@ -6928,7 +6935,7 @@ app.registerExtension({
 
                 const overlay = document.createElement("div");
                 overlay.className = "modusflow-modal-overlay";
-                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100050; backdrop-filter: blur(4px);";
 
                 const dialog = document.createElement("div");
                 dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 680px; max-width: 94vw; max-height: 85vh; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 45px rgba(0,0,0,0.7); color: #cdd6f4; font-family: sans-serif;";
@@ -7029,7 +7036,7 @@ app.registerExtension({
 
                 const menu = document.createElement("div");
                 menu.id = "modusflow-tools-menu";
-                menu.style.cssText = "position: fixed; z-index: 10005; background: #181825; border: 1px solid #45475a; border-radius: 8px; box-shadow: 0 16px 36px rgba(0,0,0,0.7), 0 0 1px 1px rgba(255,255,255,0.1); padding: 6px; min-width: 250px; color: #cdd6f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px;";
+                menu.style.cssText = "position: fixed; z-index: 100020; background: #181825; border: 1px solid #45475a; border-radius: 8px; box-shadow: 0 16px 36px rgba(0,0,0,0.7), 0 0 1px 1px rgba(255,255,255,0.1); padding: 6px; min-width: 250px; color: #cdd6f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px;";
 
                 let x = evt ? evt.clientX : (window.innerWidth / 2 - 125);
                 let y = evt ? evt.clientY : (window.innerHeight / 2 - 150);
