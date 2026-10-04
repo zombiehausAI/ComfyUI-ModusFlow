@@ -3379,25 +3379,9 @@ app.registerExtension({
                     }
                 });
                 enhanceBtn.tooltip = "Enhance prompt with local Ollama LLM. Shift+Click or click when offline to check status & select model.";
-                node.addWidget("button", "🏷 Tag Studio",           null, () => toggleTagStudioMode(node));
-                node.addWidget("button", "◫ Split Studio",          null, () => toggleNodeLayout(node));
-                node.addWidget("button", "🌈 Color Spectrum",       null, () => showColorPaletteModal(node));
-                node.addWidget("button", "🎞 Aesthetic Ribbon",     null, () => showAestheticRibbonModal(node));
-                node.addWidget("button", "✍️ Prosify (Fluent)",     null, () => prosifyPositivePrompt(node));
-                node.addWidget("button", "🏷 Tagify (Tags)",        null, () => tagifyPositivePrompt(node));
-                node.addWidget("button", "⚄ Variation Grid",        null, () => showVariationGridModal(node));
-                node.addWidget("button", "⚡ Quick Chips",          null, () => showQuickChipsModal(node));
-                node.addWidget("button", "🎨 LoRA Deck",             null, () => showLoraDeckModal(node));
-                node.addWidget("button", "⇄ Swap Prompts",          null, () => swapPositiveNegative(node));
-                node.addWidget("button", "◫ Explode / Collapse",    null, () => toggleTagFormat(node));
-                node.addWidget("button", "🔍 Find / Replace",        null, () => showFindReplaceBar(node));
-                node.addWidget("button", "🔍 Prompt Diff",          null, () => showPromptDiffModal(node));
-                node.addWidget("button", "Save Prompt",             null, () => showSaveDialog(node));
-                node.addWidget("button", "Update Selected",         null, () => updatePrompt(node));
-                node.addWidget("button", "Refresh List",            null, () => refreshPrompts(node));
-                node.addWidget("button", "Prettify / Dedupe",       null, () => prettifyNodePrompts(node));
-                node.addWidget("button", "Preview Resolved",        null, () => showResolvedPreviewModal(node));
-                node.addWidget("button", "Prompt History",          null, () => showHistoryDialog(node));
+                node.addWidget("button", "💾 Save Prompt",          null, () => showSaveDialog(node));
+                node.addWidget("button", "🔄 Update Selected",      null, () => updatePrompt(node));
+                node.addWidget("button", "🛠️ Studio Tools ▾",      null, () => showStudioToolsMenu(node, window.event));
 
                 checkOllamaStatus().then(st => {
                     if (!st.available && enhanceBtn) {
@@ -3409,7 +3393,7 @@ app.registerExtension({
                 attachImageDropHandlers(node);
 
                 // ── Initial size ──────────────────────────────────────────────────
-                node.size = [560, 930];
+                node.size = [560, 580];
                 node.resizable = true;
 
                 requestAnimationFrame(() => refreshPrompts(node));
@@ -3957,6 +3941,7 @@ app.registerExtension({
                         setTextValue(node.widgets?.find(w => w.name === "negative"),         data.data.negative || "");
                         setTextValue(node.widgets?.find(w => w.name === "prompt_category"),  data.data.category || "");
                         pushPromptHistory(node, "Loaded: " + filename);
+                        node._popoutSyncFromNode?.();
                         app.graph.setDirtyCanvas(true, true);
                     } else {
                         console.error("[ModusFlow] Load error:", data.message);
@@ -4004,6 +3989,7 @@ app.registerExtension({
                 } else if (!dw.options.values.includes(dw.value)) {
                     dw.value = dw.options.values[0];
                 }
+                node._popoutSyncPromptsDropdown?.();
                 app.graph.setDirtyCanvas(true, true);
             }
 
@@ -6067,6 +6053,112 @@ app.registerExtension({
                 showStudioToast(node._splitLayout ? "Split-Screen Studio Mode Active" : "Stacked Layout Mode Active");
             }
 
+            // ── Studio Tools Dropdown Menu ───────────────────────────────────────
+            function showStudioToolsMenu(node, evt) {
+                const existing = document.getElementById("modusflow-tools-menu");
+                if (existing) {
+                    existing.remove();
+                    return;
+                }
+
+                const menu = document.createElement("div");
+                menu.id = "modusflow-tools-menu";
+                menu.style.cssText = "position: fixed; z-index: 10005; background: #181825; border: 1px solid #45475a; border-radius: 8px; box-shadow: 0 16px 36px rgba(0,0,0,0.7), 0 0 1px 1px rgba(255,255,255,0.1); padding: 6px; min-width: 250px; color: #cdd6f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px;";
+
+                let x = evt ? evt.clientX : (window.innerWidth / 2 - 125);
+                let y = evt ? evt.clientY : (window.innerHeight / 2 - 150);
+                if (x + 260 > window.innerWidth) x = window.innerWidth - 270;
+                if (y + 400 > window.innerHeight) y = Math.max(10, window.innerHeight - 410);
+                menu.style.left = `${Math.max(10, x)}px`;
+                menu.style.top = `${Math.max(10, y)}px`;
+
+                const sections = [
+                    {
+                        title: "Studio & Layout",
+                        items: [
+                            { label: "⛶ Pop Out Studio", action: () => showPopOutStudio(node) },
+                            { label: "🏷 Tag Studio Mode", action: () => toggleTagStudioMode(node) },
+                            { label: "◫ Split Studio Layout", action: () => toggleNodeLayout(node) }
+                        ]
+                    },
+                    {
+                        title: "Styling & Color",
+                        items: [
+                            { label: "🌈 Color Spectrum Studio", action: () => showColorPaletteModal(node) },
+                            { label: "🎞 Visual Aesthetic Ribbon", action: () => showAestheticRibbonModal(node) },
+                            { label: "🎨 Active LoRA Deck", action: () => showLoraDeckModal(node) },
+                            { label: "⚡ Quick Chips", action: () => showQuickChipsModal(node) }
+                        ]
+                    },
+                    {
+                        title: "Prose & Flow",
+                        items: [
+                            { label: "✍️ Prosify (Fluent Prose)", action: () => prosifyPositivePrompt(node) },
+                            { label: "🏷 Tagify (Tags & Weights)", action: () => tagifyPositivePrompt(node) },
+                            { label: "⇄ Swap Positive / Negative", action: () => swapPositiveNegative(node) },
+                            { label: "🧹 Prettify & Dedupe Tags", action: () => prettifyNodePrompts(node) },
+                            { label: "✨ Translate All Hex Codes", action: () => translateAllHexInNode(node) },
+                            { label: "◫ Explode / Collapse Tags", action: () => toggleTagFormat(node) }
+                        ]
+                    },
+                    {
+                        title: "Analysis & History",
+                        items: [
+                            { label: "⚄ Choice Variation Grid", action: () => showVariationGridModal(node) },
+                            { label: "👁️ Preview Resolved Prompt", action: () => showResolvedPreviewModal(node) },
+                            { label: "🔍 Prompt Diff Viewer", action: () => showPromptDiffModal(node) },
+                            { label: "🔍 Find & Replace (Ctrl+F)", action: () => showFindReplaceBar(node) },
+                            { label: "📜 Prompt History", action: () => showHistoryDialog(node) },
+                            { label: "🔃 Refresh Saved Prompts", action: () => refreshPrompts(node) }
+                        ]
+                    }
+                ];
+
+                sections.forEach((sec, sIdx) => {
+                    if (sIdx > 0) {
+                        const sep = document.createElement("div");
+                        sep.style.cssText = "height: 1px; background: #313244; margin: 4px 6px;";
+                        menu.appendChild(sep);
+                    }
+                    const titleEl = document.createElement("div");
+                    titleEl.style.cssText = "font-size: 10px; font-weight: 700; color: #6c7086; text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 8px 2px 8px;";
+                    titleEl.textContent = sec.title;
+                    menu.appendChild(titleEl);
+
+                    sec.items.forEach(it => {
+                        const itemEl = document.createElement("div");
+                        itemEl.style.cssText = "padding: 5px 8px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; transition: all 0.12s ease;";
+                        itemEl.textContent = it.label;
+                        itemEl.onmouseenter = () => {
+                            itemEl.style.background = "#313244";
+                            itemEl.style.color = "#89b4fa";
+                        };
+                        itemEl.onmouseleave = () => {
+                            itemEl.style.background = "transparent";
+                            itemEl.style.color = "#cdd6f4";
+                        };
+                        itemEl.onclick = (e) => {
+                            e.stopPropagation();
+                            menu.remove();
+                            it.action();
+                        };
+                        menu.appendChild(itemEl);
+                    });
+                });
+
+                const closeListener = (e) => {
+                    if (!menu.contains(e.target)) {
+                        menu.remove();
+                        document.removeEventListener("pointerdown", closeListener, true);
+                    }
+                };
+                setTimeout(() => {
+                    document.addEventListener("pointerdown", closeListener, true);
+                }, 10);
+
+                document.body.appendChild(menu);
+            }
+
             // ── Pop-Out Prompt Studio (Floating & Fullscreen Workstation) ─────────
             function showPopOutStudio(node) {
                 if (node._popoutStudioEl && document.body.contains(node._popoutStudioEl)) {
@@ -6193,22 +6285,80 @@ app.registerExtension({
                 const toolbar = document.createElement("div");
                 toolbar.className = "modusflow-popout-toolbar";
 
-                const themeSel = document.createElement("select");
-                themeSel.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 5px; color: #cdd6f4; font-size: 11px; padding: 3px 6px; outline: none; cursor: pointer;";
-                getThemeOptions().forEach(t => {
-                    const opt = document.createElement("option");
-                    opt.value = t;
-                    opt.textContent = t;
-                    if (t === (node._currentSyntaxTheme || "Modus Neon (Default)")) opt.selected = true;
-                    themeSel.appendChild(opt);
-                });
-                themeSel.onchange = () => {
-                    setNodeTheme(node, themeSel.value);
-                    const tw = node.widgets?.find(w => w.name === "syntax_theme");
-                    if (tw) tw.value = themeSel.value;
-                    updatePopoutBackdrops();
+                // Category & Prompt Selectors
+                const catSel = document.createElement("select");
+                catSel.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 5px; color: #89b4fa; font-size: 11px; padding: 3px 6px; outline: none; cursor: pointer; max-width: 140px;";
+                catSel.title = "Filter prompts by category";
+
+                const promptSel = document.createElement("select");
+                promptSel.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 5px; color: #a6e3a1; font-size: 11px; font-weight: 600; padding: 3px 8px; outline: none; cursor: pointer; max-width: 200px;";
+                promptSel.title = "Select prompt to load";
+
+                function populatePopoutPrompts() {
+                    const all = node._allPrompts || [];
+                    const cats = [...new Set(all.map(p => (p.category || "").trim()).filter(Boolean))].sort();
+
+                    const prevCat = catSel.value;
+                    catSel.innerHTML = "";
+                    const allOpt = document.createElement("option");
+                    allOpt.value = "--all categories--";
+                    allOpt.textContent = "📁 All Categories";
+                    catSel.appendChild(allOpt);
+                    cats.forEach(c => {
+                        const opt = document.createElement("option");
+                        opt.value = c;
+                        opt.textContent = `📁 ${c}`;
+                        if (c === prevCat) opt.selected = true;
+                        catSel.appendChild(opt);
+                    });
+
+                    const activeCat = catSel.value;
+                    let filtered = all;
+                    if (activeCat && activeCat !== "--all categories--") {
+                        filtered = filtered.filter(p => (p.category || "") === activeCat);
+                    }
+                    const filenames = filtered.map(p => p.filename);
+                    const curVal = node.widgets?.find(w => w.name === "saved_prompt")?.value || "";
+
+                    promptSel.innerHTML = "";
+                    if (filenames.length === 0) {
+                        const opt = document.createElement("option");
+                        opt.value = "";
+                        opt.textContent = "--no prompts found--";
+                        promptSel.appendChild(opt);
+                    } else {
+                        const defaultOpt = document.createElement("option");
+                        defaultOpt.value = "";
+                        defaultOpt.textContent = "📂 --select prompt--";
+                        promptSel.appendChild(defaultOpt);
+                        filenames.forEach(fn => {
+                            const opt = document.createElement("option");
+                            opt.value = fn;
+                            opt.textContent = fn;
+                            if (fn === curVal) opt.selected = true;
+                            promptSel.appendChild(opt);
+                        });
+                    }
+                }
+
+                catSel.onchange = () => {
+                    populatePopoutPrompts();
                 };
-                toolbar.appendChild(themeSel);
+
+                promptSel.onchange = () => {
+                    const val = promptSel.value;
+                    if (val && val !== "--select prompt--" && val !== "--no prompts found--") {
+                        const dw = node.widgets?.find(w => w.name === "saved_prompt");
+                        if (dw) dw.value = val;
+                        loadPrompt(node, val);
+                    }
+                };
+
+                node._popoutSyncPromptsDropdown = populatePopoutPrompts;
+                populatePopoutPrompts();
+
+                toolbar.appendChild(catSel);
+                toolbar.appendChild(promptSel);
 
                 function addToolBtn(iconText, title, onClick, extraStyle = "") {
                     const btn = document.createElement("button");
@@ -6226,6 +6376,29 @@ app.registerExtension({
 
                 addToolBtn("💾 Save", "Save prompt preset", () => showSaveDialog(node));
                 addToolBtn("🔄 Update", "Update selected prompt file", () => updatePrompt(node));
+                addToolBtn("🔃 Refresh", "Refresh saved prompts list", () => refreshPrompts(node));
+
+                const divSep = document.createElement("div");
+                divSep.style.cssText = "width: 1px; height: 18px; background: #313244; margin: 0 4px;";
+                toolbar.appendChild(divSep);
+
+                const themeSel = document.createElement("select");
+                themeSel.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 5px; color: #cdd6f4; font-size: 11px; padding: 3px 6px; outline: none; cursor: pointer;";
+                getThemeOptions().forEach(t => {
+                    const opt = document.createElement("option");
+                    opt.value = t;
+                    opt.textContent = t;
+                    if (t === (node._currentSyntaxTheme || "Modus Neon (Default)")) opt.selected = true;
+                    themeSel.appendChild(opt);
+                });
+                themeSel.onchange = () => {
+                    setNodeTheme(node, themeSel.value);
+                    const tw = node.widgets?.find(w => w.name === "syntax_theme");
+                    if (tw) tw.value = themeSel.value;
+                    updatePopoutBackdrops();
+                };
+                toolbar.appendChild(themeSel);
+
                 const tagStudioBtn = addToolBtn("🏷 Tag Studio", "Toggle Tag Matrix / Chip Flow", () => togglePopoutTagStudio());
                 addToolBtn("🎞 Aesthetic", "Visual Aesthetic Ribbon (Optics, Films, Rigs)", () => showAestheticRibbonModal(node));
                 addToolBtn("✍️ Prosify", "Format into fluent natural prose (Flux/SD3)", () => {
@@ -6434,15 +6607,50 @@ app.registerExtension({
                 }
 
                 function updatePopoutBackdrops() {
-                    const theme = getThemeByName(node._currentSyntaxTheme || "Modus Neon (Default)");
-                    if (posBackdrop) {
-                        posBackdrop.innerHTML = highlightSyntax(posTa.value || "", theme);
-                        posBackdrop.style.backgroundColor = theme.bg_color || "#181825";
+                    const themeName = node._currentSyntaxTheme || "Modus Neon (Default)";
+                    const theme = getThemeByName(themeName);
+                    const bgColor = theme.bg_color || "#181825";
+                    const caretColor = theme.caret_color || "#ffffff";
+                    const isOff = (themeName === "Off (Plain Text)");
+
+                    if (isOff) {
+                        if (posBackdrop) posBackdrop.style.display = "none";
+                        if (negBackdrop) negBackdrop.style.display = "none";
+                        if (posTa) {
+                            posTa.style.color = "#cdd6f4";
+                            posTa.style.backgroundColor = bgColor;
+                            posTa.style.caretColor = caretColor;
+                        }
+                        if (negTa) {
+                            negTa.style.color = "#cdd6f4";
+                            negTa.style.backgroundColor = bgColor;
+                            negTa.style.caretColor = caretColor;
+                        }
+                    } else {
+                        if (posBackdrop) {
+                            posBackdrop.style.display = "block";
+                            posBackdrop.innerHTML = tokenizeAndHighlight(posTa.value || "", theme);
+                            posBackdrop.style.backgroundColor = bgColor;
+                        }
+                        if (negBackdrop) {
+                            negBackdrop.style.display = "block";
+                            negBackdrop.innerHTML = tokenizeAndHighlight(negTa.value || "", theme);
+                            negBackdrop.style.backgroundColor = bgColor;
+                        }
+                        if (posTa) {
+                            posTa.style.color = "transparent";
+                            posTa.style.backgroundColor = "transparent";
+                            posTa.style.caretColor = caretColor;
+                        }
+                        if (negTa) {
+                            negTa.style.color = "transparent";
+                            negTa.style.backgroundColor = "transparent";
+                            negTa.style.caretColor = caretColor;
+                        }
                     }
-                    if (negBackdrop) {
-                        negBackdrop.innerHTML = highlightSyntax(negTa.value || "", theme);
-                        negBackdrop.style.backgroundColor = theme.bg_color || "#181825";
-                    }
+
+                    if (posBox) posBox.style.backgroundColor = bgColor;
+                    if (negBox) negBox.style.backgroundColor = bgColor;
                 }
 
                 function onPosInput() {
@@ -6450,10 +6658,13 @@ app.registerExtension({
                     if (pw.inputEl) pw.inputEl.value = posTa.value;
                     pw._updateSyntaxHighlight?.();
 
-                    const theme = getThemeByName(node._currentSyntaxTheme || "Modus Neon (Default)");
-                    posBackdrop.innerHTML = highlightSyntax(posTa.value || "", theme);
-                    posBackdrop.scrollTop = posTa.scrollTop;
-                    posBackdrop.scrollLeft = posTa.scrollLeft;
+                    const themeName = node._currentSyntaxTheme || "Modus Neon (Default)";
+                    if (themeName !== "Off (Plain Text)") {
+                        const theme = getThemeByName(themeName);
+                        posBackdrop.innerHTML = tokenizeAndHighlight(posTa.value || "", theme);
+                        posBackdrop.scrollTop = posTa.scrollTop;
+                        posBackdrop.scrollLeft = posTa.scrollLeft;
+                    }
 
                     const stats = estimateTokens(posTa.value || "");
                     const unclosed = countUnclosedParens(posTa.value || "");
@@ -6472,10 +6683,13 @@ app.registerExtension({
                     if (nw.inputEl) nw.inputEl.value = negTa.value;
                     nw._updateSyntaxHighlight?.();
 
-                    const theme = getThemeByName(node._currentSyntaxTheme || "Modus Neon (Default)");
-                    negBackdrop.innerHTML = highlightSyntax(negTa.value || "", theme);
-                    negBackdrop.scrollTop = negTa.scrollTop;
-                    negBackdrop.scrollLeft = negTa.scrollLeft;
+                    const themeName = node._currentSyntaxTheme || "Modus Neon (Default)";
+                    if (themeName !== "Off (Plain Text)") {
+                        const theme = getThemeByName(themeName);
+                        negBackdrop.innerHTML = tokenizeAndHighlight(negTa.value || "", theme);
+                        negBackdrop.scrollTop = negTa.scrollTop;
+                        negBackdrop.scrollLeft = negTa.scrollLeft;
+                    }
 
                     const stats = estimateTokens(negTa.value || "");
                     negStatPill.textContent = `Neg: ${stats.words}w · ~${stats.tokens} tok`;
@@ -6510,9 +6724,14 @@ app.registerExtension({
                     const savedName = node.widgets?.find(w => w.name === "saved_prompt")?.value || "Draft";
                     const tagEl = document.getElementById("mf-popout-prompt-tag");
                     if (tagEl) tagEl.textContent = savedName;
+                    if (promptSel && savedName && promptSel.value !== savedName) {
+                        promptSel.value = savedName;
+                    }
                     onPosInput();
                     onNegInput();
+                    updatePopoutBackdrops();
                 }
+                node._popoutSyncFromNode = syncFromNode;
 
                 win.addEventListener("keydown", (e) => {
                     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
@@ -6614,6 +6833,8 @@ app.registerExtension({
                             height: win.style.height
                         };
                     }
+                    node._popoutSyncPromptsDropdown = null;
+                    node._popoutSyncFromNode = null;
                     win.remove();
                     node._popoutStudioEl = null;
                     pw._updateSyntaxHighlight?.();
