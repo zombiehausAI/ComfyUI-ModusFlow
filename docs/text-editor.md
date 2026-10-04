@@ -77,8 +77,8 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **✨ Enhance with Ollama**: One-click local AI prompt expansion! Sends the current positive prompt to your local Ollama LLM to enrich lighting, atmosphere, and sensory details in-place. Features automatic model detection via a dynamic dropdown in ComfyUI Settings, live status diagnostics, and non-blocking availability checks that never stall canvas loading. Shift+Click or click when offline (or right-click $\rightarrow$ **🤖 Ollama Status & Model Settings...**) to inspect connection status, test endpoints, or switch models on the fly.
 - **⚡ Quick Chips**: Opens an interactive modal with curated visual tag chips organized into *Lighting & Atmosphere*, *Optics & Framing*, *Style & Aesthetics*, and *Mood & Color Palette*. Features a real-time filter search and one-click insertion at the cursor.
 - **🔍 Prompt Diff**: Visual side-by-side or token diff viewer comparing the active prompt against any recent history snapshot or disk save, clearly highlighting added and removed tags.
-- **💾 Save Prompt**: Prompts for a filename and optional category, then saves both texts as a `.json` file
-- **✏️ Update Selected**: Overwrites the currently selected prompt with current text
+- **💾 Save Prompt**: Prompts for a filename and optional category, saves both texts as a `.json` file, and automatically selects the newly saved prompt in the picker dropdown (matching the List Curator behavior)
+- **✏️ Update Selected**: Overwrites the currently selected prompt with current text and keeps it selected
 - **🔄 Refresh List**: Reloads the dropdown to reflect newly added prompt files
 - **🧹 Prettify / Dedupe**: One-click cleanup to eliminate duplicate tags, collapse duplicate commas, and normalize tag spacing
 - **🔍 Preview Resolved**: Opens a live simulation modal showing exactly how dynamic prompts `{a|b}`, `{shuffle}`, and weight translation resolve with any seed

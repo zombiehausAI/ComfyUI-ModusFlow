@@ -2955,7 +2955,7 @@ app.registerExtension({
             }
 
             // ── Filter saved_prompt dropdown by type AND category ─────────────────
-            function applyFilter(node) {
+            function applyFilter(node, selectFilename) {
                 const dw = node.widgets?.find(w => w.name === "saved_prompt");
                 const cw = node.widgets?.find(w => w.name === "category_filter");
                 const tw = node.widgets?.find(w => w.name === "type_filter");
@@ -2985,16 +2985,22 @@ app.registerExtension({
                     ? ["--select prompt--", ...filenames]
                     : ["--no prompts found--"];
 
-                if (!dw.options.values.includes(dw.value)) {
+                if (selectFilename && dw.options.values.includes(selectFilename)) {
+                    dw.value = selectFilename;
+                } else if (selectFilename && cw && cw.value !== "--all categories--") {
+                    cw.value = "--all categories--";
+                    return applyFilter(node, selectFilename);
+                } else if (!dw.options.values.includes(dw.value)) {
                     dw.value = dw.options.values[0];
                 }
                 app.graph.setDirtyCanvas(true, true);
             }
 
             // ── Fetch prompt list; rebuild category combo + dropdown ───────────────
-            function refreshPrompts(node) {
+            function refreshPrompts(node, selectFilename) {
                 const dw = node.widgets?.find(w => w.name === "saved_prompt");
                 const cw = node.widgets?.find(w => w.name === "category_filter");
+                const tw = node.widgets?.find(w => w.name === "type_filter");
                 if (!dw) return;
 
                 fetch("/modusflow/list_prompts")
@@ -3016,9 +3022,12 @@ app.registerExtension({
                             cw.options.values = ["--all categories--", ...cats];
                             cw.value = cw.options.values.includes(target) ? target : "--all categories--";
                         }
+                        if (selectFilename && tw && tw.value === "songs") {
+                            tw.value = "--all types--";
+                        }
                         fetchWildcardList(true);
                         fetchLoraList(true);
-                        applyFilter(node);
+                        applyFilter(node, selectFilename);
                     })
                     .catch(err => console.error("[ModusFlow] Refresh error:", err.message));
             }
@@ -3030,15 +3039,20 @@ app.registerExtension({
                 const pcw = node.widgets?.find(w => w.name === "prompt_category");
                 if (!pw) return;
 
-                const filename = prompt("Filename (without extension):");
+                let filename = prompt("Filename (without extension):");
                 if (!filename?.trim()) return;
+                filename = filename.trim();
+                if (filename.toLowerCase().endsWith(".json")) {
+                    filename = filename.slice(0, -5).trim();
+                }
+                if (!filename) return;
                 const category = (pcw?.value || "").trim();
 
                 fetch("/modusflow/save_prompt", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        filename: filename.trim(),
+                        filename: filename,
                         type: "prompt",
                         category: category,
                         positive: pw.value || "",
@@ -3048,11 +3062,16 @@ app.registerExtension({
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        alert("Saved: " + filename.trim() + ".json");
-                        pushPromptHistory(node, "Saved: " + filename.trim());
-                        refreshPrompts(node);
+                        const targetFile = filename + ".json";
+                        alert("Saved: " + targetFile);
+                        pushPromptHistory(node, "Saved: " + filename);
+                        if (category) {
+                            node._savedCategory = category;
+                        }
+                        refreshPrompts(node, targetFile);
+                    } else {
+                        alert("Save failed: " + data.message);
                     }
-                    else alert("Save failed: " + data.message);
                 })
                 .catch(err => alert("Save error: " + err.message));
             }
@@ -3084,8 +3103,13 @@ app.registerExtension({
                     if (data.success) {
                         alert('"' + selected + '" updated.');
                         pushPromptHistory(node, "Updated: " + selected);
+                        if (category) {
+                            node._savedCategory = category;
+                        }
+                        refreshPrompts(node, selected);
+                    } else {
+                        alert("Update failed: " + data.message);
                     }
-                    else alert("Update failed: " + data.message);
                 })
                 .catch(err => alert("Update error: " + err.message));
             }
