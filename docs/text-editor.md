@@ -208,15 +208,86 @@ Directly above the Negative prompt box, a hardware-inspired pedalboard rack lets
 - **`💧 Watermark`**: Toggles watermark, text, and signature suppression: `(watermark, text, signature, username:1.2)`
 - **Live State Sync**: The pedalboard buttons automatically illuminate (`active`) when their tags are present in the negative prompt, even if typed manually, and dim when removed.
 
-### 6. Hex Colors in Lists & Batch Translator
-- **Works Anywhere & in Lists**: Hex codes (`#RRGGBB` or `#RGB`) are supported anywhere in your prompt, including:
-  - **Dynamic Choices**: `{ #ff0055 | #00ffff | #38bdf8 }`
-  - **Shuffle Lists**: `{shuffle: #ff0000, #00ff00, #0000ff}`
-  - **Tag Lists**: `neon reflections, vibrant #ff5500 rim lighting, #00ffff hair`
-  - **Prompt Variables**: `$theme_color = #e11d48;`
-  - **Exploded Lists**: Multi-line exploded tag format
-- **Live Color Pill & Inspector**: Each hex code renders with its exact color, background glow, and dotted underline. Clicking it brings up the floating Color Inspector card showing swatch, RGB/HSL, and the nearest natural artistic pigment name.
-- **✨ Translate All Hex in Prompt**: One-click action available in the Color Inspector, Color Palette modal, and right-click context menu. Automatically translates every hex code across both Positive and Negative prompts into natural descriptive pigment names (e.g. `#8a0303` $\rightarrow$ `blood red`, `#00ffff` $\rightarrow$ `electric cyan`), preserving choices, shuffles, and prompt syntax.
+### 6. Interactive 2D Color Spectrum Studio & Pigment Resolver
+- **Visual Color Spectrum (`🌈 Color Spectrum`)**: Features a dedicated 2D Saturation-Brightness canvas and continuous rainbow Hue slider directly on the canvas node, the Pop-Out Studio toolbar, and the right-click menu.
+  - **2D Canvas Spectrum**: Drag the reticle crosshair smoothly to adjust saturation (horizontal axis) and value/brightness (vertical axis).
+  - **Rainbow Hue Bar**: 0° to 360° gradient slider to transition across the full color spectrum.
+  - **Screen Eyedropper (`👁️`)**: Sample colors directly from your screen, UI, or previously generated images on the ComfyUI canvas using the native EyeDropper API.
+- **Real-Time Diffusion Model Understanding**:
+  - As you move across the spectrum, the studio continuously calculates what the diffusion model will perceive using colorimetric Euclidean distance matching against over 70 curated pigments.
+  - Displays: **"Diffusion Model Understands As: [ natural pigment name ]"** (e.g. `#00ffff` $\rightarrow$ `electric cyan`, `#d4af37` $\rightarrow$ `metallic gold`, `#8a0303` $\rightarrow$ `blood red`).
+  - Helps prompt crafters bridge the gap between digital hex colors and the text-encoder's trained semantic vocabulary.
+- **One-Click Insertions**:
+  - **`✨ Insert Model Name`**: Injects the model-friendly natural pigment description into the prompt.
+  - **`# Insert Hex Code`**: Injects `#RRGGBB` with live color pill highlighting.
+  - **Trait Suffix Builder**: Quickly append descriptors like `hair`, `eyes`, `lighting`, `neon glow`, `rim lighting`, or `outfit`.
+  - **Target Selection**: Toggle insertion directly into either the **Positive Prompt** or **Negative Prompt**.
+- **70+ Curated Model Pigment Presets**: Instant filter and click-to-tune swatches beneath the spectrum.
+- **✨ Translate All Hex in Prompt**: One-click action available in the modal to automatically translate every hex code across both Positive and Negative prompts into natural descriptive pigment names, preserving choices, shuffles, and prompt syntax.
+
+### 7. Interactive Tag Studio Mode ("Tag Matrix / Chip Flow")
+- **Toggle via `🏷️ Tag Studio`**: Converts raw comma-separated prompt text into a visual, interactive chip grid.
+- **Direct Weight Steppers**: Each tag pill features inline `+` and `-` buttons that adjust attention weight in increments of $\pm 0.05$ (or $\pm 0.1$ with Shift).
+- **Mute / Solo Eye (`👁`)**: Temporarily disables a tag by wrapping it in non-destructive comments (`/* tag */`) without deleting it, allowing A/B prompt testing in seconds.
+- **Drag-and-Drop Reordering**: Drag chips horizontally or vertically to change the prompt's attention hierarchy, instantly updating the underlying text buffer.
+- **Category Dot Coding**: Tags are dynamically categorized and color-coded (Subject, Lighting, Camera, Environment, Style, Quality).
+
+### 8. Section Folders & Prompt Outliner
+- **Outliner Syntax**: Prompts containing block comments in the form `// [Section Name]` or `/* [Section Name] */` are parsed into collapsible visual folders:
+  ```text
+  // [Subject]
+  masterpiece portrait of an android geisha, intricate cybernetic porcelain,
+  
+  // [Lighting & Atmosphere]
+  cinematic rim light, soft volumetric fog, #38bdf8 neon backlight,
+  
+  // [Camera & Optics]
+  shot on Hasselblad 80mm f/1.8, bokeh, photorealistic
+  ```
+- **Collapse / Expand**: Click the chevron on any section header to collapse long prompt sections while keeping your workspace organized.
+
+### 9. CLIP Attention Waveform Visualizer ("EQ Bar")
+- **3-Chunk Attention EQ**: Positioned directly beneath the editor, an illuminated horizontal waveform bar models token density across CLIP's 75-token boundaries:
+  - **Chunk 1 (Tokens 1–75)**: High-priority immediate tokens.
+  - **Chunk 2 (Tokens 76–150)**: Secondary context tokens.
+  - **Chunk 3 (Tokens 151–225)**: Tail context tokens.
+- **Attention Spikes**: Tags with weights $> 1.1$ render as luminous bars whose heights indicate the magnitude of the attention spike.
+- **Interactive Inspection**: Hover over any bar segment to see the associated tag and token count.
+
+### 10. Multi-Model Tone Converter
+One-click prompt restructuring tailored to specific diffusion architectures:
+- **✍️ Prosify (Fluent / Natural Language)**: Converts tag soup (`cyberpunk girl, neon lights, rainy street, 8k, cinematic`) into coherent, descriptive natural English sentences tailored for **FLUX.1**, **SD3**, and **Midjourney-style** models.
+- **🏷 Tagify (Booru / Danbooru Tags)**: Converts long descriptive prose into clean, comma-delimited keyword tags with proper weighting for **SDXL**, **SD 1.5**, and **Pony / Illustrious** models.
+
+### 11. Visual Aesthetic Ribbon
+A rapid, one-click visual dock above the editor to inject curated prompt tokens without manual typing:
+- **🎞 Film Stocks**: Kodak Portra 400, Cinestill 800T, Fujifilm Velvia 50, Ilford HP5 Plus, Polaroid 600.
+- **🔍 Optics & Lenses**: 85mm f/1.2 Portrait, 24mm f/1.4 Wide, 50mm Anamorphic, 100mm Macro.
+- **💡 Lighting Rigs**: Rembrandt Lighting, Volumetric God Rays, Cyberpunk Neon Backlight, Golden Hour, Chiaroscuro.
+- **📷 Camera Systems**: Hasselblad H6D-100c, ARRI Alexa Mini LF, 35mm Vintage SLR, Leica M11.
+
+### 12. Permutation & Variation Grid Previewer
+- **Dynamic Choice Matrix (`{ a | b }`)**: Click `🎲 Permutations` to calculate and preview all possible combinatorial variations generated by `{ a | b | c }` blocks.
+- **One-Click Pick / Test**: Preview the exact resolved prompts before queueing generation, or copy specific variations directly into the editor.
+
+### 13. Split-Screen Studio Cockpit Layout
+- **Toggle View Mode**: Switch seamlessly between:
+  - **Standard Stacked Layout**: Vertical Positive and Negative layout ($560 \times 930$).
+  - **Side-by-Side Cockpit**: Wide dual-pane workstation ($980 \times 680$) for widescreen and multi-monitor workflows.
+
+### 14. Nested Dynamic Choices & Recursive Resolution
+- **Nested `{this|this}` Inside Lists**: Full recursive syntax resolution supports nested choices inside choice blocks, wildcards inside lists, and variables inside choices (e.g., `{red|{blue|cyan}}`, or a list row containing `portrait with {cybernetic|organic} enhancements`).
+- **Iterative Engine**: Backend expands dynamic choices iteratively up to 10 recursion levels to prevent infinite loops while allowing deep prompt composition.
+
+### 15. Pop-Out Studio Workstation (Floating / Fullscreen Immersion)
+- **One-Click Pop Out (`⛶ Pop Out Studio`)**: Detaches the editor from the crowded canvas into a dedicated, floating prompt engineering studio window overlaid above ComfyUI.
+- **100% Live 2-Way Connected**: Works directly with the underlying node on canvas. Any edits, tags, weight changes, or presets applied inside the Pop-Out Studio update the canvas node in real-time, preserving all execution wires, conditioning outputs, and workflow states.
+- **Draggable & Resizable**: Grab the top header bar to move the studio anywhere on screen or drag it to a secondary monitor. Resize freely from any edge or corner with automatic geometry memory.
+- **Fullscreen Immersion (`⇱`)**: Maximize into a full-viewport distraction-free writing environment ($100vw \times 100vh$).
+- **Floating Mini-Dock (`—`)**: Minimize down to an unobtrusive floating pill in the corner of your screen when panning around your canvas or inspecting image outputs.
+- **Direct Generation Queue (`🚀 Queue` / `Ctrl+Enter`)**: Queue ComfyUI generations straight from the studio without closing or switching back to the canvas.
+- **Integrated Studio Ribbon**: Access all studio tools directly from the window toolbar: Tag Studio mode, Aesthetic Ribbon, Prosify, Tagify, Variation Grid, Ollama AI Enhance, LoRA Deck, Dedupe & Prettify, and Color Palette.
+- **Dock Back (`✕ Dock`)**: Seamlessly close the pop-out window and return to the standard node view.
 
 ## Configuration
 

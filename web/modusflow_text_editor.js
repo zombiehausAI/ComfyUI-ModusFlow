@@ -259,6 +259,155 @@ function injectSyntaxStyles() {
             font-weight: 600;
             box-shadow: 0 0 8px rgba(137, 180, 250, 0.3);
         }
+        /* ── Section Banners ── */
+        .modusflow-section-banner {
+            display: block;
+            margin: 6px 0 3px 0;
+            padding: 3px 8px;
+            background: linear-gradient(90deg, rgba(137, 180, 250, 0.16) 0%, rgba(203, 166, 247, 0.08) 60%, transparent 100%);
+            border-left: 3px solid #89b4fa;
+            border-radius: 0 4px 4px 0;
+            color: #89b4fa;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        /* ── Waveform EQ Attention Bar ── */
+        .modusflow-waveform-strip {
+            position: absolute;
+            bottom: 0px;
+            left: 0px;
+            right: 0px;
+            height: 3px;
+            display: flex;
+            background: rgba(17, 17, 27, 0.6);
+            z-index: 9;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .modusflow-waveform-chunk {
+            flex: 1;
+            height: 100%;
+            border-right: 1px solid rgba(255, 255, 255, 0.15);
+            position: relative;
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .modusflow-waveform-fill {
+            height: 100%;
+            background: #89b4fa;
+            transition: width 0.2s ease;
+        }
+        .modusflow-waveform-fill.has-spike {
+            background: linear-gradient(90deg, #89b4fa, #f59e0b);
+            box-shadow: 0 0 6px rgba(245, 158, 11, 0.8);
+        }
+
+        /* ── Tag Studio Matrix ── */
+        .modusflow-tag-studio-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 10px;
+            background: #181825;
+            border: 1px solid #313244;
+            border-radius: 8px;
+            min-height: 160px;
+            max-height: 380px;
+            overflow-y: auto;
+            align-content: flex-start;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        .modusflow-tag-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #1e1e2e;
+            border: 1px solid #313244;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 12px;
+            color: #cdd6f4;
+            cursor: grab;
+            transition: all 0.15s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .modusflow-tag-chip:hover {
+            border-color: #89b4fa;
+            background: #252538;
+        }
+        .modusflow-tag-chip.dragging {
+            opacity: 0.4;
+            border: 1px dashed #89b4fa;
+        }
+        .modusflow-tag-chip.drag-over {
+            border-color: #f5c2e7;
+            transform: scale(1.04);
+        }
+        .modusflow-tag-chip.muted {
+            opacity: 0.45;
+            text-decoration: line-through;
+            border-style: dashed;
+        }
+        .modusflow-tag-handle {
+            color: #6c7086;
+            font-size: 11px;
+            cursor: grab;
+        }
+        .modusflow-tag-cat-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .modusflow-tag-weight-btn {
+            background: #313244;
+            border: none;
+            border-radius: 3px;
+            color: #cdd6f4;
+            width: 16px;
+            height: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .modusflow-tag-weight-btn:hover {
+            background: #45475a;
+            color: #89b4fa;
+        }
+        .modusflow-tag-btn-icon {
+            background: none;
+            border: none;
+            color: #6c7086;
+            cursor: pointer;
+            padding: 0 2px;
+            font-size: 11px;
+            line-height: 1;
+        }
+        .modusflow-tag-btn-icon:hover {
+            color: #f38ba8;
+        }
+        .modusflow-tag-add-input {
+            background: #11111b;
+            border: 1px dashed #45475a;
+            border-radius: 6px;
+            padding: 4px 8px;
+            color: #cdd6f4;
+            font-size: 12px;
+            outline: none;
+            width: 110px;
+            transition: all 0.15s ease;
+        }
+        .modusflow-tag-add-input:focus {
+            border-color: #89b4fa;
+            width: 170px;
+        }
         /* ── Autocomplete Menu ── */
         .modusflow-autocomplete-menu {
             position: absolute;
@@ -369,6 +518,191 @@ function injectSyntaxStyles() {
         @keyframes mfFadeIn {
             from { opacity: 0; transform: translateY(-4px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Pop-Out Floating Studio Window ── */
+        .modusflow-popout-window {
+            position: fixed;
+            z-index: 10001;
+            display: flex;
+            flex-direction: column;
+            background: #181825;
+            border: 1px solid #45475a;
+            border-radius: 12px;
+            box-shadow: 0 25px 65px rgba(0, 0, 0, 0.85), 0 0 1px 1px rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #cdd6f4;
+            min-width: 650px;
+            min-height: 480px;
+            resize: both;
+            box-sizing: border-box;
+        }
+        .modusflow-popout-window.is-maximized {
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            border-radius: 0 !important;
+            resize: none !important;
+        }
+        .modusflow-popout-window.is-minimized {
+            width: 340px !important;
+            height: 44px !important;
+            min-width: 0 !important;
+            min-height: 0 !important;
+            resize: none !important;
+            border-radius: 22px !important;
+            bottom: 24px !important;
+            right: 24px !important;
+            top: auto !important;
+            left: auto !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+        }
+        .modusflow-popout-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 14px;
+            background: #1e1e2e;
+            border-bottom: 1px solid #313244;
+            user-select: none;
+            cursor: grab;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .modusflow-popout-header:active {
+            cursor: grabbing;
+        }
+        .modusflow-popout-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #181825;
+            border-bottom: 1px solid #313244;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+        .modusflow-popout-btn {
+            background: #1e1e2e;
+            border: 1px solid #313244;
+            border-radius: 5px;
+            padding: 4px 8px;
+            color: #cdd6f4;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-family: inherit;
+        }
+        .modusflow-popout-btn:hover {
+            border-color: #89b4fa;
+            background: #28283d;
+            color: #ffffff;
+        }
+        .modusflow-popout-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            gap: 12px;
+            padding: 12px;
+            box-sizing: border-box;
+            background: #11111b;
+        }
+        .modusflow-popout-pane {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
+            position: relative;
+        }
+        .modusflow-popout-editor-box {
+            position: relative;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            border: 1px solid #313244;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #181825;
+        }
+        .modusflow-popout-ta {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            background: transparent;
+            color: transparent;
+            caret-color: #ffffff;
+            font-family: ui-monospace, SFMono-Regular, monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            padding: 12px;
+            border: none;
+            outline: none;
+            resize: none;
+            position: relative;
+            z-index: 1;
+            tab-size: 4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .modusflow-popout-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 12px;
+            font-family: ui-monospace, SFMono-Regular, monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            pointer-events: none;
+            user-select: none;
+            tab-size: 4;
+            overflow: hidden;
+            color: #cdd6f4;
+            box-sizing: border-box;
+        }
+
+        /* ── Color Spectrum Studio & Sliders ── */
+        .modusflow-spectrum-box {
+            display: flex;
+            gap: 16px;
+            background: #1e1e2e;
+            border: 1px solid #313244;
+            border-radius: 10px;
+            padding: 14px;
+            box-sizing: border-box;
+            flex-wrap: wrap;
+        }
+        .modusflow-hue-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 14px;
+            border-radius: 7px;
+            background: linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);
+            outline: none;
+            cursor: pointer;
+            margin: 6px 0;
+        }
+        .modusflow-hue-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid #11111b;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+            cursor: pointer;
         }
     `;
     document.head.appendChild(styleEl);
@@ -500,6 +834,48 @@ function rgbToHsl(r, g, b) {
         h /= 6;
     }
     return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+}
+
+function hsvToRgb(h, s, v) {
+    s /= 100;
+    v /= 100;
+    const c = v * s;
+    const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    const m = v - c;
+    let r = 0, g = 0, b = 0;
+    if (0 <= h && h < 60) { r = c; g = x; b = 0; }
+    else if (60 <= h && h < 120) { r = x; g = c; b = 0; }
+    else if (120 <= h && h < 180) { r = 0; g = c; b = x; }
+    else if (180 <= h && h < 240) { r = 0; g = x; b = c; }
+    else if (240 <= h && h < 300) { r = x; g = 0; b = c; }
+    else if (300 <= h && h < 360) { r = c; g = 0; b = x; }
+    return {
+        r: Math.round((r + m) * 255),
+        g: Math.round((g + m) * 255),
+        b: Math.round((b + m) * 255)
+    };
+}
+
+function rgbToHex(r, g, b) {
+    return "#" + [r, g, b].map(x => Math.max(0, Math.min(255, x)).toString(16).padStart(2, "0")).join("");
+}
+
+function hexToHsv(hex) {
+    const { r, g, b } = hexToRgb(hex);
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const d = max - min;
+    let h = 0;
+    const s = max === 0 ? 0 : (d / max) * 100;
+    const v = (max / 255) * 100;
+    if (max !== min) {
+        switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+        }
+        h *= 60;
+    }
+    return { h: Math.round(h < 0 ? h + 360 : h), s: Math.round(s), v: Math.round(v) };
 }
 
 function getNearestArtisticColor(hex) {
@@ -652,6 +1028,8 @@ function tokenizeAndHighlight(text, theme) {
     };
 
     // Priority order of syntax tokens:
+    // 0. Section Banners: // [Section Name] or # [Section Name] or /* [Section Name] */
+    addMatches(/(?:\/\/|#|\/\*)\s*\[[^\]\r\n]+\](?:\s*\*\/)?/g, "section_header");
     // 1. Comments: /* ... */
     addMatches(/\/\*[\s\S]*?\*\//g, "comment");
     // 2. Hex colors: #RRGGBB or #RGB (before line comments so #ff0000 is not marked as # comment)
@@ -714,7 +1092,12 @@ function tokenizeAndHighlight(text, theme) {
             html += escapeHtml(text.slice(cursor, iv.start));
         }
         const tokenText = escapeHtml(text.slice(iv.start, iv.end));
-        if (iv.type === "rainbow_paren") {
+        if (iv.type === "section_header") {
+            const raw = text.slice(iv.start, iv.end);
+            const m = raw.match(/\[([^\]]+)\]/);
+            const title = m ? m[1].trim() : raw;
+            html += `<span class="modusflow-section-banner">§ ${escapeHtml(title)}</span>`;
+        } else if (iv.type === "rainbow_paren") {
             html += `<span style="color: ${iv.color}; font-weight: bold;">${tokenText}</span>`;
         } else if (iv.type === "unclosed_paren" || iv.type === "unmatched_paren") {
             html += `<span style="background: rgba(239, 68, 68, 0.4); color: #f87171; border-radius: 2px; text-decoration: underline wavy #ef4444; font-weight: bold;" title="${iv.type === 'unclosed_paren' ? 'Unclosed opening parenthesis!' : 'Unmatched closing parenthesis!'}">${tokenText}</span>`;
@@ -843,6 +1226,19 @@ function attachSyntaxHighlighter(widget, node) {
         healthBadge.title = "Prompt Health & Deduplication";
         parent.appendChild(healthBadge);
 
+        const waveformStrip = document.createElement("div");
+        waveformStrip.className = "modusflow-waveform-strip";
+        waveformStrip.title = "CLIP 75-token Chunk Attention Waveform";
+        for (let c = 0; c < 3; c++) {
+            const chunkEl = document.createElement("div");
+            chunkEl.className = "modusflow-waveform-chunk";
+            const fill = document.createElement("div");
+            fill.className = "modusflow-waveform-fill";
+            chunkEl.appendChild(fill);
+            waveformStrip.appendChild(chunkEl);
+        }
+        parent.appendChild(waveformStrip);
+
         function render() {
             const stats = estimateTokens(ta.value || "");
             const unclosed = countUnclosedParens(ta.value || "");
@@ -879,7 +1275,30 @@ function attachSyntaxHighlighter(widget, node) {
                 }
                 seenTags.add(t);
             }
-            const heavyWeights = textVal.match(/\([^():\r\n]+:\s*(?:1\.[6-9]|[2-9]|\d{2,})(?:\.\d+)?\)/g) || [];
+            const heavyWeights = textVal.match(/\([^():\r\n]+:\s*(?:1\.[2-9]|[2-9]|\d{2,})(?:\.\d+)?\)/g) || [];
+
+            // Update Waveform Strip
+            const totalToks = stats.tokens || 0;
+            const chunkDivs = waveformStrip.children;
+            const hasHeavy = heavyWeights.length > 0;
+            for (let i = 0; i < 3; i++) {
+                const fill = chunkDivs[i]?.firstElementChild;
+                if (!fill) continue;
+                const startTok = i * 75;
+                if (totalToks > startTok) {
+                    const countInChunk = Math.min(75, totalToks - startTok);
+                    const pct = Math.round((countInChunk / 75) * 100);
+                    fill.style.width = `${pct}%`;
+                    if (hasHeavy && i === 0) {
+                        fill.classList.add("has-spike");
+                    } else {
+                        fill.classList.remove("has-spike");
+                    }
+                } else {
+                    fill.style.width = "0%";
+                    fill.classList.remove("has-spike");
+                }
+            }
 
             if (duplicates.length > 0 || heavyWeights.length > 0) {
                 healthBadge.style.display = "block";
@@ -2838,6 +3257,7 @@ app.registerExtension({
                     attachCommentShortcuts(positiveWidget);
                     attachSyntaxHighlighter(positiveWidget, node);
                     attachAutocomplete(positiveWidget, node);
+                    setupTagStudio(positiveWidget, node);
                 }
                 if (negativeWidget) {
                     negativeWidget.label = "Negative";
@@ -2950,6 +3370,7 @@ app.registerExtension({
                 negPresetWidget.label = "Negative Presets";
 
                 // ── Action buttons ────────────────────────────────────────────────
+                node.addWidget("button", "⛶ Pop Out Studio",        null, () => showPopOutStudio(node));
                 const enhanceBtn = node.addWidget("button", "✨ Enhance with Ollama", null, () => {
                     if (window.event?.shiftKey || window.event?.altKey || !_ollamaAvailable) {
                         showOllamaStatusModal(node, enhanceBtn);
@@ -2958,6 +3379,13 @@ app.registerExtension({
                     }
                 });
                 enhanceBtn.tooltip = "Enhance prompt with local Ollama LLM. Shift+Click or click when offline to check status & select model.";
+                node.addWidget("button", "🏷 Tag Studio",           null, () => toggleTagStudioMode(node));
+                node.addWidget("button", "◫ Split Studio",          null, () => toggleNodeLayout(node));
+                node.addWidget("button", "🌈 Color Spectrum",       null, () => showColorPaletteModal(node));
+                node.addWidget("button", "🎞 Aesthetic Ribbon",     null, () => showAestheticRibbonModal(node));
+                node.addWidget("button", "✍️ Prosify (Fluent)",     null, () => prosifyPositivePrompt(node));
+                node.addWidget("button", "🏷 Tagify (Tags)",        null, () => tagifyPositivePrompt(node));
+                node.addWidget("button", "⚄ Variation Grid",        null, () => showVariationGridModal(node));
                 node.addWidget("button", "⚡ Quick Chips",          null, () => showQuickChipsModal(node));
                 node.addWidget("button", "🎨 LoRA Deck",             null, () => showLoraDeckModal(node));
                 node.addWidget("button", "⇄ Swap Prompts",          null, () => swapPositiveNegative(node));
@@ -2995,8 +3423,32 @@ app.registerExtension({
                 if (origGetExtraMenuOptions) origGetExtraMenuOptions.apply(this, arguments);
                 options.push(
                     {
+                        content: "⛶ Pop Out Prompt Studio (Floating / Fullscreen)",
+                        callback: () => showPopOutStudio(this)
+                    },
+                    {
                         content: "🤖 Ollama Status & Model Settings...",
                         callback: () => showOllamaStatusModal(this, this.widgets?.find(w => w.name && w.name.includes("Enhance with Ollama")))
+                    },
+                    {
+                        content: "🏷 Toggle Tag Studio Mode",
+                        callback: () => toggleTagStudioMode(this)
+                    },
+                    {
+                        content: "🎞 Visual Aesthetic Ribbon...",
+                        callback: () => showAestheticRibbonModal(this)
+                    },
+                    {
+                        content: "✍️ Prosify to Fluent Prose (Flux/SD3)",
+                        callback: () => prosifyPositivePrompt(this)
+                    },
+                    {
+                        content: "🏷 Tagify to Comma Tags (SDXL/Pony)",
+                        callback: () => tagifyPositivePrompt(this)
+                    },
+                    {
+                        content: "⚄ Permutation / Variation Grid...",
+                        callback: () => showVariationGridModal(this)
                     },
                     {
                         content: "🎨 Active LoRA Deck & Weights...",
@@ -3025,7 +3477,7 @@ app.registerExtension({
                         }
                     },
                     {
-                        content: "🎨 Color Palette & Hex Browser...",
+                        content: "🌈 Color Spectrum Studio & Pigment Resolver...",
                         callback: () => showColorPaletteModal(this)
                     },
                     {
@@ -3077,6 +3529,7 @@ app.registerExtension({
                     attachCommentShortcuts(pw);
                     attachSyntaxHighlighter(pw, this);
                     attachAutocomplete(pw, this);
+                    setupTagStudio(pw, this);
                 }
                 if (nw) {
                     attachCommentShortcuts(nw);
@@ -4317,21 +4770,27 @@ app.registerExtension({
                 }
             }
 
-            // ── Color Palette Modal ───────────────────────────────────────────────
-            function showColorPaletteModal(node) {
+            // ── Color Spectrum Studio & Pigment Palette Modal ─────────────────────
+            function showColorPaletteModal(node, targetWidget = null, initialHex = "#38bdf8") {
                 const pw = node.widgets?.find(w => w.name === "positive");
-                if (!pw) return;
+                const nw = node.widgets?.find(w => w.name === "negative");
+                let activeTarget = targetWidget || pw;
 
                 const overlay = document.createElement("div");
                 overlay.className = "modusflow-modal-overlay";
-                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10003; backdrop-filter: blur(4px);";
 
                 const dialog = document.createElement("div");
-                dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 620px; max-width: 92vw; max-height: 85vh; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 45px rgba(0,0,0,0.7); color: #cdd6f4; font-family: sans-serif;";
+                dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 680px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.75); color: #cdd6f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; overflow-y: auto;";
 
+                // Header
                 const header = document.createElement("div");
-                header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #313244; padding-bottom: 8px;";
-                header.innerHTML = '<h3 style="margin: 0; font-size: 16px; color: #89b4fa; display: flex; align-items: center; gap: 8px;">🎨 <span>Model Color Palette &amp; Hex Translator</span></h3>';
+                header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #313244; padding-bottom: 10px;";
+                header.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <h3 style="margin: 0; font-size: 16px; color: #89b4fa; display: flex; align-items: center; gap: 6px;">🌈 Color Spectrum Studio &amp; Pigment Resolver</h3>
+                    </div>
+                `;
 
                 const closeBtn = document.createElement("button");
                 closeBtn.textContent = "✕";
@@ -4340,22 +4799,314 @@ app.registerExtension({
                 header.appendChild(closeBtn);
                 dialog.appendChild(header);
 
+                // Top batch action
+                const topBar = document.createElement("div");
+                topBar.style.cssText = "display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;";
+
                 const translateAllBtn = document.createElement("button");
-                translateAllBtn.textContent = "✨ Translate All Hex Codes in Prompt to Natural Colors";
-                translateAllBtn.style.cssText = "background: rgba(137, 180, 250, 0.15); border: 1px solid rgba(137, 180, 250, 0.4); border-radius: 6px; padding: 7px 12px; color: #89b4fa; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s ease; text-align: center;";
+                translateAllBtn.textContent = "✨ Translate All Existing Hex Codes in Prompt to Model Pigments";
+                translateAllBtn.style.cssText = "background: rgba(137, 180, 250, 0.12); border: 1px solid rgba(137, 180, 250, 0.35); border-radius: 6px; padding: 6px 12px; color: #89b4fa; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s ease;";
                 translateAllBtn.onclick = () => {
                     translateAllHexInNode(node);
                     overlay.remove();
                 };
-                dialog.appendChild(translateAllBtn);
+                topBar.appendChild(translateAllBtn);
+
+                dialog.appendChild(topBar);
+
+                // Spectrum Section Box
+                const spectrumBox = document.createElement("div");
+                spectrumBox.className = "modusflow-spectrum-box";
+
+                // Left: Canvas & Hue Slider
+                const leftCol = document.createElement("div");
+                leftCol.style.cssText = "display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 280px;";
+
+                const canvas = document.createElement("canvas");
+                canvas.width = 300;
+                canvas.height = 160;
+                canvas.style.cssText = "width: 100%; height: 160px; border-radius: 6px; cursor: crosshair; display: block; border: 1px solid #45475a;";
+                const ctx = canvas.getContext("2d");
+                leftCol.appendChild(canvas);
+
+                const hueSlider = document.createElement("input");
+                hueSlider.type = "range";
+                hueSlider.min = "0";
+                hueSlider.max = "360";
+                hueSlider.className = "modusflow-hue-slider";
+                leftCol.appendChild(hueSlider);
+
+                // Eyedropper if supported
+                if (window.EyeDropper) {
+                    const eyeDropBtn = document.createElement("button");
+                    eyeDropBtn.textContent = "👁️ Pick Color from Canvas / Screen";
+                    eyeDropBtn.style.cssText = "background: #313244; border: 1px solid #45475a; border-radius: 6px; padding: 5px 10px; color: #cdd6f4; font-size: 11px; cursor: pointer; transition: all 0.15s ease; text-align: center;";
+                    eyeDropBtn.onclick = async () => {
+                        try {
+                            const ed = new window.EyeDropper();
+                            const res = await ed.open();
+                            if (res && res.sRGBHex) {
+                                setColor(res.sRGBHex);
+                            }
+                        } catch (_) {}
+                    };
+                    leftCol.appendChild(eyeDropBtn);
+                }
+
+                spectrumBox.appendChild(leftCol);
+
+                // Right: Live Swatch & Model Translation
+                const rightCol = document.createElement("div");
+                rightCol.style.cssText = "display: flex; flex-direction: column; gap: 10px; flex: 1.2; min-width: 270px;";
+
+                const swatchRow = document.createElement("div");
+                swatchRow.style.cssText = "display: flex; gap: 12px; align-items: center;";
+
+                const swatch = document.createElement("div");
+                swatch.style.cssText = "width: 58px; height: 58px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.25); flex-shrink: 0; box-shadow: 0 4px 14px rgba(0,0,0,0.4); transition: all 0.15s ease;";
+                swatchRow.appendChild(swatch);
+
+                const readoutBox = document.createElement("div");
+                readoutBox.style.cssText = "display: flex; flex-direction: column; gap: 4px; flex: 1;";
+
+                const hexInput = document.createElement("input");
+                hexInput.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 5px; padding: 4px 8px; color: #cdd6f4; font-family: ui-monospace, monospace; font-size: 13px; font-weight: bold; width: 100px; text-transform: uppercase;";
+                hexInput.maxLength = 7;
+
+                const rgbHslText = document.createElement("div");
+                rgbHslText.style.cssText = "font-size: 11px; font-family: ui-monospace, monospace; color: #a6adc8;";
+
+                readoutBox.appendChild(hexInput);
+                readoutBox.appendChild(rgbHslText);
+                swatchRow.appendChild(readoutBox);
+                rightCol.appendChild(swatchRow);
+
+                // Model Translation Card
+                const modelCard = document.createElement("div");
+                modelCard.style.cssText = "background: rgba(137, 180, 250, 0.08); border: 1px solid rgba(137, 180, 250, 0.25); border-radius: 8px; padding: 8px 12px; display: flex; flex-direction: column; gap: 2px;";
+                modelCard.innerHTML = `
+                    <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #a6adc8; font-weight: 700;">Diffusion Model Understands As:</div>
+                    <div id="mf-spectrum-model-name" style="font-size: 15px; font-weight: 700; color: #89b4fa; text-shadow: 0 0 10px rgba(137, 180, 250, 0.4);">electric cyan</div>
+                `;
+                rightCol.appendChild(modelCard);
+
+                // Target selector row
+                const targetRow = document.createElement("div");
+                targetRow.style.cssText = "display: flex; align-items: center; gap: 8px; font-size: 11px; color: #a6adc8;";
+                targetRow.innerHTML = "<span>Target:</span>";
+
+                const posBtn = document.createElement("button");
+                posBtn.textContent = "Positive Prompt";
+                posBtn.style.cssText = "background: #89b4fa; border: none; border-radius: 4px; padding: 3px 8px; color: #11111b; font-size: 11px; font-weight: 600; cursor: pointer;";
+
+                const negBtn = document.createElement("button");
+                negBtn.textContent = "Negative Prompt";
+                negBtn.style.cssText = "background: #313244; border: none; border-radius: 4px; padding: 3px 8px; color: #cdd6f4; font-size: 11px; cursor: pointer;";
+
+                posBtn.onclick = () => {
+                    activeTarget = pw;
+                    posBtn.style.background = "#89b4fa"; posBtn.style.color = "#11111b"; posBtn.style.fontWeight = "600";
+                    negBtn.style.background = "#313244"; negBtn.style.color = "#cdd6f4"; negBtn.style.fontWeight = "normal";
+                };
+                negBtn.onclick = () => {
+                    activeTarget = nw;
+                    negBtn.style.background = "#f38ba8"; negBtn.style.color = "#11111b"; negBtn.style.fontWeight = "600";
+                    posBtn.style.background = "#313244"; posBtn.style.color = "#cdd6f4"; posBtn.style.fontWeight = "normal";
+                };
+
+                targetRow.appendChild(posBtn);
+                targetRow.appendChild(negBtn);
+                rightCol.appendChild(targetRow);
+
+                // Trait dropdown & Insertion Buttons
+                const traitRow = document.createElement("div");
+                traitRow.style.cssText = "display: flex; gap: 6px; align-items: center;";
+
+                const traitSel = document.createElement("select");
+                traitSel.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 4px; padding: 5px; color: #cdd6f4; font-size: 11px; outline: none; flex: 1;";
+                const traitOptions = [
+                    { label: "Just the color", suffix: "" },
+                    { label: "...hair", suffix: " hair" },
+                    { label: "...eyes", suffix: " eyes" },
+                    { label: "...lighting", suffix: " lighting" },
+                    { label: "...neon glow", suffix: " neon glow" },
+                    { label: "...rim light", suffix: " rim lighting" },
+                    { label: "...outfit", suffix: " outfit" },
+                    { label: "...atmosphere", suffix: " atmosphere" }
+                ];
+                traitOptions.forEach(opt => {
+                    const o = document.createElement("option");
+                    o.value = opt.suffix;
+                    o.textContent = opt.label;
+                    traitSel.appendChild(o);
+                });
+                traitRow.appendChild(traitSel);
+                rightCol.appendChild(traitRow);
+
+                const actionRow = document.createElement("div");
+                actionRow.style.cssText = "display: flex; gap: 8px;";
+
+                const insertModelBtn = document.createElement("button");
+                insertModelBtn.textContent = "✨ Insert Model Name";
+                insertModelBtn.style.cssText = "flex: 1; background: linear-gradient(135deg, rgba(137, 180, 250, 0.25), rgba(203, 166, 247, 0.2)); border: 1px solid #89b4fa; border-radius: 6px; padding: 7px 10px; color: #89b4fa; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.15s ease;";
+
+                const insertHexBtn = document.createElement("button");
+                insertHexBtn.textContent = "# Insert Hex";
+                insertHexBtn.style.cssText = "flex: 1; background: #313244; border: 1px solid #45475a; border-radius: 6px; padding: 7px 10px; color: #cdd6f4; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s ease;";
+
+                actionRow.appendChild(insertModelBtn);
+                actionRow.appendChild(insertHexBtn);
+                rightCol.appendChild(actionRow);
+
+                spectrumBox.appendChild(rightCol);
+                dialog.appendChild(spectrumBox);
+
+                // ── Spectrum Logic ──
+                let hsv = hexToHsv(initialHex);
+                let currentHex = normalizeHex(initialHex);
+                hueSlider.value = String(hsv.h);
+
+                function drawCanvas() {
+                    const w = canvas.width;
+                    const h = canvas.height;
+                    ctx.clearRect(0, 0, w, h);
+
+                    // Pure hue background
+                    ctx.fillStyle = `hsl(${hsv.h}, 100%, 50%)`;
+                    ctx.fillRect(0, 0, w, h);
+
+                    // White horizontal gradient
+                    const gWhite = ctx.createLinearGradient(0, 0, w, 0);
+                    gWhite.addColorStop(0, "rgba(255,255,255,1)");
+                    gWhite.addColorStop(1, "rgba(255,255,255,0)");
+                    ctx.fillStyle = gWhite;
+                    ctx.fillRect(0, 0, w, h);
+
+                    // Black vertical gradient
+                    const gBlack = ctx.createLinearGradient(0, 0, 0, h);
+                    gBlack.addColorStop(0, "rgba(0,0,0,0)");
+                    gBlack.addColorStop(1, "rgba(0,0,0,1)");
+                    ctx.fillStyle = gBlack;
+                    ctx.fillRect(0, 0, w, h);
+
+                    // Draw crosshair reticle
+                    const cx = (hsv.s / 100) * w;
+                    const cy = (1 - (hsv.v / 100)) * h;
+
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+                    ctx.strokeStyle = "#ffffff";
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+                    ctx.strokeStyle = "#000000";
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+
+                function updateReadouts() {
+                    const rgb = hsvToRgb(hsv.h, hsv.s, hsv.v);
+                    currentHex = rgbToHex(rgb.r, rgb.g, rgb.b);
+                    swatch.style.backgroundColor = currentHex;
+                    swatch.style.boxShadow = `0 0 16px ${currentHex}66`;
+
+                    if (document.activeElement !== hexInput) {
+                        hexInput.value = currentHex;
+                    }
+
+                    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+                    rgbHslText.textContent = `RGB(${rgb.r}, ${rgb.g}, ${rgb.b}) · HSL(${hsl.h}°, ${hsl.s}%, ${hsl.l}%)`;
+
+                    const resolved = getNearestArtisticColor(currentHex);
+                    const nameEl = document.getElementById("mf-spectrum-model-name");
+                    if (nameEl) nameEl.textContent = resolved.promptFriendlyName;
+                }
+
+                function setColor(hex) {
+                    currentHex = normalizeHex(hex);
+                    hsv = hexToHsv(currentHex);
+                    hueSlider.value = String(hsv.h);
+                    drawCanvas();
+                    updateReadouts();
+                }
+
+                let isDraggingCanvas = false;
+                function handleCanvasPoint(e) {
+                    const rect = canvas.getBoundingClientRect();
+                    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+                    const y = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
+                    hsv.s = Math.round((x / rect.width) * 100);
+                    hsv.v = Math.round((1 - (y / rect.height)) * 100);
+                    drawCanvas();
+                    updateReadouts();
+                }
+
+                canvas.addEventListener("mousedown", (e) => {
+                    isDraggingCanvas = true;
+                    handleCanvasPoint(e);
+                });
+                window.addEventListener("mousemove", (e) => {
+                    if (isDraggingCanvas) handleCanvasPoint(e);
+                });
+                window.addEventListener("mouseup", () => {
+                    isDraggingCanvas = false;
+                });
+
+                hueSlider.addEventListener("input", () => {
+                    hsv.h = parseInt(hueSlider.value, 10);
+                    drawCanvas();
+                    updateReadouts();
+                });
+
+                hexInput.addEventListener("input", () => {
+                    let v = hexInput.value.trim();
+                    if (!v.startsWith("#")) v = "#" + v;
+                    if (/^#[0-9a-fA-F]{6}$/.test(v) || /^#[0-9a-fA-F]{3}$/.test(v)) {
+                        setColor(v);
+                    }
+                });
+
+                function insertIntoTarget(textToInsert) {
+                    if (!activeTarget) return;
+                    let cur = (activeTarget.value || "").trim();
+                    if (cur && !cur.endsWith(",")) cur += ", ";
+                    else if (cur && cur.endsWith(",")) cur += " ";
+                    cur += textToInsert;
+
+                    activeTarget.value = cur;
+                    if (activeTarget.inputEl) activeTarget.inputEl.value = cur;
+                    activeTarget._updateSyntaxHighlight?.();
+                    app.graph?.setDirtyCanvas(true, true);
+                    showStudioToast(`Inserted "${textToInsert}"`);
+                    pushPromptHistory(node, `Inserted color: ${textToInsert}`);
+                    overlay.remove();
+                }
+
+                insertModelBtn.onclick = () => {
+                    const resolved = getNearestArtisticColor(currentHex);
+                    const tag = resolved.promptFriendlyName + traitSel.value;
+                    insertIntoTarget(tag);
+                };
+
+                insertHexBtn.onclick = () => {
+                    const tag = currentHex + traitSel.value;
+                    insertIntoTarget(tag);
+                };
+
+                // ── Curated Swatches Section ──
+                const swatchesSec = document.createElement("div");
+                swatchesSec.style.cssText = "display: flex; flex-direction: column; gap: 8px; margin-top: 4px;";
+                swatchesSec.innerHTML = '<div style="font-size: 12px; font-weight: 700; color: #cba6f7;">Preset Model Pigments (Click to tune in spectrum)</div>';
 
                 const filterInput = document.createElement("input");
-                filterInput.placeholder = "Search color pigment (e.g. crimson, emerald, cobalt, amber)...";
-                filterInput.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 6px; padding: 8px 12px; color: #cdd6f4; font-size: 13px; outline: none;";
-                dialog.appendChild(filterInput);
+                filterInput.placeholder = "Search 70+ artistic pigments (e.g. crimson, emerald, cobalt, amber)...";
+                filterInput.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 6px; padding: 7px 10px; color: #cdd6f4; font-size: 12px; outline: none;";
+                swatchesSec.appendChild(filterInput);
 
                 const grid = document.createElement("div");
-                grid.style.cssText = "overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; max-height: 480px; padding-right: 4px;";
+                grid.style.cssText = "overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; max-height: 220px; padding-right: 4px;";
 
                 function renderColors(q = "") {
                     grid.innerHTML = "";
@@ -4367,7 +5118,7 @@ app.registerExtension({
                             background: #11111b;
                             border: 1px solid #313244;
                             border-radius: 6px;
-                            padding: 6px 8px;
+                            padding: 5px 8px;
                             display: flex;
                             align-items: center;
                             gap: 8px;
@@ -4379,28 +5130,27 @@ app.registerExtension({
                         chip.onmouseleave = () => { chip.style.borderColor = "#313244"; chip.style.background = "#11111b"; };
 
                         chip.innerHTML = `
-                            <div style="width: 18px; height: 18px; border-radius: 4px; background: ${c.hex}; border: 1px solid rgba(255,255,255,0.2); flex-shrink: 0;"></div>
+                            <div style="width: 16px; height: 16px; border-radius: 4px; background: ${c.hex}; border: 1px solid rgba(255,255,255,0.2); flex-shrink: 0;"></div>
                             <div style="font-size: 11px; color: #cdd6f4; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${c.name}</div>
                         `;
 
                         chip.onclick = () => {
-                            let val = pw.value || "";
-                            if (val && !val.trim().endsWith(",")) val += ", ";
-                            else if (val && val.trim().endsWith(",")) val += " ";
-                            pw.value = val + c.name;
-                            if (pw.inputEl) pw.inputEl.value = pw.value;
-                            pw._updateSyntaxHighlight?.();
-                            overlay.remove();
+                            setColor(c.hex);
                         };
                         grid.appendChild(chip);
                     }
                 }
 
                 filterInput.oninput = (e) => renderColors(e.target.value.toLowerCase().trim());
-                dialog.appendChild(grid);
+                swatchesSec.appendChild(grid);
+                dialog.appendChild(swatchesSec);
+
                 overlay.appendChild(dialog);
                 overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
                 document.body.appendChild(overlay);
+
+                drawCanvas();
+                updateReadouts();
                 renderColors();
             }
 
@@ -4573,18 +5323,1311 @@ app.registerExtension({
                 showStudioToast("Prompt JSON copied to clipboard!");
             }
 
+            // ── Interactive Tag Studio Mode Implementation ───────────────────────
+            function parsePromptToChips(text) {
+                if (!text) return [];
+                const lines = text.split("\n");
+                const items = [];
+
+                for (let line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed) continue;
+
+                    const secMatch = trimmed.match(/^(?:\/\/|#|\/\*)\s*\[?([^\]]+)\]?\s*(?:\*\/)?$/);
+                    if (secMatch && (trimmed.startsWith("//") || trimmed.startsWith("#") || trimmed.startsWith("/*"))) {
+                        items.push({ type: "section", title: secMatch[1].trim() });
+                        continue;
+                    }
+
+                    if (trimmed.startsWith("#") || (trimmed.startsWith("//") && !trimmed.includes("["))) {
+                        items.push({ type: "comment", text: trimmed });
+                        continue;
+                    }
+                    if (trimmed.startsWith("$") && trimmed.includes("=")) {
+                        items.push({ type: "variable", text: trimmed });
+                        continue;
+                    }
+
+                    let cur = "";
+                    let parenDepth = 0;
+                    let inBlock = false;
+
+                    for (let i = 0; i < line.length; i++) {
+                        const ch = line[i];
+                        if (!inBlock && line.startsWith("/*", i)) inBlock = true;
+                        else if (inBlock && line.startsWith("*/", i)) inBlock = false;
+
+                        if (!inBlock) {
+                            if (ch === "(") parenDepth++;
+                            else if (ch === ")" && parenDepth > 0) parenDepth--;
+                        }
+
+                        if (ch === "," && parenDepth === 0 && !inBlock) {
+                            if (cur.trim()) items.push(parseIndividualTag(cur.trim()));
+                            cur = "";
+                        } else {
+                            cur += ch;
+                        }
+                    }
+                    if (cur.trim()) items.push(parseIndividualTag(cur.trim()));
+                }
+                return items;
+            }
+
+            function parseIndividualTag(raw) {
+                let clean = raw.trim();
+                let isMuted = false;
+                if (clean.startsWith("/*") && clean.endsWith("*/")) {
+                    isMuted = true;
+                    clean = clean.slice(2, -2).trim();
+                }
+
+                let weight = 1.0;
+                let baseTag = clean;
+                const wm = clean.match(/^\((.+):(-?[0-9.]+)\)$/);
+                if (wm) {
+                    baseTag = wm[1].trim();
+                    weight = parseFloat(wm[2]) || 1.0;
+                } else {
+                    const sm = clean.match(/^\((.+)\)$/);
+                    if (sm) {
+                        baseTag = sm[1].trim();
+                        weight = 1.1;
+                    }
+                }
+
+                const lower = baseTag.toLowerCase();
+                let cat = "subject";
+                let catColor = "#38bdf8";
+
+                if (/light|glow|sun|shadow|chiaroscuro|illumination|neon|radiant|atmospheric|ambient|god rays|volumetric/.test(lower)) {
+                    cat = "lighting";
+                    catColor = "#fbbf24";
+                } else if (/lens|mm|f\/|aperture|bokeh|macro|dof|angle|shot|perspective|shutter|anamorphic|prime/.test(lower)) {
+                    cat = "camera";
+                    catColor = "#c084fc";
+                } else if (/photo|painting|illustration|render|anime|digital art|oil painting|sketch|watercolor|octane|cyberpunk|fantasy/.test(lower)) {
+                    cat = "style";
+                    catColor = "#f472b6";
+                } else if (/masterpiece|best quality|high quality|8k|detailed|sharp focus|award-winning|pristine/.test(lower)) {
+                    cat = "quality";
+                    catColor = "#34d399";
+                }
+
+                return {
+                    type: "tag",
+                    raw,
+                    baseTag,
+                    weight,
+                    isMuted,
+                    cat,
+                    catColor
+                };
+            }
+
+            function reconstructPromptFromChips(items) {
+                const lines = [];
+                let currentTags = [];
+
+                const flushTags = () => {
+                    if (currentTags.length > 0) {
+                        lines.push(currentTags.join(", "));
+                        currentTags = [];
+                    }
+                };
+
+                for (const item of items) {
+                    if (item.type === "section") {
+                        flushTags();
+                        lines.push(`// [${item.title}]`);
+                    } else if (item.type === "comment" || item.type === "variable") {
+                        flushTags();
+                        lines.push(item.text);
+                    } else if (item.type === "tag") {
+                        let tagStr = item.baseTag;
+                        if (Math.abs(item.weight - 1.0) > 0.001) {
+                            tagStr = `(${item.baseTag}:${item.weight.toFixed(2).replace(/\.?0+$/, "")})`;
+                        }
+                        if (item.isMuted) {
+                            tagStr = `/* ${tagStr} */`;
+                        }
+                        currentTags.push(tagStr);
+                    }
+                }
+                flushTags();
+                return lines.join("\n");
+            }
+
+            function setupTagStudio(widget, node) {
+                if (!widget) return;
+                requestAnimationFrame(() => {
+                    const ta = widget.inputEl || widget.element;
+                    if (!ta || !ta.parentElement || ta._tagStudioContainer) return;
+
+                    const parent = ta.parentElement;
+                    const container = document.createElement("div");
+                    container.className = "modusflow-tag-studio-container";
+                    container.style.display = "none";
+                    ta._tagStudioContainer = container;
+
+                    parent.appendChild(container);
+                });
+            }
+
+            function renderTagStudio(node, container, widget) {
+                if (!container || !widget) return;
+                container.innerHTML = "";
+
+                const rawText = widget.value || "";
+                const items = parsePromptToChips(rawText);
+
+                let draggedIdx = null;
+
+                items.forEach((item, idx) => {
+                    if (item.type === "section") {
+                        const secRow = document.createElement("div");
+                        secRow.style.cssText = "width: 100%; display: flex; align-items: center; gap: 8px; margin: 8px 0 4px 0; padding-bottom: 4px; border-bottom: 1px solid rgba(137, 180, 250, 0.2);";
+                        secRow.innerHTML = `<span style="font-size: 11px; font-weight: bold; color: #89b4fa; text-transform: uppercase; letter-spacing: 0.5px;">§ ${escapeHtml(item.title)}</span>`;
+                        container.appendChild(secRow);
+                        return;
+                    }
+
+                    if (item.type === "comment" || item.type === "variable") {
+                        const commentChip = document.createElement("div");
+                        commentChip.className = "modusflow-tag-chip";
+                        commentChip.style.cssText = "background: rgba(30, 30, 46, 0.5); border-style: dashed; font-family: ui-monospace, monospace; font-size: 11px; color: #6c7086;";
+                        commentChip.textContent = item.text;
+                        container.appendChild(commentChip);
+                        return;
+                    }
+
+                    const chip = document.createElement("div");
+                    chip.className = "modusflow-tag-chip" + (item.isMuted ? " muted" : "");
+                    chip.draggable = true;
+
+                    if (item.weight > 1.0) {
+                        const glowSpread = Math.min(10, Math.round((item.weight - 1.0) * 10));
+                        const glowAlpha = Math.min(0.8, 0.2 + (item.weight - 1.0) * 0.4);
+                        chip.style.boxShadow = `0 0 ${glowSpread}px rgba(251, 191, 36, ${glowAlpha})`;
+                        chip.style.borderColor = "rgba(251, 191, 36, 0.6)";
+                    } else if (item.weight < 1.0) {
+                        chip.style.opacity = Math.max(0.45, item.weight);
+                    }
+
+                    const handle = document.createElement("span");
+                    handle.className = "modusflow-tag-handle";
+                    handle.textContent = "⋮⋮";
+                    chip.appendChild(handle);
+
+                    const catDot = document.createElement("span");
+                    catDot.className = "modusflow-tag-cat-dot";
+                    catDot.style.backgroundColor = item.catColor;
+                    catDot.title = `Category: ${item.cat}`;
+                    chip.appendChild(catDot);
+
+                    const label = document.createElement("span");
+                    label.style.cssText = "font-weight: 500; font-size: 12px;";
+                    label.textContent = item.baseTag;
+                    chip.appendChild(label);
+
+                    const weightBox = document.createElement("div");
+                    weightBox.style.cssText = "display: inline-flex; align-items: center; gap: 2px; margin-left: 4px; background: rgba(0,0,0,0.25); border-radius: 4px; padding: 1px 3px;";
+
+                    const minusBtn = document.createElement("button");
+                    minusBtn.className = "modusflow-tag-weight-btn";
+                    minusBtn.textContent = "-";
+                    minusBtn.title = "Decrease weight (-0.05)";
+                    minusBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        let newW = Math.round((item.weight - 0.05) * 100) / 100;
+                        item.weight = Math.max(0.1, newW);
+                        syncBack();
+                    };
+
+                    const weightLabel = document.createElement("span");
+                    weightLabel.style.cssText = "font-size: 10px; font-family: ui-monospace, monospace; color: #fde047; min-width: 24px; text-align: center;";
+                    weightLabel.textContent = item.weight.toFixed(2).replace(/\.?0+$/, "");
+
+                    const plusBtn = document.createElement("button");
+                    plusBtn.className = "modusflow-tag-weight-btn";
+                    plusBtn.textContent = "+";
+                    plusBtn.title = "Increase weight (+0.05)";
+                    plusBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        let newW = Math.round((item.weight + 0.05) * 100) / 100;
+                        item.weight = Math.min(2.5, newW);
+                        syncBack();
+                    };
+
+                    weightBox.appendChild(minusBtn);
+                    weightBox.appendChild(weightLabel);
+                    weightBox.appendChild(plusBtn);
+                    chip.appendChild(weightBox);
+
+                    const muteBtn = document.createElement("button");
+                    muteBtn.className = "modusflow-tag-btn-icon";
+                    muteBtn.textContent = item.isMuted ? "👁‍🗨" : "👁";
+                    muteBtn.title = item.isMuted ? "Unmute tag" : "Mute tag (comment out)";
+                    muteBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        item.isMuted = !item.isMuted;
+                        syncBack();
+                    };
+                    chip.appendChild(muteBtn);
+
+                    const delBtn = document.createElement("button");
+                    delBtn.className = "modusflow-tag-btn-icon";
+                    delBtn.textContent = "✕";
+                    delBtn.title = "Delete tag";
+                    delBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        items.splice(idx, 1);
+                        syncBack();
+                    };
+                    chip.appendChild(delBtn);
+
+                    chip.addEventListener("dragstart", (e) => {
+                        draggedIdx = idx;
+                        chip.classList.add("dragging");
+                        e.dataTransfer.effectAllowed = "move";
+                    });
+                    chip.addEventListener("dragover", (e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        chip.classList.add("drag-over");
+                    });
+                    chip.addEventListener("dragleave", () => {
+                        chip.classList.remove("drag-over");
+                    });
+                    chip.addEventListener("drop", (e) => {
+                        e.preventDefault();
+                        chip.classList.remove("drag-over");
+                        if (draggedIdx !== null && draggedIdx !== idx) {
+                            const moved = items.splice(draggedIdx, 1)[0];
+                            items.splice(idx, 0, moved);
+                            syncBack();
+                        }
+                    });
+                    chip.addEventListener("dragend", () => {
+                        chip.classList.remove("dragging");
+                        draggedIdx = null;
+                    });
+
+                    container.appendChild(chip);
+                });
+
+                function syncBack() {
+                    const reconstructed = reconstructPromptFromChips(items);
+                    widget.value = reconstructed;
+                    if (widget.inputEl) widget.inputEl.value = reconstructed;
+                    renderTagStudio(node, container, widget);
+                    widget._updateSyntaxHighlight?.();
+                }
+
+                const addInput = document.createElement("input");
+                addInput.className = "modusflow-tag-add-input";
+                addInput.placeholder = "+ Add Tag...";
+                addInput.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter" && addInput.value.trim()) {
+                        e.preventDefault();
+                        const newTag = addInput.value.trim();
+                        let cur = (widget.value || "").trim();
+                        if (cur && !cur.endsWith(",")) cur += ", ";
+                        else if (cur && cur.endsWith(",")) cur += " ";
+                        cur += newTag;
+                        widget.value = cur;
+                        if (widget.inputEl) widget.inputEl.value = cur;
+                        addInput.value = "";
+                        renderTagStudio(node, container, widget);
+                        widget._updateSyntaxHighlight?.();
+                        showStudioToast(`Added "${newTag}"`);
+                    }
+                });
+                container.appendChild(addInput);
+            }
+
+            function toggleTagStudioMode(node) {
+                const pw = node.widgets?.find(w => w.name === "positive");
+                if (!pw) return;
+                const ta = pw.inputEl || pw.element;
+                if (!ta) return;
+
+                node._tagStudioMode = !node._tagStudioMode;
+                const btn = node.widgets?.find(w => w.name && (w.name.includes("Tag Studio") || w.name.includes("Text Mode")));
+                if (btn) {
+                    btn.name = node._tagStudioMode ? "📝 Text Mode" : "🏷 Tag Studio";
+                }
+
+                const backdrop = ta.parentElement?.querySelector(".modusflow-syntax-backdrop");
+                const container = ta._tagStudioContainer;
+
+                if (node._tagStudioMode) {
+                    ta.style.display = "none";
+                    if (backdrop) backdrop.style.display = "none";
+                    if (container) {
+                        container.style.display = "flex";
+                        renderTagStudio(node, container, pw);
+                    }
+                    showStudioToast("Switched to Visual Tag Studio");
+                } else {
+                    ta.style.display = "";
+                    if (container) container.style.display = "none";
+                    pw._updateSyntaxHighlight?.();
+                    showStudioToast("Switched to Syntax Text Mode");
+                }
+                app.graph?.setDirtyCanvas(true, true);
+            }
+
+            // ── Multi-Model Tone Converter (Danbooru <-> Fluent Prose) ────────────
+            function prosifyPromptText(text) {
+                if (!text || !text.trim()) return "";
+                const lines = text.split("\n");
+                const preserved = [];
+                const tags = [];
+
+                for (const l of lines) {
+                    const trim = l.trim();
+                    if (trim.startsWith("#") || trim.startsWith("//") || trim.startsWith("/*") || trim.startsWith("$")) {
+                        preserved.push(trim);
+                    } else {
+                        const parts = l.split(",");
+                        for (const p of parts) {
+                            const t = p.trim();
+                            if (t) tags.push(t);
+                        }
+                    }
+                }
+
+                if (!tags.length) return text;
+
+                const qualityWords = new Set(["masterpiece", "best quality", "high quality", "8k", "ultra-detailed", "extremely detailed", "award-winning", "hyperrealistic"]);
+                const filteredTags = [];
+                const metaTags = [];
+
+                for (const tag of tags) {
+                    const lower = tag.toLowerCase().replace(/^\((.+):[0-9.]+\)$/, "$1").trim();
+                    if (qualityWords.has(lower)) {
+                        metaTags.push(tag);
+                    } else {
+                        filteredTags.push(tag);
+                    }
+                }
+
+                const subjects = [];
+                const environments = [];
+                const opticsAndLighting = [];
+                const styles = [];
+
+                for (const tag of filteredTags) {
+                    const lower = tag.toLowerCase();
+                    if (/light|glow|sun|shadow|chiaroscuro|illumination|neon|radiant|atmospheric|ambient/.test(lower)) {
+                        opticsAndLighting.push(tag);
+                    } else if (/lens|mm|f\/|aperture|bokeh|macro|dof|angle|shot|perspective|shutter/.test(lower)) {
+                        opticsAndLighting.push(tag);
+                    } else if (/photo|painting|illustration|render|anime|digital art|oil painting|sketch/.test(lower)) {
+                        styles.push(tag);
+                    } else if (/street|forest|room|city|sky|interior|exterior|temple|beach|night|indoor|outdoor|backdrop|background/.test(lower)) {
+                        environments.push(tag);
+                    } else {
+                        subjects.push(tag);
+                    }
+                }
+
+                let sentences = [];
+                if (styles.length) {
+                    sentences.push(`A ${styles.join(" and ")}`);
+                } else {
+                    sentences.push("A detailed photograph");
+                }
+
+                if (subjects.length) {
+                    sentences[0] += ` featuring ${subjects.join(", ")}`;
+                }
+
+                if (environments.length) {
+                    sentences.push(`set in ${environments.join(", ")}`);
+                }
+
+                if (opticsAndLighting.length) {
+                    sentences.push(`illuminated by ${opticsAndLighting.join(", ")}`);
+                }
+
+                let prose = sentences.join(", ") + ".";
+                prose = prose.replace(/\s+,/g, ",").replace(/\s{2,}/g, " ").trim();
+                if (metaTags.length) {
+                    prose += ` ${metaTags.join(", ")}.`;
+                }
+
+                if (preserved.length) {
+                    return preserved.join("\n") + "\n\n" + prose;
+                }
+                return prose;
+            }
+
+            function tagifyPromptText(text) {
+                if (!text || !text.trim()) return "";
+                let clean = text
+                    .replace(/\/\*[\s\S]*?\*\//g, "")
+                    .replace(/(?:^|\n)\s*(?:#|\/\/)[^\n]*/g, "")
+                    .replace(/\b(?:a|an|the|of|with|set in|illuminated by|featuring|depicting)\b/gi, "")
+                    .replace(/[.;!?]+/g, ",");
+                const parts = clean.split(",");
+                const tags = [];
+                const seen = new Set();
+                for (const p of parts) {
+                    const t = p.trim().replace(/\s{2,}/g, " ");
+                    if (t && t.length > 1) {
+                        const lower = t.toLowerCase();
+                        if (!seen.has(lower)) {
+                            seen.add(lower);
+                            tags.push(t);
+                        }
+                    }
+                }
+                return tags.join(", ");
+            }
+
+            function prosifyPositivePrompt(node) {
+                const pw = node.widgets?.find(w => w.name === "positive");
+                if (!pw || !pw.value) return;
+                const original = pw.value;
+                const prose = prosifyPromptText(original);
+                if (prose && prose !== original) {
+                    pushPromptHistory(node, "Pre-Prosify");
+                    pw.value = prose;
+                    if (pw.inputEl) pw.inputEl.value = prose;
+                    pw._updateSyntaxHighlight?.();
+                    showStudioToast("Converted prompt to fluent natural prose!");
+                    pushPromptHistory(node, "Converted to Fluent Prose");
+                    app.graph?.setDirtyCanvas(true, true);
+                }
+            }
+
+            function tagifyPositivePrompt(node) {
+                const pw = node.widgets?.find(w => w.name === "positive");
+                if (!pw || !pw.value) return;
+                const original = pw.value;
+                const tags = tagifyPromptText(original);
+                if (tags && tags !== original) {
+                    pushPromptHistory(node, "Pre-Tagify");
+                    pw.value = tags;
+                    if (pw.inputEl) pw.inputEl.value = tags;
+                    pw._updateSyntaxHighlight?.();
+                    showStudioToast("Converted prompt to normalized tags!");
+                    pushPromptHistory(node, "Converted to Comma Tags");
+                    app.graph?.setDirtyCanvas(true, true);
+                }
+            }
+
+            // ── Visual Aesthetic Ribbon Modal ─────────────────────────────────────
+            const AESTHETIC_RIBBON_CATEGORIES = {
+                "🎞 Film Stocks": [
+                    "Kodak Portra 400 film grain",
+                    "CineStill 800T halation",
+                    "Fujifilm Provia 100F vivid color",
+                    "Ilford HP5 Plus black and white",
+                    "Kodak Ektachrome 100 slide film",
+                    "Vintage Kodachrome 64 color tones",
+                    "Polaroid 600 instant film texture",
+                    "Agfa Vista 200 warm tones"
+                ],
+                "📷 Lenses & Optics": [
+                    "85mm f/1.4 portrait prime lens",
+                    "35mm anamorphic widescreen lens",
+                    "50mm f/1.2 creamy bokeh",
+                    "100mm macro f/2.8 extreme details",
+                    "tilt-shift miniature optics",
+                    "ultra-wide 16mm dynamic perspective",
+                    "soft optical vignette",
+                    "subtle chromatic aberration"
+                ],
+                "💡 Lighting Rigs": [
+                    "dramatic chiaroscuro lighting",
+                    "warm golden hour rim light",
+                    "volumetric atmospheric god rays",
+                    "moody cyberpunk neon rim glow",
+                    "soft butterfly studio illumination",
+                    "subtle bioluminescent ambient glow",
+                    "creamy diffused overcast soft light",
+                    "cinematic split blue and amber lighting"
+                ],
+                "🎥 Camera Systems": [
+                    "Hasselblad H6D-100c medium format",
+                    "Leica M11 Rangefinder photograph",
+                    "ARRI Alexa 65 cinematic sensor",
+                    "IMAX 70mm film camera photograph",
+                    "Sony A1 8k resolution photo",
+                    "Red V-Raptor 8k VV cinema capture"
+                ]
+            };
+
+            function showAestheticRibbonModal(node) {
+                const pw = node.widgets?.find(w => w.name === "positive");
+                if (!pw) return;
+
+                const overlay = document.createElement("div");
+                overlay.className = "modusflow-modal-overlay";
+                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+
+                const dialog = document.createElement("div");
+                dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 660px; max-width: 94vw; max-height: 85vh; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 45px rgba(0,0,0,0.7); color: #cdd6f4; font-family: sans-serif;";
+
+                const header = document.createElement("div");
+                header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #313244; padding-bottom: 8px;";
+                header.innerHTML = '<h3 style="margin: 0; font-size: 16px; color: #89b4fa; display: flex; align-items: center; gap: 8px;">🎞 <span>Visual Aesthetic Ribbon — Film, Optics &amp; Lighting</span></h3>';
+
+                const closeBtn = document.createElement("button");
+                closeBtn.textContent = "✕";
+                closeBtn.style.cssText = "background: none; border: none; color: #6c7086; font-size: 18px; cursor: pointer;";
+                closeBtn.onclick = () => overlay.remove();
+                header.appendChild(closeBtn);
+                dialog.appendChild(header);
+
+                const body = document.createElement("div");
+                body.style.cssText = "overflow-y: auto; display: flex; flex-direction: column; gap: 14px; max-height: 520px; padding-right: 4px;";
+
+                for (const [category, items] of Object.entries(AESTHETIC_RIBBON_CATEGORIES)) {
+                    const sec = document.createElement("div");
+                    sec.innerHTML = `<div style="font-size: 12px; font-weight: bold; color: #cba6f7; margin-bottom: 6px;">${category}</div>`;
+                    const grid = document.createElement("div");
+                    grid.style.cssText = "display: flex; flex-wrap: wrap; gap: 6px;";
+
+                    for (const item of items) {
+                        const btn = document.createElement("button");
+                        btn.textContent = item;
+                        btn.style.cssText = "background: #1e1e2e; border: 1px solid #313244; border-radius: 6px; padding: 6px 10px; color: #cdd6f4; font-size: 12px; cursor: pointer; transition: all 0.15s ease;";
+                        btn.onmouseenter = () => { btn.style.borderColor = "#89b4fa"; btn.style.background = "#26263b"; };
+                        btn.onmouseleave = () => { btn.style.borderColor = "#313244"; btn.style.background = "#1e1e2e"; };
+
+                        btn.onclick = () => {
+                            let cur = (pw.value || "").trim();
+                            if (cur && !cur.endsWith(",")) cur += ", ";
+                            else if (cur && cur.endsWith(",")) cur += " ";
+                            cur += item;
+                            pw.value = cur;
+                            if (pw.inputEl) pw.inputEl.value = cur;
+                            pw._updateSyntaxHighlight?.();
+                            showStudioToast(`Added [${item}]`);
+                            pushPromptHistory(node, `Ribbon: ${item}`);
+                            btn.textContent = "✓ Injected";
+                            btn.style.borderColor = "#a6e3a1";
+                            btn.style.color = "#a6e3a1";
+                            setTimeout(() => {
+                                btn.textContent = item;
+                                btn.style.borderColor = "#313244";
+                                btn.style.color = "#cdd6f4";
+                            }, 1000);
+                        };
+                        grid.appendChild(btn);
+                    }
+                    sec.appendChild(grid);
+                    body.appendChild(sec);
+                }
+
+                dialog.appendChild(body);
+                overlay.appendChild(dialog);
+                overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+                document.body.appendChild(overlay);
+            }
+
+            // ── Permutation / Variation Matrix Generator ──────────────────────────
+            function generatePermutationMatrix(text) {
+                if (!text) return [];
+                const choiceRegex = /\{([^{}]+)\}/g;
+                const matches = [];
+                let m;
+                while ((m = choiceRegex.exec(text)) !== null) {
+                    const body = m[1];
+                    if (body.startsWith("shuffle:")) continue;
+                    const opts = body.split("|").map(x => x.trim()).filter(Boolean);
+                    if (opts.length > 1) {
+                        matches.push({ full: m[0], opts });
+                    }
+                }
+
+                if (!matches.length) return [];
+
+                let variations = [text];
+                for (const match of matches) {
+                    const next = [];
+                    for (const currentText of variations) {
+                        for (const opt of match.opts) {
+                            next.push(currentText.replace(match.full, opt));
+                        }
+                    }
+                    variations = next;
+                    if (variations.length > 64) break;
+                }
+                return variations;
+            }
+
+            function showVariationGridModal(node) {
+                const pw = node.widgets?.find(w => w.name === "positive");
+                if (!pw || !pw.value) {
+                    showStudioToast("Please enter a positive prompt with {a|b} choices first.", "warning");
+                    return;
+                }
+
+                const variations = generatePermutationMatrix(pw.value);
+                if (!variations.length || (variations.length === 1 && variations[0] === pw.value)) {
+                    showStudioToast("No dynamic choices {a|b} found in prompt to permute.", "info");
+                    return;
+                }
+
+                const overlay = document.createElement("div");
+                overlay.className = "modusflow-modal-overlay";
+                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+
+                const dialog = document.createElement("div");
+                dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 680px; max-width: 94vw; max-height: 85vh; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 45px rgba(0,0,0,0.7); color: #cdd6f4; font-family: sans-serif;";
+
+                const header = document.createElement("div");
+                header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #313244; padding-bottom: 8px;";
+                header.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <h3 style="margin: 0; font-size: 16px; color: #f5c2e7;">⚄ Variation Grid</h3>
+                        <span style="font-size: 11px; background: #313244; color: #a6adc8; padding: 2px 8px; border-radius: 10px;">${variations.length} Combinations</span>
+                    </div>
+                `;
+
+                const closeBtn = document.createElement("button");
+                closeBtn.textContent = "✕";
+                closeBtn.style.cssText = "background: none; border: none; color: #6c7086; font-size: 18px; cursor: pointer;";
+                closeBtn.onclick = () => overlay.remove();
+                header.appendChild(closeBtn);
+                dialog.appendChild(header);
+
+                const list = document.createElement("div");
+                list.style.cssText = "overflow-y: auto; display: flex; flex-direction: column; gap: 8px; max-height: 520px; padding-right: 4px;";
+
+                variations.forEach((variantText, idx) => {
+                    const row = document.createElement("div");
+                    row.style.cssText = "background: #1e1e2e; border: 1px solid #313244; border-radius: 8px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px;";
+
+                    const info = document.createElement("div");
+                    info.style.cssText = "flex: 1; min-width: 0;";
+                    info.innerHTML = `
+                        <div style="font-size: 11px; font-weight: bold; color: #cba6f7; margin-bottom: 3px;">#${idx + 1}</div>
+                        <div style="font-size: 12px; color: #cdd6f4; font-family: ui-monospace, monospace; white-space: pre-wrap; word-break: break-word;">${escapeHtml(variantText)}</div>
+                    `;
+
+                    const actRow = document.createElement("div");
+                    actRow.style.cssText = "display: flex; gap: 6px; flex-shrink: 0;";
+
+                    const copyBtn = document.createElement("button");
+                    copyBtn.textContent = "📋 Copy";
+                    copyBtn.style.cssText = "background: #313244; border: 1px solid #45475a; border-radius: 4px; padding: 5px 8px; color: #cdd6f4; font-size: 11px; cursor: pointer;";
+                    copyBtn.onclick = () => {
+                        navigator.clipboard?.writeText(variantText);
+                        showStudioToast(`Variation #${idx + 1} copied!`);
+                    };
+
+                    const useBtn = document.createElement("button");
+                    useBtn.textContent = "✨ Use This";
+                    useBtn.style.cssText = "background: rgba(137, 180, 250, 0.2); border: 1px solid #89b4fa; border-radius: 4px; padding: 5px 10px; color: #89b4fa; font-size: 11px; font-weight: 600; cursor: pointer;";
+                    useBtn.onclick = () => {
+                        pushPromptHistory(node, "Pre-Variation Selection");
+                        pw.value = variantText;
+                        if (pw.inputEl) pw.inputEl.value = variantText;
+                        pw._updateSyntaxHighlight?.();
+                        overlay.remove();
+                        showStudioToast(`Applied Variation #${idx + 1}`);
+                        pushPromptHistory(node, `Applied Variation #${idx + 1}`);
+                    };
+
+                    actRow.appendChild(copyBtn);
+                    actRow.appendChild(useBtn);
+                    row.appendChild(info);
+                    row.appendChild(actRow);
+                    list.appendChild(row);
+                });
+
+                dialog.appendChild(list);
+                overlay.appendChild(dialog);
+                overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+                document.body.appendChild(overlay);
+            }
+
             function toggleNodeLayout(node) {
                 node._splitLayout = !node._splitLayout;
                 if (node._splitLayout) {
-                    node.size = [960, 680];
+                    node.size = [980, 680];
                 } else {
                     node.size = [560, 930];
+                }
+                const splitBtn = node.widgets?.find(w => w.name && (w.name.includes("Split Studio") || w.name.includes("Stacked Layout") || w.name.includes("Side-by-Side")));
+                if (splitBtn) {
+                    splitBtn.name = node._splitLayout ? "◫ Stacked Layout" : "◫ Split Studio";
                 }
                 const pw = node.widgets?.find(w => w.name === "positive");
                 const nw = node.widgets?.find(w => w.name === "negative");
                 pw?._updateSyntaxHighlight?.();
                 nw?._updateSyntaxHighlight?.();
                 app.graph?.setDirtyCanvas(true, true);
+                showStudioToast(node._splitLayout ? "Split-Screen Studio Mode Active" : "Stacked Layout Mode Active");
+            }
+
+            // ── Pop-Out Prompt Studio (Floating & Fullscreen Workstation) ─────────
+            function showPopOutStudio(node) {
+                if (node._popoutStudioEl && document.body.contains(node._popoutStudioEl)) {
+                    if (node._popoutStudioEl.classList.contains("is-minimized")) {
+                        node._popoutStudioEl.classList.remove("is-minimized");
+                    }
+                    const currentZ = parseInt(node._popoutStudioEl.style.zIndex || "10001", 10);
+                    node._popoutStudioEl.style.zIndex = String(currentZ + 1);
+                    node._popoutStudioEl.querySelector("textarea")?.focus();
+                    showStudioToast("Prompt Studio brought to front");
+                    return;
+                }
+
+                const pw = node.widgets?.find(w => w.name === "positive");
+                const nw = node.widgets?.find(w => w.name === "negative");
+                if (!pw || !nw) return;
+
+                const win = document.createElement("div");
+                win.className = "modusflow-popout-window";
+                node._popoutStudioEl = win;
+
+                let z = typeof window._popoutZIndex === "number" ? ++window._popoutZIndex : 10001;
+                window._popoutZIndex = z;
+                win.style.zIndex = String(z);
+
+                const defW = Math.min(1220, Math.floor(window.innerWidth * 0.90));
+                const defH = Math.min(840, Math.floor(window.innerHeight * 0.88));
+                const defTop = Math.max(30, Math.floor((window.innerHeight - defH) / 2));
+                const defLeft = Math.max(30, Math.floor((window.innerWidth - defW) / 2));
+
+                if (node._popoutSavedRect) {
+                    win.style.top = node._popoutSavedRect.top;
+                    win.style.left = node._popoutSavedRect.left;
+                    win.style.width = node._popoutSavedRect.width;
+                    win.style.height = node._popoutSavedRect.height;
+                } else {
+                    win.style.top = `${defTop}px`;
+                    win.style.left = `${defLeft}px`;
+                    win.style.width = `${defW}px`;
+                    win.style.height = `${defH}px`;
+                }
+
+                // ── Header Bar ──
+                const header = document.createElement("div");
+                header.className = "modusflow-popout-header";
+
+                const titleGroup = document.createElement("div");
+                titleGroup.style.cssText = "display: flex; align-items: center; gap: 8px; min-width: 0;";
+                const nodeTitle = node.title || "Text Editor";
+                const savedPromptName = node.widgets?.find(w => w.name === "saved_prompt")?.value || "Draft";
+                titleGroup.innerHTML = `
+                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #a6e3a1; box-shadow: 0 0 8px #a6e3a1; flex-shrink: 0;"></div>
+                    <span style="font-weight: 700; font-size: 13px; color: #cdd6f4; white-space: nowrap;">ModusFlow Studio</span>
+                    <span style="font-size: 11px; color: #89b4fa; background: rgba(137, 180, 250, 0.15); border: 1px solid rgba(137, 180, 250, 0.3); padding: 1px 7px; border-radius: 10px; white-space: nowrap;">#${node.id} ${escapeHtml(nodeTitle)}</span>
+                    <span id="mf-popout-prompt-tag" style="font-size: 11px; color: #f5c2e7; background: rgba(245, 194, 231, 0.12); border: 1px solid rgba(245, 194, 231, 0.25); padding: 1px 7px; border-radius: 10px; white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(savedPromptName)}</span>
+                `;
+
+                const statGroup = document.createElement("div");
+                statGroup.style.cssText = "display: flex; align-items: center; gap: 8px; margin-left: auto; margin-right: 12px;";
+                const posStatPill = document.createElement("span");
+                posStatPill.style.cssText = "font-size: 11px; font-family: ui-monospace, monospace; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); padding: 2px 7px; border-radius: 4px; color: #94a3b8;";
+                const negStatPill = document.createElement("span");
+                negStatPill.style.cssText = "font-size: 11px; font-family: ui-monospace, monospace; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); padding: 2px 7px; border-radius: 4px; color: #94a3b8;";
+                statGroup.appendChild(posStatPill);
+                statGroup.appendChild(negStatPill);
+
+                const winControls = document.createElement("div");
+                winControls.style.cssText = "display: flex; align-items: center; gap: 6px; flex-shrink: 0;";
+
+                const queueBtn = document.createElement("button");
+                queueBtn.className = "modusflow-popout-btn";
+                queueBtn.style.cssText = "background: linear-gradient(135deg, rgba(166, 227, 161, 0.25), rgba(137, 180, 250, 0.2)); border: 1px solid #a6e3a1; color: #a6e3a1; font-weight: 700; padding: 4px 10px;";
+                queueBtn.innerHTML = "🚀 Queue";
+                queueBtn.title = "Queue generation to ComfyUI (Ctrl+Enter)";
+                queueBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (typeof app.queuePrompt === "function") {
+                        app.queuePrompt(0);
+                    } else {
+                        document.getElementById("queue-button")?.click();
+                    }
+                    showStudioToast("🚀 Prompt queued to ComfyUI!");
+                };
+
+                const minBtn = document.createElement("button");
+                minBtn.className = "modusflow-popout-btn";
+                minBtn.innerHTML = "—";
+                minBtn.title = "Minimize to floating dock";
+                minBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleMinimize();
+                };
+
+                const maxBtn = document.createElement("button");
+                maxBtn.className = "modusflow-popout-btn";
+                maxBtn.innerHTML = "⇱";
+                maxBtn.title = "Maximize / Fullscreen Studio";
+                maxBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleMaximize();
+                };
+
+                const dockBtn = document.createElement("button");
+                dockBtn.className = "modusflow-popout-btn";
+                dockBtn.style.cssText = "color: #f38ba8; border-color: rgba(243, 139, 168, 0.4);";
+                dockBtn.innerHTML = "✕ Dock";
+                dockBtn.title = "Dock back to canvas node";
+                dockBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    closePopout();
+                };
+
+                winControls.appendChild(queueBtn);
+                winControls.appendChild(minBtn);
+                winControls.appendChild(maxBtn);
+                winControls.appendChild(dockBtn);
+
+                header.appendChild(titleGroup);
+                header.appendChild(statGroup);
+                header.appendChild(winControls);
+                win.appendChild(header);
+
+                // ── Toolbar Ribbon ──
+                const toolbar = document.createElement("div");
+                toolbar.className = "modusflow-popout-toolbar";
+
+                const themeSel = document.createElement("select");
+                themeSel.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 5px; color: #cdd6f4; font-size: 11px; padding: 3px 6px; outline: none; cursor: pointer;";
+                getThemeOptions().forEach(t => {
+                    const opt = document.createElement("option");
+                    opt.value = t;
+                    opt.textContent = t;
+                    if (t === (node._currentSyntaxTheme || "Modus Neon (Default)")) opt.selected = true;
+                    themeSel.appendChild(opt);
+                });
+                themeSel.onchange = () => {
+                    setNodeTheme(node, themeSel.value);
+                    const tw = node.widgets?.find(w => w.name === "syntax_theme");
+                    if (tw) tw.value = themeSel.value;
+                    updatePopoutBackdrops();
+                };
+                toolbar.appendChild(themeSel);
+
+                function addToolBtn(iconText, title, onClick, extraStyle = "") {
+                    const btn = document.createElement("button");
+                    btn.className = "modusflow-popout-btn";
+                    if (extraStyle) btn.style.cssText += extraStyle;
+                    btn.innerHTML = iconText;
+                    btn.title = title;
+                    btn.onclick = (e) => {
+                        e.preventDefault();
+                        onClick();
+                    };
+                    toolbar.appendChild(btn);
+                    return btn;
+                }
+
+                addToolBtn("💾 Save", "Save prompt preset", () => showSaveDialog(node));
+                addToolBtn("🔄 Update", "Update selected prompt file", () => updatePrompt(node));
+                const tagStudioBtn = addToolBtn("🏷 Tag Studio", "Toggle Tag Matrix / Chip Flow", () => togglePopoutTagStudio());
+                addToolBtn("🎞 Aesthetic", "Visual Aesthetic Ribbon (Optics, Films, Rigs)", () => showAestheticRibbonModal(node));
+                addToolBtn("✍️ Prosify", "Format into fluent natural prose (Flux/SD3)", () => {
+                    prosifyPositivePrompt(node);
+                    syncFromNode();
+                });
+                addToolBtn("🏷 Tagify", "Format into weighted tag flow (SDXL/Pony)", () => {
+                    tagifyPositivePrompt(node);
+                    syncFromNode();
+                });
+                addToolBtn("⚄ Variations", "Dynamic Choice Permutations Matrix", () => showVariationGridModal(node));
+                addToolBtn("✨ Ollama", "Enhance prompt with Ollama LLM", () => {
+                    const eb = node.widgets?.find(w => w.name && w.name.includes("Enhance with Ollama"));
+                    if (window.event?.shiftKey || !_ollamaAvailable) {
+                        showOllamaStatusModal(node, eb);
+                    } else {
+                        enhancePromptWithOllama(node, eb);
+                    }
+                });
+                addToolBtn("🎨 LoRAs", "Manage active LoRA weights & mute", () => showLoraDeckModal(node));
+                addToolBtn("⇄ Swap", "Swap Positive and Negative prompts", () => {
+                    swapPositiveNegative(node);
+                    syncFromNode();
+                });
+                addToolBtn("🌈 Spectrum", "Interactive Color Spectrum Picker & Model Pigment Translator", () => showColorPaletteModal(node));
+                addToolBtn("✨ Hex->Color", "Translate all hex codes to color names", () => {
+                    translateAllHexInNode(node);
+                    syncFromNode();
+                });
+                addToolBtn("🧹 Dedupe", "Prettify spacing and deduplicate tags", () => {
+                    prettifyNodePrompts(node);
+                    syncFromNode();
+                });
+                addToolBtn("🔍 Find", "Find & Replace (Ctrl+F)", () => showFindReplaceBar(node));
+
+                win.appendChild(toolbar);
+
+                // ── Workspace Body (Dual-Pane) ──
+                const body = document.createElement("div");
+                body.className = "modusflow-popout-body";
+
+                // Left Pane: Positive
+                const posPane = document.createElement("div");
+                posPane.className = "modusflow-popout-pane";
+                posPane.style.flex = "1.5";
+
+                const posHead = document.createElement("div");
+                posHead.style.cssText = "display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 700; color: #89b4fa; letter-spacing: 0.5px;";
+                posHead.innerHTML = `
+                    <span>POSITIVE PROMPT</span>
+                    <span id="mf-pos-popout-sub" style="font-weight: normal; color: #a6adc8; font-family: ui-monospace, monospace;"></span>
+                `;
+                posPane.appendChild(posHead);
+
+                const posBox = document.createElement("div");
+                posBox.className = "modusflow-popout-editor-box";
+
+                const posBackdrop = document.createElement("div");
+                posBackdrop.className = "modusflow-popout-backdrop";
+                posBox.appendChild(posBackdrop);
+
+                const posTa = document.createElement("textarea");
+                posTa.className = "modusflow-popout-ta";
+                posTa.placeholder = "Enter positive prompt, tags, choices {a|b}, wildcards __style__...";
+                posTa.value = pw.value || "";
+                posBox.appendChild(posTa);
+
+                const posTagStudio = document.createElement("div");
+                posTagStudio.className = "modusflow-tag-studio-container";
+                posTagStudio.style.display = "none";
+                posTagStudio.style.flex = "1";
+                posTagStudio.style.height = "100%";
+                posTagStudio.style.maxHeight = "none";
+                posBox.appendChild(posTagStudio);
+
+                const posWaveform = document.createElement("div");
+                posWaveform.className = "modusflow-waveform-strip";
+                for (let c = 0; c < 3; c++) {
+                    const chunkEl = document.createElement("div");
+                    chunkEl.className = "modusflow-waveform-chunk";
+                    const fill = document.createElement("div");
+                    fill.className = "modusflow-waveform-fill";
+                    chunkEl.appendChild(fill);
+                    posWaveform.appendChild(chunkEl);
+                }
+                posBox.appendChild(posWaveform);
+
+                posPane.appendChild(posBox);
+
+                // Right Pane: Negative
+                const negPane = document.createElement("div");
+                negPane.className = "modusflow-popout-pane";
+                negPane.style.flex = "1";
+
+                const negHead = document.createElement("div");
+                negHead.style.cssText = "display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 700; color: #f38ba8; letter-spacing: 0.5px;";
+                negHead.innerHTML = `
+                    <span>NEGATIVE PROMPT</span>
+                    <span id="mf-neg-popout-sub" style="font-weight: normal; color: #a6adc8; font-family: ui-monospace, monospace;"></span>
+                `;
+                negPane.appendChild(negHead);
+
+                const pedalBar = document.createElement("div");
+                pedalBar.className = "modusflow-pedal-bar";
+                const pLabel = document.createElement("span");
+                pLabel.textContent = "Guards:";
+                pLabel.style.cssText = "font-size: 10px; color: #6c7086; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;";
+                pedalBar.appendChild(pLabel);
+
+                const pedalBtns = [];
+                PEDALBOARD_MODULES.forEach(mod => {
+                    const btn = document.createElement("button");
+                    btn.className = "modusflow-pedal-btn";
+                    btn.textContent = mod.label;
+                    btn.title = mod.tooltip;
+                    btn.onclick = () => {
+                        let cur = (negTa.value || "").trim();
+                        const hasTag = cur.toLowerCase().includes(mod.matchTag.toLowerCase());
+                        if (hasTag) {
+                            cur = cur.replace(mod.text, "");
+                            const escTag = mod.matchTag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            cur = cur.replace(new RegExp(`\\([^)]*${escTag}[^)]*\\)`, "gi"), "");
+                            cur = cur.replace(/,\s*,+/g, ", ").replace(/^,\s*/, "").replace(/,\s*$/, "").trim();
+                            showStudioToast(`Disengaged [${mod.label}] guard`, "info");
+                        } else {
+                            if (cur && !cur.endsWith(",")) cur += ", ";
+                            else if (cur && cur.endsWith(",")) cur += " ";
+                            cur += mod.text;
+                            showStudioToast(`Engaged [${mod.label}] guard`);
+                        }
+                        negTa.value = cur;
+                        onNegInput();
+                    };
+                    pedalBtns.push({ btn, mod });
+                    pedalBar.appendChild(btn);
+                });
+                negPane.appendChild(pedalBar);
+
+                const negBox = document.createElement("div");
+                negBox.className = "modusflow-popout-editor-box";
+
+                const negBackdrop = document.createElement("div");
+                negBackdrop.className = "modusflow-popout-backdrop";
+                negBox.appendChild(negBackdrop);
+
+                const negTa = document.createElement("textarea");
+                negTa.className = "modusflow-popout-ta";
+                negTa.placeholder = "Enter negative prompt, unwanted traits...";
+                negTa.value = nw.value || "";
+                negBox.appendChild(negTa);
+
+                const negWaveform = document.createElement("div");
+                negWaveform.className = "modusflow-waveform-strip";
+                for (let c = 0; c < 3; c++) {
+                    const chunkEl = document.createElement("div");
+                    chunkEl.className = "modusflow-waveform-chunk";
+                    const fill = document.createElement("div");
+                    fill.className = "modusflow-waveform-fill";
+                    chunkEl.appendChild(fill);
+                    negWaveform.appendChild(chunkEl);
+                }
+                negBox.appendChild(negWaveform);
+
+                negPane.appendChild(negBox);
+
+                body.appendChild(posPane);
+                body.appendChild(negPane);
+                win.appendChild(body);
+
+                // ── Event Synchronization ──
+                let inPopoutTagStudio = false;
+                function togglePopoutTagStudio() {
+                    inPopoutTagStudio = !inPopoutTagStudio;
+                    tagStudioBtn.innerHTML = inPopoutTagStudio ? "📝 Text Mode" : "🏷 Tag Studio";
+                    if (inPopoutTagStudio) {
+                        posTa.style.display = "none";
+                        posBackdrop.style.display = "none";
+                        posTagStudio.style.display = "flex";
+                        renderTagStudio(node, posTagStudio, pw);
+                    } else {
+                        posTa.style.display = "";
+                        posBackdrop.style.display = "";
+                        posTagStudio.style.display = "none";
+                        posTa.value = pw.value || "";
+                        onPosInput();
+                    }
+                }
+
+                function updateWaveform(waveformEl, text) {
+                    const chunks = waveformEl.querySelectorAll(".modusflow-waveform-chunk");
+                    const tokens = estimateTokens(text || "").tokens;
+                    const c1 = Math.min(75, tokens);
+                    const c2 = Math.min(75, Math.max(0, tokens - 75));
+                    const c3 = Math.min(75, Math.max(0, tokens - 150));
+                    const fills = [c1 / 75 * 100, c2 / 75 * 100, c3 / 75 * 100];
+                    const hasSpike = /:[1-9]\.[2-9]|\([a-zA-Z0-9_\s]+:[2-9]\)/.test(text || "");
+
+                    chunks.forEach((chunk, i) => {
+                        const fill = chunk.querySelector(".modusflow-waveform-fill");
+                        if (fill) {
+                            fill.style.width = `${fills[i]}%`;
+                            if (hasSpike) fill.classList.add("has-spike");
+                            else fill.classList.remove("has-spike");
+                        }
+                    });
+                }
+
+                function updatePopoutBackdrops() {
+                    const theme = getThemeByName(node._currentSyntaxTheme || "Modus Neon (Default)");
+                    if (posBackdrop) {
+                        posBackdrop.innerHTML = highlightSyntax(posTa.value || "", theme);
+                        posBackdrop.style.backgroundColor = theme.bg_color || "#181825";
+                    }
+                    if (negBackdrop) {
+                        negBackdrop.innerHTML = highlightSyntax(negTa.value || "", theme);
+                        negBackdrop.style.backgroundColor = theme.bg_color || "#181825";
+                    }
+                }
+
+                function onPosInput() {
+                    pw.value = posTa.value;
+                    if (pw.inputEl) pw.inputEl.value = posTa.value;
+                    pw._updateSyntaxHighlight?.();
+
+                    const theme = getThemeByName(node._currentSyntaxTheme || "Modus Neon (Default)");
+                    posBackdrop.innerHTML = highlightSyntax(posTa.value || "", theme);
+                    posBackdrop.scrollTop = posTa.scrollTop;
+                    posBackdrop.scrollLeft = posTa.scrollLeft;
+
+                    const stats = estimateTokens(posTa.value || "");
+                    const unclosed = countUnclosedParens(posTa.value || "");
+                    let statStr = `Pos: ${stats.words}w · ~${stats.tokens} tok (${stats.chunkProgress}/75 Ch.${stats.currentChunk})`;
+                    if (unclosed > 0) statStr += ` · ⚠️ ${unclosed} unclosed`;
+                    posStatPill.textContent = statStr;
+                    const sub = document.getElementById("mf-pos-popout-sub");
+                    if (sub) sub.textContent = `${stats.words} words · ${stats.tokens} tokens`;
+
+                    updateWaveform(posWaveform, posTa.value);
+                    app.graph?.setDirtyCanvas(true, true);
+                }
+
+                function onNegInput() {
+                    nw.value = negTa.value;
+                    if (nw.inputEl) nw.inputEl.value = negTa.value;
+                    nw._updateSyntaxHighlight?.();
+
+                    const theme = getThemeByName(node._currentSyntaxTheme || "Modus Neon (Default)");
+                    negBackdrop.innerHTML = highlightSyntax(negTa.value || "", theme);
+                    negBackdrop.scrollTop = negTa.scrollTop;
+                    negBackdrop.scrollLeft = negTa.scrollLeft;
+
+                    const stats = estimateTokens(negTa.value || "");
+                    negStatPill.textContent = `Neg: ${stats.words}w · ~${stats.tokens} tok`;
+                    const sub = document.getElementById("mf-neg-popout-sub");
+                    if (sub) sub.textContent = `${stats.words} words · ${stats.tokens} tokens`;
+
+                    const val = (negTa.value || "").toLowerCase();
+                    pedalBtns.forEach(({ btn, mod }) => {
+                        if (val.includes(mod.matchTag.toLowerCase())) btn.classList.add("active");
+                        else btn.classList.remove("active");
+                    });
+
+                    updateWaveform(negWaveform, negTa.value);
+                    app.graph?.setDirtyCanvas(true, true);
+                }
+
+                posTa.addEventListener("input", onPosInput);
+                posTa.addEventListener("scroll", () => {
+                    posBackdrop.scrollTop = posTa.scrollTop;
+                    posBackdrop.scrollLeft = posTa.scrollLeft;
+                });
+
+                negTa.addEventListener("input", onNegInput);
+                negTa.addEventListener("scroll", () => {
+                    negBackdrop.scrollTop = negTa.scrollTop;
+                    negBackdrop.scrollLeft = negTa.scrollLeft;
+                });
+
+                function syncFromNode() {
+                    posTa.value = pw.value || "";
+                    negTa.value = nw.value || "";
+                    const savedName = node.widgets?.find(w => w.name === "saved_prompt")?.value || "Draft";
+                    const tagEl = document.getElementById("mf-popout-prompt-tag");
+                    if (tagEl) tagEl.textContent = savedName;
+                    onPosInput();
+                    onNegInput();
+                }
+
+                win.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        queueBtn.click();
+                    } else if (e.key === "s" && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        showSaveDialog(node);
+                    } else if (e.key === "f" && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        showFindReplaceBar(node);
+                    } else if (e.key === "Escape" && !win.classList.contains("is-minimized")) {
+                        if (document.activeElement !== posTa && document.activeElement !== negTa) {
+                            closePopout();
+                        }
+                    }
+                });
+
+                // ── Dragging logic ──
+                let isDragging = false;
+                let dragStartX = 0;
+                let dragStartY = 0;
+                let winStartX = 0;
+                let winStartY = 0;
+
+                header.addEventListener("mousedown", (e) => {
+                    if (e.target.tagName === "BUTTON" || e.target.tagName === "SELECT" || e.target.tagName === "INPUT") return;
+                    if (win.classList.contains("is-maximized")) return;
+                    isDragging = true;
+                    dragStartX = e.clientX;
+                    dragStartY = e.clientY;
+                    winStartX = win.offsetLeft;
+                    winStartY = win.offsetTop;
+                    win.style.zIndex = String(++window._popoutZIndex);
+
+                    const onMouseMove = (ev) => {
+                        if (!isDragging) return;
+                        const dx = ev.clientX - dragStartX;
+                        const dy = ev.clientY - dragStartY;
+                        win.style.left = `${Math.max(0, winStartX + dx)}px`;
+                        win.style.top = `${Math.max(0, winStartY + dy)}px`;
+                    };
+
+                    const onMouseUp = () => {
+                        isDragging = false;
+                        window.removeEventListener("mousemove", onMouseMove);
+                        window.removeEventListener("mouseup", onMouseUp);
+                        if (!win.classList.contains("is-maximized") && !win.classList.contains("is-minimized")) {
+                            node._popoutSavedRect = {
+                                top: win.style.top,
+                                left: win.style.left,
+                                width: win.style.width,
+                                height: win.style.height
+                            };
+                        }
+                    };
+
+                    window.addEventListener("mousemove", onMouseMove);
+                    window.addEventListener("mouseup", onMouseUp);
+                });
+
+                function toggleMaximize() {
+                    const isMax = win.classList.toggle("is-maximized");
+                    maxBtn.innerHTML = isMax ? "🗗" : "⇱";
+                    maxBtn.title = isMax ? "Restore Studio size" : "Maximize / Fullscreen Studio";
+                    if (!isMax && node._popoutSavedRect) {
+                        win.style.top = node._popoutSavedRect.top;
+                        win.style.left = node._popoutSavedRect.left;
+                        win.style.width = node._popoutSavedRect.width;
+                        win.style.height = node._popoutSavedRect.height;
+                    }
+                    updatePopoutBackdrops();
+                }
+
+                function toggleMinimize() {
+                    const isMin = win.classList.toggle("is-minimized");
+                    if (isMin) {
+                        toolbar.style.display = "none";
+                        body.style.display = "none";
+                        statGroup.style.display = "none";
+                        minBtn.innerHTML = "⇱";
+                        minBtn.title = "Restore Studio";
+                    } else {
+                        toolbar.style.display = "flex";
+                        body.style.display = "flex";
+                        statGroup.style.display = "flex";
+                        minBtn.innerHTML = "—";
+                        minBtn.title = "Minimize to floating dock";
+                        updatePopoutBackdrops();
+                    }
+                }
+
+                function closePopout() {
+                    if (!win.classList.contains("is-maximized") && !win.classList.contains("is-minimized")) {
+                        node._popoutSavedRect = {
+                            top: win.style.top,
+                            left: win.style.left,
+                            width: win.style.width,
+                            height: win.style.height
+                        };
+                    }
+                    win.remove();
+                    node._popoutStudioEl = null;
+                    pw._updateSyntaxHighlight?.();
+                    nw?._updateSyntaxHighlight?.();
+                    app.graph?.setDirtyCanvas(true, true);
+                    showStudioToast("Docked back to canvas node");
+                }
+
+                document.body.appendChild(win);
+                updatePopoutBackdrops();
+                onPosInput();
+                onNegInput();
+                posTa.focus();
+                showStudioToast("Prompt Studio popped out! (Drag header to move, 🚀 Queue to run)");
             }
         }
     }
