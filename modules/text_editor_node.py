@@ -72,8 +72,8 @@ class ModusFlowTextEditor:
 
         return ["--no prompts found--"]
 
-    RETURN_TYPES = ("STRING", "STRING",)
-    RETURN_NAMES = ("positive", "negative",)
+    RETURN_TYPES = ("STRING", "STRING", "INT",)
+    RETURN_NAMES = ("positive", "negative", "seed",)
     FUNCTION = "process_text"
     OUTPUT_NODE = False
     CATEGORY = "ModusFlow/Utilities"
@@ -401,6 +401,8 @@ class ModusFlowTextEditor:
         if mute_negative:
             output_negative = ""
 
+        actual_seed = int(seed) if seed is not None else 0
+
         # Update the node's widget values in the workflow metadata if available
         if unique_id is not None and extra_pnginfo is not None:
             if isinstance(extra_pnginfo, dict) and "workflow" in extra_pnginfo:
@@ -410,7 +412,6 @@ class ModusFlowTextEditor:
                     None,
                 )
                 if node:
-                    actual_seed = seed if seed is not None else 0
                     node["widgets_values"] = [positive, negative, saved_prompt, weight_mode, actual_seed]
 
-        return (output_positive, output_negative,)
+        return (output_positive, output_negative, actual_seed,)

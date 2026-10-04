@@ -18,7 +18,7 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **File Browser**: Browse and load saved prompts from a dropdown
 - **Update in Place**: Overwrite an existing prompt with current text
 - **Custom Directory**: Configure save location via `config.json` or ComfyUI Settings
-- **Pass-through Outputs**: Both positive and negative text are available as outputs
+- **Pass-through Outputs**: Both positive and negative text, as well as the seed integer, are available as outputs
 
 ## Inputs
 
@@ -46,6 +46,7 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 
 - **positive** (STRING): Processed, comment-filtered, wildcard-resolved positive prompt text
 - **negative** (STRING): Processed, comment-filtered, wildcard-resolved negative prompt text
+- **seed** (INT): Seed passthrough (connects to KSampler, Save Image `%seed%`, LoRA Loader, etc.)
 
 > [!TIP]
 > For a full tutorial on weight adaptation, tag shuffling, wildcards, and dynamic choices, see the [Text Editor & Wildcard Mastery Guide](guides/text-editor-mastery.md).

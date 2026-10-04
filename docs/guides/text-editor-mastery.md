@@ -132,9 +132,10 @@ Models like Chroma 1-HD often generate richer, more cinematic lighting with zero
 * Toggle **`mute_negative: True`** on the node to instantly bypass the negative prompt without deleting your text box notes.
 
 ### Deterministic Seed Control (`seed`)
-ModusFlow Text Editor includes an optional **`seed`** widget/input:
+ModusFlow Text Editor includes an optional **`seed`** widget/input and a **`seed`** passthrough output:
 * **`seed = 0` (or disconnected):** Truly random on every queue.
 * **`seed > 0` (or connected to KSampler seed):** All dynamic choices `{a|b|c}`, Pick-N `{2$$...}`, variables `$var`, `{shuffle: ...}`, and `__wildcards__` evaluate **deterministically**. Rerunning with the exact same seed produces the identical prompt every time.
+* **Seed Passthrough Output:** The node outputs `seed` (`INT`), allowing you to wire it directly downstream to KSampler, ModusFlow LoRA Loader, or Save Image `%seed%` to keep seeds synchronized.
 
 ---
 
