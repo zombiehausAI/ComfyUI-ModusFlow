@@ -2,16 +2,45 @@
 config.json
 syntax_themes.json
 
-# Python cache files
+# Python cache and environments
 __pycache__/
 *.pyc
-images
-.idea/
+*.pyo
+*.pyd
 .venv/
-ComfyUI-ModusFlow.code-workspace
-workflows/Flux (Shared).json
-examples/
+env/
+venv/
+
+# Local IDEs and workspace files
+.idea/
 .vs/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+ComfyUI-ModusFlow.code-workspace
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Logs, temporary data, and working notes
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+images/
+examples/
+workflows/Flux (Shared).json
 allinone_detailer_prompt_v2.md
 working/
 scratch/
+
+# Node.js and VS Code extension build artifacts
+**/node_modules/
+vscode-extension/out/
+*.vsix
+.vscode-test/
+*.tsbuildinfo

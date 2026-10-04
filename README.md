@@ -242,6 +242,26 @@ KSampler → image → All-in-One Detailer → Upscaler → Save Image
 
 ---
 
+## 💻 ModusFlow Prompt Studio for VS Code & Cursor
+
+ComfyUI-ModusFlow includes an official companion extension for VS Code, Cursor, and Windsurf located in [`vscode-extension/`](vscode-extension/):
+
+- **🎨 Full ModusFlow Syntax Highlighting**: Rich TextMate grammar for dynamic choices (`{a|b|c}`), weighted odds (`{80::day|20::night}`), wildcards (`__lighting__`), variables (`$var`), attention weights (`(tag:1.2)`), and LoRA tags (`<lora:name:weight>`).
+- **🌈 Document Color Provider & Natural Color Resolver**: Live color swatches on `#hex` codes with built-in color picker and nearest natural color name resolution.
+- **🤖 Ollama Selection Inpainting**: Highlight any word or phrase and right-click to expand, audition visual synonyms, wrap into `{choice|choice}` blocks, or translate between tags and prose.
+- **💡 Rich IntelliSense & Autocomplete**: Autocomplete for installed wildcards (`__`), LoRA models (`<lora:`), and prompt macros (`!cine`, `!photo`, `!anime`, `!neg`).
+- **🖼️ LoRA Hover Cards**: View Civitai preview thumbnails, authors, and trained trigger tags on hover.
+- **📁 Activity Bar Library Explorer**: Browse saved prompts and edit wildcard files side-by-side.
+- **🚀 One-Key Generation Queue (`Ctrl+Alt+Enter`)**: Trigger ComfyUI generation directly from your IDE.
+
+### Install the Extension
+```bash
+code --install-extension vscode-extension/modusflow-prompt-studio-0.1.0.vsix
+```
+*Or in VS Code / Cursor / Windsurf: Press `Ctrl + Shift + P` $\rightarrow$ `Extensions: Install from VSIX...` $\rightarrow$ Select `modusflow-prompt-studio-0.1.0.vsix`.*
+
+---
+
 ## 📄 License
 
 MIT License - see [LICENSE](LICENSE) file for details

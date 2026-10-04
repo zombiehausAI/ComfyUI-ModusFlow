@@ -1,0 +1,358 @@
+{
+  "name": "modusflow-prompt-studio",
+  "displayName": "ModusFlow Prompt Studio",
+  "description": "Rich prompt engineering studio for ComfyUI: live node sync, syntax highlighting, wildcards, LoRA autocomplete, and local Ollama AI enhancement.",
+  "version": "0.1.0",
+  "publisher": "zombiehaus",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zombiehausAI/ComfyUI-ModusFlow"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Machine Learning",
+    "Other"
+  ],
+  "keywords": [
+    "comfyui",
+    "stable-diffusion",
+    "flux",
+    "sdxl",
+    "prompt-engineering",
+    "ollama",
+    "wildcards"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "modusprompt",
+        "aliases": [
+          "ModusFlow Prompt",
+          "modusprompt",
+          "prompt"
+        ],
+        "extensions": [
+          ".prompt",
+          ".mfprompt",
+          ".modusprompt"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "modusprompt",
+        "scopeName": "source.modusprompt",
+        "path": "./syntaxes/modusprompt.tmLanguage.json"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "modusflow-studio",
+          "title": "ModusFlow Studio",
+          "icon": "resources/modusflow-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "modusflow-studio": [
+        {
+          "id": "modusflow.promptsView",
+          "name": "Saved Prompts Library"
+        },
+        {
+          "id": "modusflow.wildcardsView",
+          "name": "Wildcards & Lists"
+        },
+        {
+          "id": "modusflow.activeNodeView",
+          "name": "Connected Canvas Node"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "modusflow.connect",
+        "title": "Connect / Test Connection",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.pullActivePrompt",
+        "title": "Pull Prompt from Active Canvas Node",
+        "category": "ModusFlow",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "modusflow.pushActivePrompt",
+        "title": "Push Prompt to Active Canvas Node",
+        "category": "ModusFlow",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "modusflow.queueGeneration",
+        "title": "Queue Generation in ComfyUI",
+        "category": "ModusFlow",
+        "icon": "$(run)"
+      },
+      {
+        "command": "modusflow.refineSelectionExpand",
+        "title": "Ollama: ✨ Expand & Elaborate",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.refineSelectionSynonyms",
+        "title": "Ollama: 🔄 Visual Synonyms & Alternatives",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.refineSelectionWrapChoice",
+        "title": "Ollama: ⚄ Wrap as Dynamic Choice {a|b|c}",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.refineSelectionIntensify",
+        "title": "Ollama: ⚡ Intensify & Elevate",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.refineSelectionSimplify",
+        "title": "Ollama: ✂️ Simplify & Compact",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.refineSelectionProsify",
+        "title": "Ollama: ✍️ Prosify (Flux/SD3 Prose)",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.refineSelectionTagify",
+        "title": "Ollama: 🏷️ Tagify (SDXL/Pony Tags)",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.refreshPrompts",
+        "title": "Refresh Prompts & Wildcards",
+        "category": "ModusFlow",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "modusflow.openStudio",
+        "title": "⛶ Pop Out Studio Cockpit",
+        "category": "ModusFlow",
+        "icon": "$(window)"
+      },
+      {
+        "command": "modusflow.stepWeightUp",
+        "title": "Tag Weight: Step Up (+0.05)",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.stepWeightDown",
+        "title": "Tag Weight: Step Down (-0.05)",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.prettify",
+        "title": "Prettify & Deduplicate Tags",
+        "category": "ModusFlow",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "modusflow.explodeCollapse",
+        "title": "Toggle Explode / Collapse Tags",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.convertStyleTags",
+        "title": "Convert Prompt to Tags (SDXL / Pony)",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.convertStyleExpressions",
+        "title": "Convert Prompt to Expressions (Flux / SD3)",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.insertAestheticRibbon",
+        "title": "Insert Aesthetic Ribbon Preset...",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.togglePedalQuality",
+        "title": "Negative Pedal: Quality Guard",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.togglePedalAnatomy",
+        "title": "Negative Pedal: Anatomy Guard",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.togglePedalCgi",
+        "title": "Negative Pedal: 3D Render Guard",
+        "category": "ModusFlow"
+      },
+      {
+        "command": "modusflow.togglePedalWatermark",
+        "title": "Negative Pedal: Watermark Guard",
+        "category": "ModusFlow"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "submenu": "modusflow.ollamaSubmenu",
+          "when": "editorHasSelection",
+          "group": "1_modification"
+        },
+        {
+          "command": "modusflow.openStudio",
+          "when": "editorTextFocus && (editorLangId == 'modusprompt' || resourceExtname =~ /\\.(prompt|mfprompt|modusprompt)$/ || resourceScheme == 'modusflow')",
+          "group": "2_modusflow"
+        },
+        {
+          "command": "modusflow.prettify",
+          "when": "editorTextFocus && (editorLangId == 'modusprompt' || resourceExtname =~ /\\.(prompt|mfprompt|modusprompt)$/ || resourceScheme == 'modusflow')",
+          "group": "2_modusflow"
+        },
+        {
+          "command": "modusflow.insertAestheticRibbon",
+          "when": "editorTextFocus && (editorLangId == 'modusprompt' || resourceExtname =~ /\\.(prompt|mfprompt|modusprompt)$/ || resourceScheme == 'modusflow')",
+          "group": "2_modusflow"
+        },
+        {
+          "command": "modusflow.pushActivePrompt",
+          "when": "editorTextFocus && resourceExtname =~ /\\.(prompt|mfprompt|modusprompt|txt)$/",
+          "group": "2_modusflow"
+        },
+        {
+          "command": "modusflow.queueGeneration",
+          "when": "editorTextFocus && resourceExtname =~ /\\.(prompt|mfprompt|modusprompt|txt)$/",
+          "group": "2_modusflow"
+        }
+      ],
+      "submenus": [
+        {
+          "id": "modusflow.ollamaSubmenu",
+          "label": "🤖 ModusFlow: Refine with Ollama"
+        }
+      ],
+      "modusflow.ollamaSubmenu": [
+        {
+          "command": "modusflow.refineSelectionExpand",
+          "group": "1_expansion"
+        },
+        {
+          "command": "modusflow.refineSelectionSynonyms",
+          "group": "1_expansion"
+        },
+        {
+          "command": "modusflow.refineSelectionWrapChoice",
+          "group": "1_expansion"
+        },
+        {
+          "command": "modusflow.refineSelectionIntensify",
+          "group": "2_tone"
+        },
+        {
+          "command": "modusflow.refineSelectionSimplify",
+          "group": "2_tone"
+        },
+        {
+          "command": "modusflow.refineSelectionProsify",
+          "group": "3_format"
+        },
+        {
+          "command": "modusflow.refineSelectionTagify",
+          "group": "3_format"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "modusflow.openStudio",
+          "when": "editorLangId == 'modusprompt' || resourceExtname =~ /\\.(prompt|mfprompt|modusprompt)$/ || resourceScheme == 'modusflow'",
+          "group": "navigation"
+        },
+        {
+          "command": "modusflow.queueGeneration",
+          "when": "resourceExtname =~ /\\.(prompt|mfprompt|modusprompt|txt)$/",
+          "group": "navigation"
+        },
+        {
+          "command": "modusflow.pushActivePrompt",
+          "when": "resourceExtname =~ /\\.(prompt|mfprompt|modusprompt|txt)$/",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "modusflow.stepWeightUp",
+        "key": "ctrl+up",
+        "mac": "cmd+up",
+        "when": "editorTextFocus && (editorLangId == 'modusprompt' || resourceExtname =~ /\\.(prompt|mfprompt|modusprompt)$/ || resourceScheme == 'modusflow')"
+      },
+      {
+        "command": "modusflow.stepWeightDown",
+        "key": "ctrl+down",
+        "mac": "cmd+down",
+        "when": "editorTextFocus && (editorLangId == 'modusprompt' || resourceExtname =~ /\\.(prompt|mfprompt|modusprompt)$/ || resourceScheme == 'modusflow')"
+      },
+      {
+        "command": "modusflow.queueGeneration",
+        "key": "ctrl+alt+enter",
+        "mac": "cmd+alt+enter",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "modusflow.pushActivePrompt",
+        "key": "ctrl+alt+u",
+        "mac": "cmd+alt+u",
+        "when": "editorTextFocus"
+      }
+    ],
+    "configuration": {
+      "title": "ModusFlow Prompt Studio",
+      "properties": {
+        "modusflow.comfyUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8188",
+          "description": "ComfyUI server base URL (e.g. http://127.0.0.1:8188 or LAN IP)"
+        },
+        "modusflow.autoSyncOnType": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically push prompt changes to active canvas node while typing (debounced)"
+        },
+        "modusflow.defaultPromptStyle": {
+          "type": "string",
+          "enum": [
+            "Tags (SDXL / Pony)",
+            "Expressions (Flux / SD3)"
+          ],
+          "default": "Tags (SDXL / Pony)",
+          "description": "Prompting philosophy used for Ollama AI refinement"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.22.0",
+    "typescript": "^5.3.3"
+  }
+}

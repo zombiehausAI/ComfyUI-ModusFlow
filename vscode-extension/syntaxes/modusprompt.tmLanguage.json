@@ -1,0 +1,182 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "ModusFlow Prompt",
+  "scopeName": "source.modusprompt",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#loras"
+    },
+    {
+      "include": "#hexcolors"
+    },
+    {
+      "include": "#variables"
+    },
+    {
+      "include": "#curators"
+    },
+    {
+      "include": "#wildcards"
+    },
+    {
+      "include": "#shuffles"
+    },
+    {
+      "include": "#dynamic_choices"
+    },
+    {
+      "include": "#weights"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.modusprompt",
+          "begin": "/\\*",
+          "end": "\\*/"
+        },
+        {
+          "name": "comment.line.number-sign.modusprompt",
+          "match": "#.*$"
+        },
+        {
+          "name": "comment.line.double-slash.modusprompt",
+          "match": "//.*$"
+        }
+      ]
+    },
+    "loras": {
+      "patterns": [
+        {
+          "name": "entity.name.tag.lora.modusprompt",
+          "match": "(<lora:)([a-zA-Z0-9_.-]+)(?::([+-]?[0-9]*\\.?[0-9]+))?(>)",
+          "captures": {
+            "1": { "name": "punctuation.definition.tag.begin.modusprompt" },
+            "2": { "name": "variable.parameter.lora-name.modusprompt" },
+            "3": { "name": "constant.numeric.lora-weight.modusprompt" },
+            "4": { "name": "punctuation.definition.tag.end.modusprompt" }
+          }
+        }
+      ]
+    },
+    "hexcolors": {
+      "patterns": [
+        {
+          "name": "constant.other.color.hex.modusprompt",
+          "match": "#[0-9a-fA-F]{6}\\b|#[0-9a-fA-F]{3}\\b"
+        }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "name": "variable.other.assignment.modusprompt",
+          "match": "(\\$[a-zA-Z0-9_]+)\\s*(=)\\s*([^;]+)(;)",
+          "captures": {
+            "1": { "name": "variable.name.modusprompt" },
+            "2": { "name": "keyword.operator.assignment.modusprompt" },
+            "3": { "name": "string.unquoted.variable-value.modusprompt" },
+            "4": { "name": "punctuation.terminator.modusprompt" }
+          }
+        },
+        {
+          "name": "variable.other.reference.modusprompt",
+          "match": "\\$[a-zA-Z0-9_]+"
+        }
+      ]
+    },
+    "curators": {
+      "patterns": [
+        {
+          "name": "support.variable.curator.modusprompt",
+          "match": "\\{(curator\\d*|list|item)\\}"
+        }
+      ]
+    },
+    "wildcards": {
+      "patterns": [
+        {
+          "name": "string.interpolated.wildcard.modusprompt",
+          "match": "(__)([a-zA-Z0-9_/.-]+)(__)",
+          "captures": {
+            "1": { "name": "punctuation.definition.wildcard.begin.modusprompt" },
+            "2": { "name": "entity.name.function.wildcard.modusprompt" },
+            "3": { "name": "punctuation.definition.wildcard.end.modusprompt" }
+          }
+        }
+      ]
+    },
+    "shuffles": {
+      "patterns": [
+        {
+          "name": "keyword.control.shuffle.modusprompt",
+          "begin": "\\{(shuffle:)",
+          "beginCaptures": {
+            "1": { "name": "keyword.other.shuffle.modusprompt" }
+          },
+          "end": "\\}",
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#hexcolors" },
+            { "include": "#wildcards" },
+            { "include": "#weights" }
+          ]
+        }
+      ]
+    },
+    "dynamic_choices": {
+      "patterns": [
+        {
+          "name": "meta.dynamic-choice.modusprompt",
+          "begin": "\\{",
+          "beginCaptures": {
+            "0": { "name": "punctuation.section.choice.begin.modusprompt" }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": { "name": "punctuation.section.choice.end.modusprompt" }
+          },
+          "patterns": [
+            {
+              "name": "constant.numeric.pick-n.modusprompt",
+              "match": "^\\s*(\\d+(?:-\\d+)?)\\$\\$"
+            },
+            {
+              "name": "constant.numeric.weighted-odd.modusprompt",
+              "match": "(\\d+)(::)"
+            },
+            {
+              "name": "punctuation.separator.choice.modusprompt",
+              "match": "\\|"
+            },
+            { "include": "#comments" },
+            { "include": "#hexcolors" },
+            { "include": "#wildcards" },
+            { "include": "#variables" },
+            { "include": "#weights" },
+            { "include": "#dynamic_choices" }
+          ]
+        }
+      ]
+    },
+    "weights": {
+      "patterns": [
+        {
+          "name": "meta.attention-weight.modusprompt",
+          "match": "(\\()([^():]+)(:)([+-]?[0-9]*\\.?[0-9]+)(\\))",
+          "captures": {
+            "1": { "name": "punctuation.section.weight.begin.modusprompt" },
+            "2": { "name": "string.unquoted.weighted-tag.modusprompt" },
+            "3": { "name": "punctuation.separator.weight.modusprompt" },
+            "4": { "name": "constant.numeric.attention-weight.modusprompt" },
+            "5": { "name": "punctuation.section.weight.end.modusprompt" }
+          }
+        }
+      ]
+    }
+  }
+}
