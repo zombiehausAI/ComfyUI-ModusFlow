@@ -44,11 +44,15 @@ Interactive song composition and AI-powered lyric studio tailored for state-of-t
 - **additional_style** (STRING): Custom descriptors to append (e.g. `reverb, 120 bpm, acoustic bass, minor scale`).
 - **negative_style** (STRING): Undesired sonic traits (e.g. `harsh noise, clipping, distorted vocals, robotic glitch`).
 
-### Interactive UI Buttons
-- **Category Filter**: Filter saved songs by category (e.g., `Song`, `Acoustic`, `Synthwave`).
-- **💾 Save Song**: Save current song parameters, lyrics, and styles as a new JSON file in `saved_prompts/songs/`.
-- **✏️ Update Selected**: Overwrite the currently selected song file.
-- **🔄 Refresh List**: Dynamically reload the list of saved songs from disk.
+### Interactive UI & Popout Songwriter Studio Cockpit
+- **🎵 Popout Songwriter Studio**: Launches a floating, resizable, and dockable dual-pane studio window with live bidirectional canvas synchronization.
+- **Lyric Section Syntax Highlighting**: Real-time syntax highlighting featuring neon section banners (`[Verse 1]`, `[Chorus]`, `[Bridge]`, `[Outro]`), soft italic performance cues `(backing vocals)`, and chord/timing tags.
+- **Quick Section Insert Ribbon**: Instant one-click section insertion for `[Intro]`, `[Verse 1]`, `[Verse 2]`, `[Pre-Chorus]`, `[Chorus]`, `[Hook]`, `[Bridge]`, `[Solo]`, `[Outro]`, and `(Backing Vocals)`.
+- **Undo / Redo History Stack**: 60-level undo/redo history with dedicated toolbar buttons and standard `Ctrl+Z` and `Ctrl+Y` / `Ctrl+Shift+Z` keyboard shortcuts.
+- **Live Word & Duration Estimation**: Real-time line counters, word counters, and singing duration estimation based on ~130 WPM musical tempo.
+- **Musical Style Pedals**: Quick toggle chips for audio attributes (`Studio Master`, `Analog Warmth`, `Clear Vocals`, `Punchy 808`, `Driving Bass`, `Epic Reverb`, `Acoustic Live`, `Atmospheric Strings`).
+- **Typography Controls**: Selectable font families (Monospace, Fira Code, JetBrains Mono, Clean Sans, Editorial Serif) and font size scaling (`A-` / `A+`) with persistent geometry in `localStorage`.
+- **Category Filter & Library**: Filter and load saved song JSON presets with category grouping, `💾 Save Song`, `🗂️ Update Selected`, and `🔄 Refresh List`.
 - **🔄 Refresh Models**: Reload the available Ollama models dynamically.
 
 ## Outputs
