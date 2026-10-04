@@ -39,6 +39,10 @@ class ModusFlowCompareImages:
     OUTPUT_NODE = True
     CATEGORY = "ModusFlow/Image"
 
+    @classmethod
+    def IS_CHANGED(cls, image_a, split_percent=50.0, split_direction="Vertical (Left/Right)", show_divider=True, image_b=None):
+        return f"{split_percent}_{split_direction}_{show_divider}"
+
     def compare(self, image_a, split_percent=50.0, split_direction="Vertical (Left/Right)", show_divider=True, image_b=None):
         a = image_a.clone()
 
@@ -78,30 +82,45 @@ class ModusFlowCompareImages:
                     y_end = min(ha, split_y + line_h)
                     result[:, y_start:y_end, :, :] = 1.0  # White line
 
-        # Generate on-canvas UI preview images
-        results = []
+        # Generate on-canvas UI preview images (composite, image_a, and image_b)
+        results_composite = []
+        results_a = []
+        results_b = []
         try:
             temp_dir = folder_paths.get_temp_directory()
-            prefix = "ModusFlow_Compare_" + "".join(random.choice("abcdefghijklmnopqrstuvwxyz") for _ in range(5))
+            rand_id = "".join(random.choice("abcdefghijklmnopqrstuvwxyz") for _ in range(5))
 
-            for batch_num in range(result.shape[0]):
-                img_tensor = result[batch_num]
-                w = int(img_tensor.shape[1])
-                h = int(img_tensor.shape[0])
-                full_output_folder, filename, counter, subfolder, _ = folder_paths.get_save_image_path(prefix, temp_dir, w, h)
-
-                i = 255.0 * img_tensor.cpu().numpy()
+            def save_temp_slice(tensor_img, sub_prefix):
+                w = int(tensor_img.shape[1])
+                h = int(tensor_img.shape[0])
+                full_output_folder, filename, counter, subfolder, _ = folder_paths.get_save_image_path(f"ModusFlow_{sub_prefix}_{rand_id}", temp_dir, w, h)
+                i = 255.0 * tensor_img.cpu().numpy()
                 img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
                 file = f"{filename}_{counter:05}_.png"
                 output_path = os.path.join(full_output_folder, file)
                 img.save(output_path, compress_level=1)
-                results.append({
+                return {
                     "filename": file,
                     "subfolder": subfolder.replace('\\', '/') if subfolder else "",
                     "type": "temp"
-                })
+                }
+
+            for batch_num in range(result.shape[0]):
+                results_composite.append(save_temp_slice(result[batch_num], "Compare"))
+                results_a.append(save_temp_slice(a[batch_num], "CompareA"))
+                results_b.append(save_temp_slice(b[batch_num], "CompareB"))
         except Exception as e:
             print(f"[ModusFlowCompareImages] Warning: Failed to generate preview: {e}")
 
-        return {"ui": {"images": results}, "result": (result, a, b)}
+        return {
+            "ui": {
+                "images": results_composite,
+                "images_a": results_a,
+                "images_b": results_b,
+                "split_percent": [split_percent],
+                "split_direction": [split_direction],
+                "show_divider": [show_divider]
+            },
+            "result": (result, a, b)
+        }
 

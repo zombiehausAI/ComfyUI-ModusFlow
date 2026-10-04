@@ -119,13 +119,13 @@ Overview and usage reference for ModusFlow's advanced utility suite: Tiled VAE D
 
 ---
 
-## 8. A/B Image Comparison & Live Preview (`ModusFlowCompareImages`)
+## 8. A/B Image Comparison & Live Interactive Preview (`ModusFlowCompareImages`)
 * **Category:** `ModusFlow/Image`
-* **Overview:** Renders an interactive split-view comparison between Image A (Before) and Image B (After) with an adjustable divider line, featuring live on-canvas image preview directly inside the node.
-* **Usage:** Connect Image A (original generation) and Image B (after DeWax, Detailer, or Restormer) to visually inspect sharpness, texture restoration, and facial improvements side-by-side on the canvas. If `image_b` is left unconnected, the node functions as a clean on-canvas image previewer for Image A.
+* **Overview:** Renders an interactive split-view comparison between Image A (Before) and Image B (After) with a real-time mouse-draggable divider line (`⟷` / `⥯`), corner status badges (`BEFORE (A)` / `AFTER (B)`), percentage readout, and bidirectional slider synchronization directly inside the node.
+* **Usage:** Connect Image A (e.g. original generation) and Image B (e.g. after DeWax, Detailer, or Restormer) to visually inspect sharpness, texture restoration, and facial improvements. Click and drag anywhere across the image or drag the divider line with your mouse to slide the comparison in real time (60fps). Moving the `split_percent` slider also moves the line instantly on the canvas. If `image_b` is unconnected, the node functions as an on-canvas image previewer for Image A.
 * **Inputs:** `image_a` (IMAGE, required), `image_b` (IMAGE, optional), `split_percent` (0–100%), `split_direction` (Vertical / Horizontal), `show_divider` (BOOLEAN).
 * **Outputs:** `comparison` (IMAGE), `image_a`, `image_b`.
-* **Execution:** Configured as an active output node (`OUTPUT_NODE = True`), ensuring on-canvas previews render automatically on every run without requiring downstream connections.
+* **Execution:** Configured as an active output node (`OUTPUT_NODE = True`) with `IS_CHANGED` tracking, ensuring on-canvas previews render automatically on every run without requiring downstream connections.
 
 ---
 
