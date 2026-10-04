@@ -147,6 +147,12 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "modusflow.assignPromptCategory",
+        "title": "🏷️ Assign Prompt Category",
+        "category": "ModusFlow",
+        "icon": "$(tag)"
+      },
+      {
         "command": "modusflow.refreshSongs",
         "title": "Refresh Songs Library",
         "category": "ModusFlow",
@@ -310,6 +316,18 @@
           "command": "modusflow.pushActivePrompt",
           "when": "resourceExtname =~ /\\.(prompt|mfprompt|modusprompt|txt)$/",
           "group": "navigation"
+        },
+        {
+          "command": "modusflow.assignPromptCategory",
+          "when": "editorLangId == 'modusprompt' || resourceExtname =~ /\\.(prompt|mfprompt|modusprompt)$/ || resourceScheme == 'modusflow'",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "modusflow.assignPromptCategory",
+          "when": "editorTextFocus && (editorLangId == 'modusprompt' || resourceExtname =~ /\\.(prompt|mfprompt|modusprompt)$/ || resourceScheme == 'modusflow')",
+          "group": "2_modusflow"
         }
       ],
       "view/title": [
@@ -327,6 +345,13 @@
           "command": "modusflow.openSongwriterStudio",
           "when": "view == modusflow.songsView",
           "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "modusflow.assignPromptCategory",
+          "when": "view == modusflow.promptsView && viewItem == promptFile",
+          "group": "inline"
         }
       ]
     },
