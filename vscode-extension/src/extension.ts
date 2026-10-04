@@ -3,7 +3,7 @@ import { ComfyClient } from "./comfyClient";
 import { ModusFlowColorProvider } from "./colorProvider";
 import { ModusFlowHoverProvider } from "./hoverProvider";
 import { ModusFlowCompletionProvider } from "./completionProvider";
-import { PromptsTreeProvider, WildcardsTreeProvider, ConnectedCanvasNodeProvider, SongsTreeProvider } from "./treeViews";
+import { PromptsTreeProvider, WildcardsTreeProvider, ConnectedCanvasNodeProvider, SongsTreeProvider, PromptTreeItem } from "./treeViews";
 import { runOllamaRefinerAction } from "./ollamaRefiner";
 import { ModusFlowStudioPanel } from "./studioWebview";
 import { TokenCounterStatusBar } from "./tokenCounter";
@@ -77,13 +77,10 @@ class ModusFlowFileSystemProvider implements vscode.FileSystemProvider {
             const baseName = decodeURIComponent(rawFilename).replace(/\.(prompt|mfprompt|modusprompt|json)$/i, "");
             const jsonFilename = `${baseName}.json`;
 
-            let category = "";
+            let category = "General";
             const catMatch = text.match(/\/\*\s*Category:\s*(.*?)(?:\s*\||\s*\*\/)/i);
             if (catMatch && catMatch[1]) {
-                category = catMatch[1].trim();
-                if (category.toLowerCase() === "general") {
-                    category = "";
-                }
+                category = catMatch[1].trim() || "General";
             }
 
             const { positive, negative } = extractPromptFromText(text);
@@ -366,6 +363,106 @@ export function activate(context: vscode.ExtensionContext) {
                 await vscode.window.showTextDocument(doc, { preview: false });
             } catch (err: any) {
                 vscode.window.showErrorMessage(`Could not open prompt: ${err.message}`);
+            }
+        }),
+
+        vscode.commands.registerCommand("modusflow.assignPromptCategory", async (arg?: PromptTreeItem | vscode.Uri) => {
+            let filename = "";
+            let currentCategory = "General";
+
+            if (arg && "filename" in arg && typeof arg.filename === "string") {
+                filename = arg.filename;
+                currentCategory = arg.promptCategory || "General";
+            } else if (arg && arg instanceof vscode.Uri) {
+                const raw = arg.path.replace(/^\/prompts\//, "");
+                filename = decodeURIComponent(raw).replace(/\.(prompt|mfprompt|modusprompt)$/i, ".json");
+            } else if (vscode.window.activeTextEditor) {
+                const docUri = vscode.window.activeTextEditor.document.uri;
+                if (docUri.path.startsWith("/prompts/")) {
+                    const raw = docUri.path.replace(/^\/prompts\//, "");
+                    filename = decodeURIComponent(raw).replace(/\.(prompt|mfprompt|modusprompt)$/i, ".json");
+                    const docText = vscode.window.activeTextEditor.document.getText();
+                    const m = docText.match(/\/\*\s*Category:\s*(.*?)(?:\s*\||\s*\*\/)/i);
+                    if (m && m[1]) currentCategory = m[1].trim() || "General";
+                }
+            }
+
+            if (!filename) {
+                const promptList = await client.listPrompts();
+                if (!promptList || promptList.length === 0) {
+                    vscode.window.showInformationMessage("No saved prompts found in ComfyUI.");
+                    return;
+                }
+                const picked = await vscode.window.showQuickPick(
+                    promptList.map(p => ({
+                        label: p.filename,
+                        description: `[Category: ${p.category || "General"}]`,
+                        item: p
+                    })),
+                    { placeHolder: "Select a prompt to assign category" }
+                );
+                if (!picked) return;
+                filename = picked.item.filename;
+                currentCategory = picked.item.category || "General";
+            }
+
+            const promptList = await client.listPrompts();
+            const existingCategories = [...new Set(promptList.map(p => (p.category || "General").trim()).filter(Boolean))].sort();
+
+            const CREATE_NEW_LABEL = "$(plus) Create new category...";
+            const pickItems = [
+                CREATE_NEW_LABEL,
+                ...existingCategories
+            ];
+
+            const pickedCat = await vscode.window.showQuickPick(pickItems, {
+                placeHolder: `Assign category for "${filename}" (Current: ${currentCategory})`
+            });
+            if (!pickedCat) return;
+
+            let targetCategory = pickedCat;
+            if (pickedCat === CREATE_NEW_LABEL) {
+                const customCat = await vscode.window.showInputBox({
+                    prompt: `Enter new category name for "${filename}"`,
+                    placeHolder: "e.g. Cyberpunk, Landscapes, Anime Characters"
+                });
+                if (!customCat?.trim()) return;
+                targetCategory = customCat.trim();
+            }
+
+            const promptData = await client.loadPrompt(filename);
+            const positive = promptData?.positive || "";
+            const negative = promptData?.negative || "";
+
+            const success = await client.savePrompt({
+                filename,
+                category: targetCategory,
+                positive,
+                negative
+            });
+
+            if (success) {
+                vscode.window.showInformationMessage(`✅ Assigned "${filename}" to category "${targetCategory}"`);
+                promptsProvider.refresh();
+
+                // If active editor is this prompt, update header comment in place
+                const editor = vscode.window.activeTextEditor;
+                if (editor && editor.document.uri.path.includes(encodeURIComponent(filename.replace(/\.json$/i, "")))) {
+                    const fullText = editor.document.getText();
+                    let updatedText = fullText.replace(
+                        /\/\*\s*Category:\s*(.*?)(?:\s*\||\s*\*\/)/i,
+                        `/* Category: ${targetCategory} |`
+                    );
+                    if (updatedText === fullText && !fullText.includes("/* Category:")) {
+                        updatedText = `/* Category: ${targetCategory} | File: ${filename} */\n\n` + fullText;
+                    }
+                    if (updatedText !== fullText) {
+                        const wholeRange = new vscode.Range(0, 0, editor.document.lineCount, 0);
+                        await editor.edit(editBuilder => editBuilder.replace(wholeRange, updatedText));
+                    }
+                }
+            } else {
+                vscode.window.showErrorMessage(`Failed to assign category to "${filename}"`);
             }
         }),
 
