@@ -17,6 +17,19 @@ export interface PromptFileItem {
     type?: string;
 }
 
+export interface SongFileItem {
+    filename: string;
+    category?: string;
+    title?: string;
+    genre?: string;
+    vocal_style?: string;
+    mood?: string;
+    template?: string;
+    lyrics?: string;
+    additional_style?: string;
+    negative_style?: string;
+}
+
 export interface LoraMetadata {
     modelId?: number | string;
     modelName?: string;
@@ -98,6 +111,41 @@ export class ComfyClient {
     async savePrompt(payload: { filename: string; category?: string; positive: string; negative: string }): Promise<boolean> {
         try {
             const res = await this.fetchJson<{ success: boolean }>("/modusflow/save_prompt", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            return !!res.success;
+        } catch {
+            return false;
+        }
+    }
+
+    async listSongs(): Promise<SongFileItem[]> {
+        try {
+            const res = await this.fetchJson<{ success: boolean; data: SongFileItem[] }>("/modusflow/song/list");
+            return res.data || [];
+        } catch {
+            return [];
+        }
+    }
+
+    async loadSong(filename: string): Promise<SongFileItem | null> {
+        try {
+            const res = await this.fetchJson<{ success: boolean; data: SongFileItem }>("/modusflow/song/load", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filename })
+            });
+            return res.data || null;
+        } catch {
+            return null;
+        }
+    }
+
+    async saveSong(payload: SongFileItem): Promise<boolean> {
+        try {
+            const res = await this.fetchJson<{ success: boolean }>("/modusflow/song/save", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
