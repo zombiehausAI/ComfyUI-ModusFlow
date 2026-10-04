@@ -36,6 +36,8 @@ The entire processing pipeline runs natively on GPU tensors without converting t
 
 | Input | Type | Default | Description |
 |-------|------|---------|-------------|
+| blend_mode | COMBO | `normal` | Blending algorithm (`normal`, `soft_light`, `overlay`, `linear_light`, `screen`, `multiply`) |
+| blend_strength | FLOAT | `1.0` | Strength of the blended micro-texture and grain effect (0.0 = original, 1.0 = fully applied) |
 | mask | MASK | None | Optional single-channel mask to restrict texture restoration to specific regions |
 | pipe | PIPE | None | Optional ModusFlow pipe tuple `(model, clip, vae, positive, negative)` for passthrough |
 

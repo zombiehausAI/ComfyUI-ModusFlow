@@ -360,6 +360,11 @@ class ModusFlowRestormer:
                                       "tooltip": "Tile edge length in pixels. 0 = full image (no tiling)."}),
                 "tile_overlap": ("INT", {"default": 32, "min": 0, "max": 256, "step": 8,
                                          "tooltip": "Overlap between adjacent tiles for seam blending."}),
+            },
+            "optional": {
+                "blend": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.05, "round": 0.01,
+                                    "tooltip": "Blend between original input (0.0) and restored image (1.0)."}),
+                "mask": ("MASK", {"tooltip": "Optional mask to limit restoration to specific regions."}),
             }
         }
 
@@ -472,7 +477,7 @@ class ModusFlowRestormer:
 
     # ── Main entry point ──────────────────────────────────────────────────────
 
-    def restore(self, image, model_file, task, tile_size, tile_overlap):
+    def restore(self, image, model_file, task, tile_size, tile_overlap, blend=1.0, mask=None):
         """
         Restore the image.
 
@@ -482,6 +487,8 @@ class ModusFlowRestormer:
             task:         restoration task name
             tile_size:    tile edge length (0 = full image)
             tile_overlap: overlap in pixels for tile blending
+            blend:        linear interpolation weight between input (0.0) and restored (1.0)
+            mask:         optional [H, W] or [B, H, W] mask tensor
 
         Returns:
             ([B, H, W, C] float32,)
@@ -511,6 +518,29 @@ class ModusFlowRestormer:
 
         # [B, C, H, W] → [B, H, W, C], move back to CPU
         out = out.permute(0, 2, 3, 1).cpu()
+
+        # Blend with original image if blend < 1.0 or if mask is provided
+        if blend < 1.0 or mask is not None:
+            orig = image.cpu() if image.is_cuda else image
+            if orig.shape == out.shape:
+                if mask is not None:
+                    m = mask.cpu() if mask.is_cuda else mask
+                    if m.ndim == 2:
+                        m = m.unsqueeze(0).unsqueeze(-1)
+                    elif m.ndim == 3:
+                        m = m.unsqueeze(-1)
+                    if m.shape[0] == 1 and orig.shape[0] > 1:
+                        m = m.expand(orig.shape[0], -1, -1, -1)
+                    if m.shape[1:3] != orig.shape[1:3]:
+                        m_ch = m.permute(0, 3, 1, 2)
+                        m_ch = F.interpolate(m_ch, size=(orig.shape[1], orig.shape[2]), mode="bilinear", align_corners=False)
+                        m = m_ch.permute(0, 2, 3, 1)
+                    m = torch.clamp(m * float(blend), 0.0, 1.0)
+                    out = torch.lerp(orig, out, m)
+                else:
+                    out = torch.lerp(orig, out, float(blend))
+
+        out = torch.clamp(out, 0.0, 1.0)
         return (out,)
 
 
