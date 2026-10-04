@@ -4008,7 +4008,9 @@ app.registerExtension({
                     "text",
                     "prompt_category",
                     "",
-                    () => {},
+                    (v) => {
+                        if (node._popoutCategoryInput) node._popoutCategoryInput.value = v;
+                    },
                     {}
                 );
                 promptCategoryWidget.label = "Prompt Category";
@@ -4035,6 +4037,7 @@ app.registerExtension({
                 enhanceBtn.tooltip = "Enhance prompt with local Ollama LLM. Shift+Click or click when offline to check status & select model.";
                 node.addWidget("button", "💾 Save Prompt",          null, () => showSaveDialog(node));
                 node.addWidget("button", "🔄 Update Selected",      null, () => updatePrompt(node));
+                node.addWidget("button", "🏷️ Set Category",         null, () => showAssignCategoryDialog(node));
                 node.addWidget("button", "🛠️ Studio Tools ▾",      null, () => showStudioToolsMenu(node, window.event));
 
                 checkOllamaStatus().then(st => {
@@ -4166,12 +4169,15 @@ app.registerExtension({
                     if (sw) sw.value = this.properties.prompt_style;
                 }
 
-                const vals = config?.widgets_values;
-                if (!vals) return;
-                const cw = this.widgets?.find(w => w.name === "prompt_category");
-                if (cw && vals[4] !== undefined) {
-                    cw.value = vals[4];
-                    if (cw.inputEl) cw.inputEl.value = vals[4];
+                const cfw = this.widgets?.find(w => w.name === "category_filter");
+                const pcw = this.widgets?.find(w => w.name === "prompt_category");
+
+                if (this._serializedCategoryFilter !== undefined && cfw) {
+                    cfw.value = this._serializedCategoryFilter;
+                }
+                if (this._serializedPromptCategory !== undefined && pcw) {
+                    pcw.value = this._serializedPromptCategory;
+                    if (pcw.inputEl) pcw.inputEl.value = this._serializedPromptCategory;
                 }
 
                 const pw = this.widgets?.find(w => w.name === "positive");
@@ -4208,6 +4214,10 @@ app.registerExtension({
             const onSerialize = nodeType.prototype.onSerialize;
             nodeType.prototype.onSerialize = function(o) {
                 if (onSerialize) onSerialize.apply(this, arguments);
+                const cfw = this.widgets?.find(w => w.name === "category_filter");
+                const pcw = this.widgets?.find(w => w.name === "prompt_category");
+                if (cfw) this._serializedCategoryFilter = cfw.value;
+                if (pcw) this._serializedPromptCategory = pcw.value;
             };
 
             // ── onDropFile (Canvas file drop) ──────────────────────────────────────
@@ -4610,6 +4620,9 @@ app.registerExtension({
                         setTextValue(node.widgets?.find(w => w.name === "positive"),        data.data.positive || "");
                         setTextValue(node.widgets?.find(w => w.name === "negative"),         data.data.negative || "");
                         setTextValue(node.widgets?.find(w => w.name === "prompt_category"),  data.data.category || "");
+                        if (node._popoutCategoryInput) {
+                            node._popoutCategoryInput.value = data.data.category || "";
+                        }
                         pushPromptHistory(node, "Loaded: " + filename);
                         node._popoutSyncFromNode?.();
                         app.graph.setDirtyCanvas(true, true);
@@ -4699,48 +4712,140 @@ app.registerExtension({
                     .catch(err => console.error("[ModusFlow] Refresh error:", err.message));
             }
 
-            // ── Save current text to a new file ───────────────────────────────────
+            // ── Save current text to a new file with category assignment ──────────
             function showSaveDialog(node) {
                 const pw  = node.widgets?.find(w => w.name === "positive");
                 const nw  = node.widgets?.find(w => w.name === "negative");
                 const pcw = node.widgets?.find(w => w.name === "prompt_category");
                 if (!pw) return;
 
-                let filename = prompt("Filename (without extension):");
-                if (!filename?.trim()) return;
-                filename = filename.trim();
-                if (filename.toLowerCase().endsWith(".json")) {
-                    filename = filename.slice(0, -5).trim();
-                }
-                if (!filename) return;
-                const category = (pcw?.value || "").trim();
+                const existing = document.getElementById("modusflow-save-modal");
+                if (existing) existing.remove();
 
-                fetch("/modusflow/save_prompt", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        filename: filename,
-                        type: "prompt",
-                        category: category,
-                        positive: pw.value || "",
-                        negative: nw?.value || ""
-                    })
-                })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        const targetFile = filename + ".json";
-                        showStudioToast("Saved: " + targetFile);
-                        pushPromptHistory(node, "Saved: " + filename);
-                        if (category) {
-                            node._savedCategory = category;
-                        }
-                        refreshPrompts(node, targetFile);
-                    } else {
-                        showStudioToast("Save failed: " + data.message, "error");
+                const overlay = document.createElement("div");
+                overlay.id = "modusflow-save-modal";
+                overlay.className = "modusflow-modal-overlay";
+                overlay.style.cssText = "position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.65); z-index: 10000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;";
+
+                const modal = document.createElement("div");
+                modal.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 10px; width: 380px; box-shadow: 0 10px 30px rgba(0,0,0,0.7); overflow: hidden; color: #cdd6f4;";
+
+                const hdr = document.createElement("div");
+                hdr.style.cssText = "padding: 12px 16px; background: #11111b; border-bottom: 1px solid #313244; display: flex; align-items: center; justify-content: space-between;";
+                hdr.innerHTML = `<span style="font-weight: 700; font-size: 13px; color: #89b4fa; display: flex; align-items: center; gap: 6px;">💾 Save Prompt Preset</span>`;
+                const closeBtn = document.createElement("button");
+                closeBtn.innerHTML = "✕";
+                closeBtn.style.cssText = "background: none; border: none; color: #6c7086; font-size: 14px; cursor: pointer; padding: 2px 6px;";
+                closeBtn.onclick = () => overlay.remove();
+                hdr.appendChild(closeBtn);
+                modal.appendChild(hdr);
+
+                const body = document.createElement("div");
+                body.style.cssText = "padding: 16px; display: flex; flex-direction: column; gap: 12px;";
+
+                const fnGroup = document.createElement("div");
+                fnGroup.innerHTML = `<label style="display: block; font-size: 11px; font-weight: 600; color: #a6adc8; margin-bottom: 4px;">Preset Filename</label>`;
+                const fnInput = document.createElement("input");
+                fnInput.type = "text";
+                fnInput.placeholder = "e.g. Cyberpunk Warrior";
+                fnInput.style.cssText = "width: 100%; box-sizing: border-box; background: #11111b; border: 1px solid #313244; border-radius: 6px; padding: 7px 10px; color: #cdd6f4; font-size: 12px; outline: none;";
+                fnGroup.appendChild(fnInput);
+                body.appendChild(fnGroup);
+
+                const catGroup = document.createElement("div");
+                catGroup.innerHTML = `<label style="display: block; font-size: 11px; font-weight: 600; color: #a6adc8; margin-bottom: 4px;">Category (assign to folder/group)</label>`;
+                const catInput = document.createElement("input");
+                catInput.type = "text";
+                catInput.setAttribute("list", "mf-save-categories-list");
+                catInput.placeholder = "e.g. Characters, Landscapes, Style...";
+                catInput.value = (pcw?.value || "").trim();
+                catInput.style.cssText = "width: 100%; box-sizing: border-box; background: #11111b; border: 1px solid #313244; border-radius: 6px; padding: 7px 10px; color: #cdd6f4; font-size: 12px; outline: none;";
+
+                const allCats = [...new Set((node._allPrompts || []).map(p => (p.category || "").trim()).filter(Boolean))].sort();
+                const datalist = document.createElement("datalist");
+                datalist.id = "mf-save-categories-list";
+                allCats.forEach(c => {
+                    const opt = document.createElement("option");
+                    opt.value = c;
+                    datalist.appendChild(opt);
+                });
+                catGroup.appendChild(catInput);
+                catGroup.appendChild(datalist);
+                body.appendChild(catGroup);
+
+                const footer = document.createElement("div");
+                footer.style.cssText = "display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px;";
+
+                const cancelBtn = document.createElement("button");
+                cancelBtn.textContent = "Cancel";
+                cancelBtn.style.cssText = "background: #313244; border: none; border-radius: 6px; padding: 6px 14px; color: #cdd6f4; font-size: 12px; cursor: pointer;";
+                cancelBtn.onclick = () => overlay.remove();
+
+                const saveBtn = document.createElement("button");
+                saveBtn.textContent = "Save Preset";
+                saveBtn.style.cssText = "background: #89b4fa; border: none; border-radius: 6px; padding: 6px 16px; color: #11111b; font-size: 12px; font-weight: 600; cursor: pointer;";
+
+                const doSave = () => {
+                    let filename = fnInput.value.trim();
+                    if (!filename) {
+                        fnInput.style.borderColor = "#f38ba8";
+                        fnInput.focus();
+                        return;
                     }
-                })
-                .catch(err => showStudioToast("Save error: " + err.message, "error"));
+                    if (filename.toLowerCase().endsWith(".json")) {
+                        filename = filename.slice(0, -5).trim();
+                    }
+                    const category = catInput.value.trim();
+
+                    if (pcw) {
+                        pcw.value = category;
+                        if (pcw.inputEl) pcw.inputEl.value = category;
+                    }
+                    if (node._popoutCategoryInput) {
+                        node._popoutCategoryInput.value = category;
+                    }
+
+                    fetch("/modusflow/save_prompt", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            filename: filename,
+                            type: "prompt",
+                            category: category,
+                            positive: pw.value || "",
+                            negative: nw?.value || ""
+                        })
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            const targetFile = filename + ".json";
+                            showStudioToast("Saved: " + targetFile);
+                            pushPromptHistory(node, "Saved: " + filename);
+                            if (category) {
+                                node._savedCategory = category;
+                            }
+                            overlay.remove();
+                            refreshPrompts(node, targetFile);
+                        } else {
+                            showStudioToast("Save failed: " + data.message, "error");
+                        }
+                    })
+                    .catch(err => showStudioToast("Save error: " + err.message, "error"));
+                };
+
+                saveBtn.onclick = doSave;
+                fnInput.onkeydown = (e) => { if (e.key === "Enter") catInput.focus(); };
+                catInput.onkeydown = (e) => { if (e.key === "Enter") doSave(); };
+
+                footer.appendChild(cancelBtn);
+                footer.appendChild(saveBtn);
+                body.appendChild(footer);
+                modal.appendChild(body);
+                overlay.appendChild(modal);
+                document.body.appendChild(overlay);
+
+                fnInput.focus();
             }
 
             // ── Overwrite the currently selected prompt ───────────────────────────
@@ -4755,7 +4860,7 @@ app.registerExtension({
                     showStudioToast("Select a saved prompt from the dropdown first.", "warning");
                     return;
                 }
-                if (!confirm('Overwrite "' + selected + '" with the current text?')) return;
+                if (!confirm('Overwrite "' + selected + '" with the current text and category?')) return;
 
                 const base     = selected.replace(/\.json$/i, "");
                 const category = (pcw?.value || "").trim();
@@ -4779,6 +4884,63 @@ app.registerExtension({
                     }
                 })
                 .catch(err => showStudioToast("Update error: " + err.message, "error"));
+            }
+
+            // ── Assign or re-assign category to the selected prompt ──────────────
+            function showAssignCategoryDialog(node) {
+                const dw  = node.widgets?.find(w => w.name === "saved_prompt");
+                const pcw = node.widgets?.find(w => w.name === "prompt_category");
+                const pw  = node.widgets?.find(w => w.name === "positive");
+                const nw  = node.widgets?.find(w => w.name === "negative");
+
+                const selected = dw?.value;
+                if (!selected || selected === "--select prompt--" || selected === "--no prompts found--") {
+                    showStudioToast("Select a saved prompt first to assign a category.", "warning");
+                    return;
+                }
+
+                const currentCat = (pcw?.value || "").trim();
+                const allCats = [...new Set((node._allPrompts || []).map(p => (p.category || "").trim()).filter(Boolean))].sort();
+                const promptMsg = allCats.length
+                    ? `Assign "${selected}" to category:\n(Existing: ${allCats.join(", ")})`
+                    : `Assign "${selected}" to category:`;
+
+                const newCat = prompt(promptMsg, currentCat);
+                if (newCat === null) return;
+                const trimmedCat = newCat.trim();
+
+                if (pcw) {
+                    pcw.value = trimmedCat;
+                    if (pcw.inputEl) pcw.inputEl.value = trimmedCat;
+                }
+                if (node._popoutCategoryInput) {
+                    node._popoutCategoryInput.value = trimmedCat;
+                }
+
+                const base = selected.replace(/\.json$/i, "");
+                fetch("/modusflow/save_prompt", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        filename: base,
+                        type: "prompt",
+                        category: trimmedCat,
+                        positive: pw?.value || "",
+                        negative: nw?.value || ""
+                    })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        showStudioToast(`Category updated to "${trimmedCat || "Uncategorized"}" for ${selected}`);
+                        pushPromptHistory(node, `Categorized: ${selected} -> ${trimmedCat}`);
+                        if (trimmedCat) node._savedCategory = trimmedCat;
+                        refreshPrompts(node, selected);
+                    } else {
+                        showStudioToast("Failed to assign category: " + data.message, "error");
+                    }
+                })
+                .catch(err => showStudioToast("Error assigning category: " + err.message, "error"));
             }
 
             // ── Floating Inspector Card (Hex Color & Prompt Variables) ────────────
@@ -7183,6 +7345,30 @@ app.registerExtension({
                 toolbar.appendChild(catSel);
                 toolbar.appendChild(promptSel);
 
+                // Editable Prompt Category input badge for active prompt
+                const catBadge = document.createElement("div");
+                catBadge.style.cssText = "display: inline-flex; align-items: center; gap: 4px; background: #11111b; border: 1px solid #313244; border-radius: 5px; padding: 2px 6px;";
+                catBadge.title = "Current prompt category (type to set category for this prompt)";
+                const catIcon = document.createElement("span");
+                catIcon.style.cssText = "font-size: 11px; color: #89b4fa; font-weight: 600;";
+                catIcon.textContent = "📁";
+                const catInput = document.createElement("input");
+                catInput.type = "text";
+                catInput.placeholder = "Category";
+                catInput.style.cssText = "background: transparent; border: none; color: #cdd6f4; font-size: 11px; width: 95px; outline: none;";
+                const curPcw = node.widgets?.find(w => w.name === "prompt_category");
+                catInput.value = (curPcw?.value || "").trim();
+                catInput.oninput = () => {
+                    if (curPcw) {
+                        curPcw.value = catInput.value.trim();
+                        if (curPcw.inputEl) curPcw.inputEl.value = curPcw.value;
+                    }
+                };
+                catBadge.appendChild(catIcon);
+                catBadge.appendChild(catInput);
+                toolbar.appendChild(catBadge);
+                node._popoutCategoryInput = catInput;
+
                 function addToolBtn(iconText, title, onClick, extraStyle = "") {
                     const btn = document.createElement("button");
                     btn.className = "modusflow-popout-btn";
@@ -7199,6 +7385,7 @@ app.registerExtension({
 
                 addToolBtn("💾 Save", "Save prompt preset", () => showSaveDialog(node));
                 addToolBtn("🔄 Update", "Update selected prompt file", () => updatePrompt(node));
+                addToolBtn("🏷️ Category", "Assign prompt to a category", () => showAssignCategoryDialog(node));
                 addToolBtn("🔃 Refresh", "Refresh saved prompts list", () => refreshPrompts(node));
 
                 const divSep = document.createElement("div");
