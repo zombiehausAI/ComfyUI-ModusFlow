@@ -1064,8 +1064,9 @@ function tokenizeAndHighlight(text, theme) {
     };
 
     // Priority order of syntax tokens:
-    // 0. Section Banners: // [Section Name] or # [Section Name] or /* [Section Name] */
+    // 0. Section Banners: // [Section Name] or # [Section Name] or /* [Section Name] */ or standalone [Section Name]
     addMatches(/(?:\/\/|#|\/\*)\s*\[[^\]\r\n]+\](?:\s*\*\/)?/g, "section_header");
+    addMatches(/(?:^|(?<=[\r\n]))\s*\[[^\]\r\n]+\](?=\s*(?:[\r\n]|$))/g, "section_header");
     // 1. Comments: /* ... */
     addMatches(/\/\*[\s\S]*?\*\//g, "comment");
     // 2. Hex colors: #RRGGBB or #RGB (before line comments so #ff0000 is not marked as # comment)
@@ -6525,6 +6526,131 @@ app.registerExtension({
                 ]
             };
 
+            // ── Song Lyrics & Musical Structure Modal ────────────────────────────
+            function showSongLyricsModal(node) {
+                const pw = node.widgets?.find(w => w.name === "positive");
+                if (!pw) return;
+
+                const overlay = document.createElement("div");
+                overlay.className = "modusflow-modal-overlay";
+                overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+
+                const dialog = document.createElement("div");
+                dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 680px; max-width: 94vw; max-height: 85vh; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 45px rgba(0,0,0,0.7); color: #cdd6f4; font-family: sans-serif;";
+
+                const header = document.createElement("div");
+                header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #313244; padding-bottom: 8px;";
+                header.innerHTML = '<h3 style="margin: 0; font-size: 16px; color: #89b4fa; display: flex; align-items: center; gap: 8px;">🎵 <span>Song Lyrics &amp; Section Structure Studio</span></h3>';
+
+                const closeBtn = document.createElement("button");
+                closeBtn.textContent = "✕";
+                closeBtn.style.cssText = "background: none; border: none; color: #6c7086; font-size: 18px; cursor: pointer;";
+                closeBtn.onclick = () => overlay.remove();
+                header.appendChild(closeBtn);
+                dialog.appendChild(header);
+
+                const body = document.createElement("div");
+                body.style.cssText = "overflow-y: auto; display: flex; flex-direction: column; gap: 14px; max-height: 520px; padding-right: 4px;";
+
+                // Section tag insert ribbon
+                const sectionGroup = document.createElement("div");
+                sectionGroup.innerHTML = '<div style="font-size: 12px; font-weight: bold; color: #cba6f7; margin-bottom: 6px;">Insert Song Section Tag</div>';
+                const sectionWrap = document.createElement("div");
+                sectionWrap.style.cssText = "display: flex; flex-wrap: wrap; gap: 6px;";
+
+                const LYRIC_SECTIONS = [
+                    "[Intro]",
+                    "[Verse 1]",
+                    "[Verse 2]",
+                    "[Verse 3]",
+                    "[Pre-Chorus]",
+                    "[Chorus]",
+                    "[Hook]",
+                    "[Bridge]",
+                    "[Guitar Solo]",
+                    "[Breakdown]",
+                    "[Outro]",
+                    "(Backing Vocals)",
+                    "(Harmonies)"
+                ];
+
+                function insertTag(tag) {
+                    let cur = pw.value || "";
+                    if (cur.length > 0 && !cur.endsWith("\n") && !cur.endsWith("\n\n")) {
+                        cur += "\n\n";
+                    }
+                    pw.value = cur + tag + "\n";
+                    if (pw.inputEl) pw.inputEl.value = pw.value;
+                    pw._updateSyntaxHighlight?.();
+                    node._popoutSyncFromNode?.();
+                    app.graph?.setDirtyCanvas(true, true);
+                    showStudioToast(`Inserted: ${tag}`);
+                }
+
+                LYRIC_SECTIONS.forEach(tag => {
+                    const btn = document.createElement("button");
+                    btn.textContent = tag;
+                    btn.style.cssText = "background: #11111b; border: 1px solid #313244; color: #a6adc8; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer; transition: all 0.15s ease;";
+                    btn.onmouseenter = () => { btn.style.borderColor = "#89b4fa"; btn.style.color = "#89b4fa"; };
+                    btn.onmouseleave = () => { btn.style.borderColor = "#313244"; btn.style.color = "#a6adc8"; };
+                    btn.onclick = () => insertTag(tag);
+                    sectionWrap.appendChild(btn);
+                });
+                sectionGroup.appendChild(sectionWrap);
+                body.appendChild(sectionGroup);
+
+                // Full Song Templates
+                const tmplGroup = document.createElement("div");
+                tmplGroup.innerHTML = '<div style="font-size: 12px; font-weight: bold; color: #89b4fa; margin-top: 8px; margin-bottom: 6px;">Full Song Architecture Templates</div>';
+                const tmplWrap = document.createElement("div");
+                tmplWrap.style.cssText = "display: flex; flex-direction: column; gap: 8px;";
+
+                const SONG_TEMPLATES = [
+                    {
+                        name: "Standard Pop / Rock Architecture",
+                        desc: "Intro -> Verse 1 -> Chorus -> Verse 2 -> Chorus -> Bridge -> Chorus -> Outro",
+                        content: "[intro]\n(Melodic rhythm with gentle atmosphere)\n\n[verse 1]\nFirst story unfolds here\nUnderneath the fading sky\n\n[chorus]\nHold on to the melody\nSing it loud for all to see\n\n[verse 2]\nWalking through the crowded street\nFinding where the echoes meet\n\n[chorus]\nHold on to the melody\nSing it loud for all to see\n\n[bridge]\nWhen the shadows start to fall\nWe remember through it all\n\n[chorus]\nHold on to the melody\nSing it loud for all to see\n\n[outro]\nFading gently into dawn\n(Instrumental fade out)"
+                    },
+                    {
+                        name: "Acoustic Ballad / Folk Template",
+                        desc: "Intro -> Verse 1 -> Chorus -> Verse 2 -> Chorus -> Outro",
+                        content: "[intro]\n(Delicate fingerpicked guitar)\n\n[verse 1]\nDust on the windowsill, sun on the floor\nMorning knocks softly upon my front door\n\n[chorus]\nTime rolls like a river down to the sea\nCarrying all that we wanted to be\n\n[verse 2]\nThe old oak tree leans where the fence used to stand\nMemories scattered like dust in our hand\n\n[chorus]\nTime rolls like a river down to the sea\nCarrying all that we wanted to be\n\n[outro]\nSoftly down the quiet road\n(Harmonica solo fades)"
+                    }
+                ];
+
+                SONG_TEMPLATES.forEach(t => {
+                    const row = document.createElement("div");
+                    row.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 8px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px;";
+                    row.innerHTML = `
+                        <div>
+                            <div style="font-size: 12px; font-weight: bold; color: #fab387;">${t.name}</div>
+                            <div style="font-size: 11px; color: #a6adc8; margin-top: 2px;">${t.desc}</div>
+                        </div>
+                    `;
+                    const applyBtn = document.createElement("button");
+                    applyBtn.textContent = "Apply Template";
+                    applyBtn.style.cssText = "background: rgba(137,180,250,0.15); border: 1px solid rgba(137,180,250,0.4); color: #89b4fa; border-radius: 6px; padding: 5px 12px; font-size: 11px; font-weight: bold; cursor: pointer; white-space: nowrap;";
+                    applyBtn.onclick = () => {
+                        pw.value = t.content;
+                        if (pw.inputEl) pw.inputEl.value = pw.value;
+                        pw._updateSyntaxHighlight?.();
+                        node._popoutSyncFromNode?.();
+                        app.graph?.setDirtyCanvas(true, true);
+                        showStudioToast(`Applied: ${t.name}`);
+                        overlay.remove();
+                    };
+                    row.appendChild(applyBtn);
+                    tmplWrap.appendChild(row);
+                });
+                tmplGroup.appendChild(tmplWrap);
+                body.appendChild(tmplGroup);
+
+                dialog.appendChild(body);
+                overlay.appendChild(dialog);
+                document.body.appendChild(overlay);
+                overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+            }
+
             function showAestheticRibbonModal(node) {
                 const pw = node.widgets?.find(w => w.name === "positive");
                 if (!pw) return;
@@ -7082,18 +7208,23 @@ app.registerExtension({
                 // Prompt Style selector in Popout
                 const styleSel = document.createElement("select");
                 styleSel.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 5px; color: #fab387; font-size: 11px; font-weight: 600; padding: 3px 6px; outline: none; cursor: pointer;";
-                styleSel.title = "Prompt Style: Tags (SDXL/Pony) vs Expressions (Flux/SD3)";
+                styleSel.title = "Prompt Style: Tags (SDXL/Pony) vs Expressions (Flux/SD3) vs Song Lyrics";
                 const styleOpt1 = document.createElement("option");
                 styleOpt1.value = "Tags (SDXL / Pony)";
                 styleOpt1.textContent = "🏷️ Tags (Pony)";
                 const styleOpt2 = document.createElement("option");
                 styleOpt2.value = "Expressions (Flux / SD3)";
                 styleOpt2.textContent = "✍️ Expressions (Flux)";
+                const styleOpt3 = document.createElement("option");
+                styleOpt3.value = "Song Lyrics / Audio";
+                styleOpt3.textContent = "🎵 Song Lyrics";
                 const curStyle = node.widgets?.find(w => w.name === "prompt_style")?.value || "Tags (SDXL / Pony)";
                 if (curStyle.includes("Expression")) styleOpt2.selected = true;
+                else if (curStyle.includes("Lyric") || curStyle.includes("Song")) styleOpt3.selected = true;
                 else styleOpt1.selected = true;
                 styleSel.appendChild(styleOpt1);
                 styleSel.appendChild(styleOpt2);
+                styleSel.appendChild(styleOpt3);
                 styleSel.onchange = () => {
                     const sw = node.widgets?.find(w => w.name === "prompt_style");
                     if (sw) sw.value = styleSel.value;
@@ -7112,7 +7243,9 @@ app.registerExtension({
                 };
                 node._popoutSyncStyle = (val) => {
                     if (styleSel) {
-                        styleSel.value = val.includes("Expression") ? "Expressions (Flux / SD3)" : "Tags (SDXL / Pony)";
+                        if (val.includes("Expression")) styleSel.value = "Expressions (Flux / SD3)";
+                        else if (val.includes("Lyric") || val.includes("Song")) styleSel.value = "Song Lyrics / Audio";
+                        else styleSel.value = "Tags (SDXL / Pony)";
                     }
                 };
                 toolbar.appendChild(styleSel);
@@ -7279,6 +7412,7 @@ app.registerExtension({
                 const redoBtn = addToolBtn("↪ Redo", "Redo last prompt change (Ctrl+Y / Ctrl+Shift+Z)", () => doPopoutRedo());
 
                 const tagStudioBtn = addToolBtn("🏷 Tag Studio", "Toggle Tag Matrix / Chip Flow", () => togglePopoutTagStudio());
+                addToolBtn("🎵 Lyrics", "Song structure sections ([Verse], [Chorus], [Bridge]) and templates", () => showSongLyricsModal(node));
                 addToolBtn("🎞 Aesthetic", "Visual Aesthetic Ribbon (Optics, Films, Rigs)", () => showAestheticRibbonModal(node));
                 addToolBtn("✍️ Prosify", "Format into fluent natural prose (Flux/SD3)", () => {
                     prosifyPositivePrompt(node);
