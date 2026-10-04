@@ -158,6 +158,7 @@ You can write comments, annotate prompts, and temporarily disable tags directly 
 
 ### Keyboard Shortcuts
 Inside the positive and negative text boxes:
+* **Tag Weight Stepping ($\pm 0.05$):** `Ctrl + Up` / `Ctrl + Down` (or `Cmd + Up/Down` on macOS). Wraps selected text or word under cursor in `(tag:weight)` and steps in increments of 0.05. Stepping down to 1.0 unwraps to clean text.
 * **Toggle Line Comment (`#`):** `Ctrl + /` (or `Cmd + /` on macOS)
 * **Toggle Block Comment (`/* ... */`):** `Ctrl + Shift + /` or `Shift + Alt + A`
 

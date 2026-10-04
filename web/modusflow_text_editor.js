@@ -1057,6 +1057,389 @@ function attachAutocomplete(widget, node) {
     bind();
 }
 
+// ── Negative Prompt Baseline Presets ─────────────────────────────────────────
+const NEGATIVE_PRESETS = {
+    "--select negative preset--": "",
+    "SDXL Quality Standard": "ugly, deformed, bad anatomy, bad eyes, blurry, low quality, oversaturated, plastic, cartoon, watermark, signature",
+    "Pony Score Baseline": "score_6, score_5, score_4, score_3, score_2, score_1, source_pony, source_furry, ugly, bad anatomy, blurry",
+    "Photorealistic Clean": "cgi, 3d render, illustration, cartoon, anime, artificial, fake, plastic skin, oversaturated, watermark, signature, blurry, lowres, deformed",
+    "Anime / 2D Quality": "photorealistic, realistic, 3d, realistic skin, bad anatomy, deformed, mutated, extra limbs, poorly drawn hands, missing fingers, lowres, blurry",
+    "Flux / Chroma Minimal": "blurry, low quality, distortion"
+};
+
+// ── Prompt History / Session Snapshot (localStorage) ─────────────────────────
+const HISTORY_KEY = "modusflow_prompt_history";
+const MAX_HISTORY = 15;
+
+function pushPromptHistory(node, label) {
+    try {
+        const pw = node.widgets?.find(w => w.name === "positive");
+        const nw = node.widgets?.find(w => w.name === "negative");
+        const pos = pw?.value || "";
+        const neg = nw?.value || "";
+        if (!pos.trim() && !neg.trim()) return;
+
+        const raw = localStorage.getItem(HISTORY_KEY);
+        let list = raw ? JSON.parse(raw) : [];
+        if (list.length > 0 && list[0].positive === pos && list[0].negative === neg) {
+            return;
+        }
+        const entry = {
+            id: Date.now(),
+            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            date: new Date().toLocaleDateString(),
+            label: label || (pos.slice(0, 35) + (pos.length > 35 ? "..." : "")),
+            positive: pos,
+            negative: neg
+        };
+        list.unshift(entry);
+        if (list.length > MAX_HISTORY) list = list.slice(0, MAX_HISTORY);
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+    } catch (e) {
+        console.warn("[ModusFlow TextEditor] History save error:", e);
+    }
+}
+
+function showHistoryDialog(node) {
+    let list = [];
+    try {
+        const raw = localStorage.getItem(HISTORY_KEY);
+        list = raw ? JSON.parse(raw) : [];
+    } catch (e) {}
+
+    if (!list.length) {
+        alert("Prompt session history is currently empty.");
+        return;
+    }
+
+    const overlay = document.createElement("div");
+    overlay.className = "modusflow-modal-overlay";
+    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+
+    const dialog = document.createElement("div");
+    dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 580px; max-height: 80vh; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); color: #cdd6f4; font-family: sans-serif;";
+
+    const header = document.createElement("div");
+    header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #313244; padding-bottom: 8px;";
+    header.innerHTML = '<h3 style="margin: 0; font-size: 16px; color: #89b4fa;">🕒 Prompt Session History</h3>';
+
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "✕";
+    closeBtn.style.cssText = "background: none; border: none; color: #6c7086; font-size: 18px; cursor: pointer;";
+    closeBtn.onclick = () => overlay.remove();
+    header.appendChild(closeBtn);
+    dialog.appendChild(header);
+
+    const listContainer = document.createElement("div");
+    listContainer.style.cssText = "overflow-y: auto; display: flex; flex-direction: column; gap: 8px; max-height: 420px;";
+
+    list.forEach((item, index) => {
+        const row = document.createElement("div");
+        row.style.cssText = "background: #1e1e2e; border: 1px solid #313244; border-radius: 8px; padding: 10px; cursor: pointer; transition: all 0.15s ease;";
+        row.onmouseenter = () => row.style.borderColor = "#89b4fa";
+        row.onmouseleave = () => row.style.borderColor = "#313244";
+
+        const preview = item.positive ? item.positive.slice(0, 100) : "(empty positive)";
+        row.innerHTML = `
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #a6adc8; margin-bottom: 4px;">
+                <span style="font-weight: bold; color: #cba6f7;">#${index + 1} · ${item.label || "Snapshot"} (${item.time} - ${item.date})</span>
+                <span>${item.positive.length} chars</span>
+            </div>
+            <div style="font-size: 12px; color: #cdd6f4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${preview}
+            </div>
+        `;
+
+        row.onclick = () => {
+            if (confirm("Restore this prompt snapshot?")) {
+                const pw = node.widgets?.find(w => w.name === "positive");
+                const nw = node.widgets?.find(w => w.name === "negative");
+                if (pw) {
+                    pw.value = item.positive;
+                    if (pw.inputEl) pw.inputEl.value = item.positive;
+                    pw._updateSyntaxHighlight?.();
+                }
+                if (nw) {
+                    nw.value = item.negative;
+                    if (nw.inputEl) nw.inputEl.value = item.negative;
+                    nw._updateSyntaxHighlight?.();
+                }
+                overlay.remove();
+            }
+        };
+        listContainer.appendChild(row);
+    });
+
+    dialog.appendChild(listContainer);
+
+    const footer = document.createElement("div");
+    footer.style.cssText = "display: flex; justify-content: space-between; margin-top: 8px;";
+    const clearBtn = document.createElement("button");
+    clearBtn.textContent = "Clear History";
+    clearBtn.style.cssText = "background: #313244; color: #f38ba8; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer;";
+    clearBtn.onclick = () => {
+        if (confirm("Clear all prompt history?")) {
+            localStorage.removeItem(HISTORY_KEY);
+            overlay.remove();
+        }
+    };
+    footer.appendChild(clearBtn);
+    dialog.appendChild(footer);
+
+    overlay.appendChild(dialog);
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+}
+
+// ── Prompt Prettifier & Deduplicator ─────────────────────────────────────────
+function prettifyPromptText(text) {
+    if (!text || typeof text !== "string") return "";
+    const lines = text.split("\n");
+    const newLines = lines.map(line => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("#") || trimmed.startsWith("//") || trimmed.startsWith("/*")) {
+            return line;
+        }
+        const rawTags = line.split(",");
+        const seen = new Set();
+        const uniqueTags = [];
+        for (const raw of rawTags) {
+            const tag = raw.trim();
+            if (!tag) continue;
+            const lower = tag.toLowerCase();
+            if (!seen.has(lower)) {
+                seen.add(lower);
+                uniqueTags.push(tag);
+            }
+        }
+        return uniqueTags.join(", ");
+    });
+    return newLines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function prettifyNodePrompts(node) {
+    const pw = node.widgets?.find(w => w.name === "positive");
+    const nw = node.widgets?.find(w => w.name === "negative");
+    let changed = false;
+    if (pw && pw.value) {
+        const cleaned = prettifyPromptText(pw.value);
+        if (cleaned !== pw.value) {
+            pw.value = cleaned;
+            if (pw.inputEl) pw.inputEl.value = cleaned;
+            pw._updateSyntaxHighlight?.();
+            changed = true;
+        }
+    }
+    if (nw && nw.value) {
+        const cleaned = prettifyPromptText(nw.value);
+        if (cleaned !== nw.value) {
+            nw.value = cleaned;
+            if (nw.inputEl) nw.inputEl.value = cleaned;
+            nw._updateSyntaxHighlight?.();
+            changed = true;
+        }
+    }
+    if (changed) {
+        pushPromptHistory(node, "Prettified / Deduplicated");
+    }
+}
+
+// ── Negative Preset Application ──────────────────────────────────────────────
+function applyNegativePreset(node, presetKey) {
+    if (!presetKey || presetKey === "--select negative preset--") return;
+    const nw = node.widgets?.find(w => w.name === "negative");
+    const npWidget = node.widgets?.find(w => w.name === "negative_presets");
+    const presetVal = NEGATIVE_PRESETS[presetKey];
+    if (!presetVal || !nw) return;
+
+    const current = (nw.value || "").trim();
+    if (!current) {
+        nw.value = presetVal;
+        if (nw.inputEl) nw.inputEl.value = presetVal;
+        nw._updateSyntaxHighlight?.();
+    } else {
+        if (confirm("Replace existing negative prompt with preset?\n\n(Click 'OK' to replace, or 'Cancel' to append)")) {
+            nw.value = presetVal;
+            if (nw.inputEl) nw.inputEl.value = presetVal;
+            nw._updateSyntaxHighlight?.();
+        } else {
+            const combined = `${current}, ${presetVal}`;
+            nw.value = combined;
+            if (nw.inputEl) nw.inputEl.value = combined;
+            nw._updateSyntaxHighlight?.();
+        }
+    }
+    pushPromptHistory(node, "Negative Preset: " + presetKey);
+    if (npWidget) npWidget.value = "--select negative preset--";
+}
+
+// ── Client-Side Prompt Resolver & Preview Modal ──────────────────────────────
+function resolvePromptClientSide(text, seed, weightMode) {
+    if (!text || typeof text !== "string") return "";
+
+    let s = (seed && seed > 0) ? seed : Math.floor(Math.random() * 10000000);
+    function nextRng() {
+        s = (s * 9301 + 49297) % 233280;
+        return s / 233280;
+    }
+
+    // 1. Strip block and line comments
+    let res = text.replace(/\/\*[\s\S]*?\*\//g, "");
+    res = res.replace(/^\s*(?:#|\/\/).*$/gm, "");
+    res = res.replace(/(?<!https:)(?<!http:)\s+\/\/.*$/gm, "");
+    res = res.replace(/\s+#\s+.*$/gm, "");
+
+    // 2. Resolve {shuffle: a, b, c}
+    res = res.replace(/\{shuffle:\s*([^{}]+)\}/gi, (_, group) => {
+        const items = group.split(",").map(x => x.trim()).filter(Boolean);
+        for (let i = items.length - 1; i > 0; i--) {
+            const j = Math.floor(nextRng() * (i + 1));
+            [items[i], items[j]] = [items[j], items[i]];
+        }
+        return items.join(", ");
+    });
+
+    // 3. Resolve dynamic choices {a|b|c} or {2$$a|b|c}
+    for (let pass = 0; pass < 10; pass++) {
+        if (!/\{([^{}]+)\}/.test(res)) break;
+        res = res.replace(/\{([^{}]+)\}/g, (_, content) => {
+            let spec = null;
+            let body = content;
+            if (content.includes("$$")) {
+                const parts = content.split("$$", 2);
+                spec = parts[0].trim();
+                body = parts[1].trim();
+            }
+            const opts = body.split("|").map(x => x.trim()).filter(Boolean);
+            if (!opts.length) return "";
+            let k = 1;
+            if (spec) {
+                const parsedK = parseInt(spec, 10);
+                if (!isNaN(parsedK)) k = Math.max(1, Math.min(parsedK, opts.length));
+            }
+            const picked = [];
+            const pool = [...opts];
+            for (let i = 0; i < k && pool.length > 0; i++) {
+                const idx = Math.floor(nextRng() * pool.length);
+                picked.push(pool[idx]);
+                pool.splice(idx, 1);
+            }
+            return picked.join(", ");
+        });
+    }
+
+    // 4. Weight mode handling
+    if (weightMode && (weightMode.startsWith("Strip") || weightMode.includes("Chroma") || weightMode.includes("Flux"))) {
+        res = res.replace(/\(([^():]+):([0-9.]+)\)/g, "$1");
+        res = res.replace(/\(([a-zA-Z0-9_\s\-]+)\)/g, "$1");
+    }
+
+    // 5. Clean duplicate commas and spaces
+    res = res.replace(/,\s*,+/g, ", ");
+    res = res.replace(/^[,\s]+/, "").trim();
+    return res;
+}
+
+function showResolvedPreviewModal(node) {
+    const pw = node.widgets?.find(w => w.name === "positive");
+    const nw = node.widgets?.find(w => w.name === "negative");
+    const sw = node.widgets?.find(w => w.name === "seed");
+    const wm = node.widgets?.find(w => w.name === "weight_mode");
+
+    const overlay = document.createElement("div");
+    overlay.className = "modusflow-modal-overlay";
+    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(4px);";
+
+    const dialog = document.createElement("div");
+    dialog.style.cssText = "background: #181825; border: 1px solid #313244; border-radius: 12px; padding: 20px; width: 620px; max-height: 85vh; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); color: #cdd6f4; font-family: sans-serif;";
+
+    let currentSeed = (sw && sw.value) ? parseInt(sw.value, 10) : 0;
+    const mode = wm?.value || "Pass-Through";
+
+    const header = document.createElement("div");
+    header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #313244; padding-bottom: 8px;";
+    header.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <h3 style="margin: 0; font-size: 16px; color: #a6e3a1;">🔍 Resolved Prompt Preview</h3>
+            <span style="font-size: 11px; background: #313244; color: #cba6f7; padding: 2px 8px; border-radius: 10px;">${mode.split("(")[0].trim()}</span>
+        </div>
+    `;
+
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "✕";
+    closeBtn.style.cssText = "background: none; border: none; color: #6c7086; font-size: 18px; cursor: pointer;";
+    closeBtn.onclick = () => overlay.remove();
+    header.appendChild(closeBtn);
+    dialog.appendChild(header);
+
+    const controls = document.createElement("div");
+    controls.style.cssText = "display: flex; align-items: center; gap: 10px; font-size: 12px;";
+    controls.innerHTML = "<span>Seed:</span>";
+
+    const seedInput = document.createElement("input");
+    seedInput.type = "number";
+    seedInput.value = currentSeed;
+    seedInput.style.cssText = "background: #1e1e2e; border: 1px solid #313244; color: #cdd6f4; padding: 4px 8px; border-radius: 6px; width: 120px;";
+
+    const rerollBtn = document.createElement("button");
+    rerollBtn.textContent = "🎲 Re-roll Seed";
+    rerollBtn.style.cssText = "background: #313244; color: #f9e2af; border: none; border-radius: 6px; padding: 5px 10px; cursor: pointer;";
+
+    controls.appendChild(seedInput);
+    controls.appendChild(rerollBtn);
+    dialog.appendChild(controls);
+
+    const posBox = document.createElement("div");
+    posBox.style.cssText = "display: flex; flex-direction: column; gap: 4px;";
+    posBox.innerHTML = `
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #a6e3a1; font-weight: bold;">
+            <span>POSITIVE PROMPT (RESOLVED)</span>
+            <button id="mf-copy-pos" style="background: none; border: none; color: #89b4fa; cursor: pointer; font-size: 11px;">📋 Copy</button>
+        </div>
+        <textarea id="mf-pos-res" readonly style="width: 100%; height: 130px; background: #11111b; border: 1px solid #313244; border-radius: 6px; color: #cdd6f4; font-family: monospace; font-size: 12px; padding: 8px; resize: vertical; box-sizing: border-box;"></textarea>
+    `;
+    dialog.appendChild(posBox);
+
+    const negBox = document.createElement("div");
+    negBox.style.cssText = "display: flex; flex-direction: column; gap: 4px;";
+    negBox.innerHTML = `
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #f38ba8; font-weight: bold;">
+            <span>NEGATIVE PROMPT (RESOLVED)</span>
+            <button id="mf-copy-neg" style="background: none; border: none; color: #89b4fa; cursor: pointer; font-size: 11px;">📋 Copy</button>
+        </div>
+        <textarea id="mf-neg-res" readonly style="width: 100%; height: 75px; background: #11111b; border: 1px solid #313244; border-radius: 6px; color: #cdd6f4; font-family: monospace; font-size: 12px; padding: 8px; resize: vertical; box-sizing: border-box;"></textarea>
+    `;
+    dialog.appendChild(negBox);
+
+    function updatePreview() {
+        const activeSeed = parseInt(seedInput.value, 10) || 0;
+        const resPos = resolvePromptClientSide(pw?.value || "", activeSeed, mode);
+        const resNeg = resolvePromptClientSide(nw?.value || "", activeSeed, mode);
+        dialog.querySelector("#mf-pos-res").value = resPos;
+        dialog.querySelector("#mf-neg-res").value = resNeg;
+    }
+
+    seedInput.oninput = updatePreview;
+    rerollBtn.onclick = () => {
+        seedInput.value = Math.floor(Math.random() * 1000000000);
+        updatePreview();
+    };
+
+    posBox.querySelector("#mf-copy-pos").onclick = () => {
+        navigator.clipboard?.writeText(dialog.querySelector("#mf-pos-res").value);
+        alert("Positive prompt copied to clipboard!");
+    };
+    negBox.querySelector("#mf-copy-neg").onclick = () => {
+        navigator.clipboard?.writeText(dialog.querySelector("#mf-neg-res").value);
+        alert("Negative prompt copied to clipboard!");
+    };
+
+    updatePreview();
+    overlay.appendChild(dialog);
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+}
+
 app.registerExtension({
     name: "modusflow.TextEditor",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
@@ -1182,13 +1565,26 @@ app.registerExtension({
                 );
                 promptCategoryWidget.label = "Prompt Category";
 
+                // ── Negative Presets Combo ────────────────────────────────────────
+                const negPresetWidget = node.addWidget(
+                    "combo",
+                    "negative_presets",
+                    "--select negative preset--",
+                    (value) => applyNegativePreset(node, value),
+                    { values: Object.keys(NEGATIVE_PRESETS) }
+                );
+                negPresetWidget.label = "Negative Presets";
+
                 // ── Action buttons ────────────────────────────────────────────────
-                node.addWidget("button", "Save Prompt",     null, () => showSaveDialog(node));
-                node.addWidget("button", "Update Selected", null, () => updatePrompt(node));
-                node.addWidget("button", "Refresh List",    null, () => refreshPrompts(node));
+                node.addWidget("button", "Save Prompt",       null, () => showSaveDialog(node));
+                node.addWidget("button", "Update Selected",   null, () => updatePrompt(node));
+                node.addWidget("button", "Refresh List",      null, () => refreshPrompts(node));
+                node.addWidget("button", "Prettify / Dedupe", null, () => prettifyNodePrompts(node));
+                node.addWidget("button", "Preview Resolved",  null, () => showResolvedPreviewModal(node));
+                node.addWidget("button", "Prompt History",    null, () => showHistoryDialog(node));
 
                 // ── Initial size ──────────────────────────────────────────────────
-                node.size = [520, 750];
+                node.size = [540, 840];
                 node.resizable = true;
 
                 requestAnimationFrame(() => refreshPrompts(node));
@@ -1339,6 +1735,91 @@ app.registerExtension({
                             }
                             widget.value = ta.value;
                             widget._updateSyntaxHighlight?.();
+                            return;
+                        }
+
+                        // 3. Tag Weight Stepping: Ctrl+Up / Ctrl+Down (or Cmd+Up/Down on Mac)
+                        if (ctrlOrCmd && !e.shiftKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            const isUp = e.key === "ArrowUp";
+                            const delta = isUp ? 0.05 : -0.05;
+                            const text = ta.value;
+                            let start = ta.selectionStart;
+                            let end = ta.selectionEnd;
+
+                            // If no selection, expand to tag under cursor or surrounding parenthesis
+                            if (start === end) {
+                                let openParen = -1;
+                                for (let i = start - 1; i >= 0; i--) {
+                                    if (text[i] === "(") { openParen = i; break; }
+                                    if (text[i] === ")" || text[i] === "\n") break;
+                                }
+                                let closeParen = -1;
+                                if (openParen !== -1) {
+                                    for (let i = end; i < text.length; i++) {
+                                        if (text[i] === ")") { closeParen = i; break; }
+                                        if (text[i] === "(" || text[i] === "\n") break;
+                                    }
+                                }
+
+                                if (openParen !== -1 && closeParen !== -1) {
+                                    start = openParen;
+                                    end = closeParen + 1;
+                                } else {
+                                    let tagStart = start;
+                                    while (tagStart > 0 && text[tagStart - 1] !== "," && text[tagStart - 1] !== "\n") {
+                                        tagStart--;
+                                    }
+                                    let tagEnd = end;
+                                    while (tagEnd < text.length && text[tagEnd] !== "," && text[tagEnd] !== "\n") {
+                                        tagEnd++;
+                                    }
+                                    while (tagStart < tagEnd && /\s/.test(text[tagStart])) tagStart++;
+                                    while (tagEnd > tagStart && /\s/.test(text[tagEnd - 1])) tagEnd--;
+                                    if (tagStart < tagEnd) {
+                                        start = tagStart;
+                                        end = tagEnd;
+                                    }
+                                }
+                            }
+
+                            if (start < end) {
+                                const selected = text.slice(start, end);
+                                const wm = selected.match(/^\((.+):([0-9.]+)\)$/);
+                                const sm = selected.match(/^\((.+)\)$/);
+
+                                let newText = selected;
+                                if (wm) {
+                                    const baseTag = wm[1].trim();
+                                    const currW = parseFloat(wm[2]);
+                                    let newW = Math.round((currW + delta) * 100) / 100;
+                                    newW = Math.max(0.05, Math.min(2.5, newW));
+                                    if (Math.abs(newW - 1.0) < 0.001) {
+                                        newText = baseTag;
+                                    } else {
+                                        newText = `(${baseTag}:${newW.toFixed(2).replace(/\.?0+$/, "")})`;
+                                    }
+                                } else if (sm) {
+                                    const baseTag = sm[1].trim();
+                                    let newW = Math.round((1.0 + delta) * 100) / 100;
+                                    if (Math.abs(newW - 1.0) < 0.001) {
+                                        newText = baseTag;
+                                    } else {
+                                        newText = `(${baseTag}:${newW.toFixed(2).replace(/\.?0+$/, "")})`;
+                                    }
+                                } else {
+                                    const baseTag = selected.trim();
+                                    let newW = Math.round((1.0 + delta) * 100) / 100;
+                                    newText = `(${baseTag}:${newW.toFixed(2).replace(/\.?0+$/, "")})`;
+                                }
+
+                                ta.setRangeText(newText, start, end, "select");
+                                widget.value = ta.value;
+                                widget._updateSyntaxHighlight?.();
+                            }
+                            return;
                         }
                     });
                 };
@@ -1363,6 +1844,7 @@ app.registerExtension({
                         setTextValue(node.widgets?.find(w => w.name === "positive"),        data.data.positive || "");
                         setTextValue(node.widgets?.find(w => w.name === "negative"),         data.data.negative || "");
                         setTextValue(node.widgets?.find(w => w.name === "prompt_category"),  data.data.category || "");
+                        pushPromptHistory(node, "Loaded: " + filename);
                         app.graph.setDirtyCanvas(true, true);
                     } else {
                         console.error("[ModusFlow] Load error:", data.message);
@@ -1464,7 +1946,11 @@ app.registerExtension({
                 })
                 .then(r => r.json())
                 .then(data => {
-                    if (data.success) { alert("Saved: " + filename.trim() + ".json"); refreshPrompts(node); }
+                    if (data.success) {
+                        alert("Saved: " + filename.trim() + ".json");
+                        pushPromptHistory(node, "Saved: " + filename.trim());
+                        refreshPrompts(node);
+                    }
                     else alert("Save failed: " + data.message);
                 })
                 .catch(err => alert("Save error: " + err.message));
@@ -1494,7 +1980,10 @@ app.registerExtension({
                 })
                 .then(r => r.json())
                 .then(data => {
-                    if (data.success) alert('"' + selected + '" updated.');
+                    if (data.success) {
+                        alert('"' + selected + '" updated.');
+                        pushPromptHistory(node, "Updated: " + selected);
+                    }
                     else alert("Update failed: " + data.message);
                 })
                 .catch(err => alert("Update error: " + err.message));

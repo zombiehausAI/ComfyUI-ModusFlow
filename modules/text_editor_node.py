@@ -1,6 +1,8 @@
 import os
 import sys
 import re
+import time
+import random
 import torch
 from nodes import CLIPTextEncode
 
@@ -31,7 +33,10 @@ class ModusFlowTextEditor:
             },
             "optional": {
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+                "seed_action": (["fixed", "randomize", "increment", "decrement"], {"default": "fixed"}),
                 "mute_negative": ("BOOLEAN", {"default": False}),
+                "clip": ("CLIP",),
+                "pipe": ("PIPE",),
                 "positive_input": ("STRING", {"forceInput": True}),
                 "negative_input": ("STRING", {"forceInput": True}),
                 "curator_input": ("STRING", {"forceInput": True}),
@@ -72,11 +77,17 @@ class ModusFlowTextEditor:
 
         return ["--no prompts found--"]
 
-    RETURN_TYPES = ("STRING", "STRING", "INT",)
-    RETURN_NAMES = ("positive", "negative", "seed",)
+    RETURN_TYPES = ("STRING", "STRING", "INT", "CONDITIONING", "CONDITIONING", "PIPE",)
+    RETURN_NAMES = ("positive", "negative", "seed", "positive_cond", "negative_cond", "pipe",)
     FUNCTION = "process_text"
     OUTPUT_NODE = False
     CATEGORY = "ModusFlow/Utilities"
+
+    @classmethod
+    def IS_CHANGED(cls, seed=0, seed_action="fixed", **kwargs):
+        if seed_action in ("randomize", "increment", "decrement"):
+            return time.time()
+        return seed
 
     @staticmethod
     def filter_comments(text: str) -> str:
@@ -341,20 +352,37 @@ class ModusFlowTextEditor:
         return text
 
     def process_text(self, positive, negative, saved_prompt, weight_mode="Pass-Through (SDXL / Pony)",
-                     seed=None, mute_negative=False, positive_input=None, negative_input=None,
+                     seed=None, seed_action="fixed", mute_negative=False,
+                     clip=None, pipe=None,
+                     positive_input=None, negative_input=None,
                      curator_input=None, curator_input_2=None, curator_negative=None,
                      positive_embedding=None, negative_embedding=None,
                      unique_id=None, extra_pnginfo=None):
-        """Process positive and negative text inputs and return them as outputs."""
+        """Process positive and negative text inputs, resolve wildcards/weights, and return text, seed, conditioning, and pipe."""
+        # 1. Determine actual seed based on seed_action
+        try:
+            base_seed = int(seed) if seed is not None else 0
+        except (ValueError, TypeError):
+            base_seed = 0
+
+        if seed_action == "randomize":
+            actual_seed = random.randint(0, 0xffffffffffffffff)
+        elif seed_action == "increment":
+            actual_seed = (base_seed + 1) & 0xffffffffffffffff
+        elif seed_action == "decrement":
+            actual_seed = (base_seed - 1) & 0xffffffffffffffff if base_seed > 0 else 0
+        else:
+            actual_seed = base_seed
+
         # If connected inputs are provided, they take precedence over widget values
         raw_positive = positive_input if positive_input is not None else positive
         raw_negative = negative_input if negative_input is not None else negative
 
-        # 1. Strip raw LoRA tags
+        # 2. Strip raw LoRA tags
         clean_positive = self.strip_lora_tags(raw_positive)
         clean_negative = self.strip_lora_tags(raw_negative)
 
-        # 2. In-place placeholder injection for connected List Curators
+        # 3. In-place placeholder injection for connected List Curators
         if curator_input is not None and str(curator_input).strip():
             c1_str = str(curator_input).strip()
             p1 = r'\{(?:curator|curator1|curator_1|list|item)\}'
@@ -379,29 +407,52 @@ class ModusFlowTextEditor:
             else:
                 clean_negative = f"{clean_negative}, {cn_str}".strip(", ")
 
-        # 3. Filter out comments
+        # 4. Filter out comments
         no_comments_positive = self.filter_comments(clean_positive)
         no_comments_negative = self.filter_comments(clean_negative)
 
-        # 4. Resolve dynamic wildcards, choices, and tag shuffles (seed-driven)
-        resolved_positive = self.resolve_dynamic_prompts(no_comments_positive, seed=seed)
-        resolved_negative = self.resolve_dynamic_prompts(no_comments_negative, seed=seed)
+        # 5. Resolve dynamic wildcards, choices, and tag shuffles (seed-driven)
+        resolved_positive = self.resolve_dynamic_prompts(no_comments_positive, seed=actual_seed)
+        resolved_negative = self.resolve_dynamic_prompts(no_comments_negative, seed=actual_seed)
 
-        # 5. Apply weight translation / front-loading
+        # 6. Apply weight translation / front-loading
         output_positive = self.translate_weights(resolved_positive, weight_mode)
         output_negative = self.translate_weights(resolved_negative, weight_mode)
 
-        # 6. Append embeddings to respective outputs
+        # 7. Append embeddings to respective outputs
         if positive_embedding is not None and positive_embedding.strip():
             output_positive = f"{output_positive}, {positive_embedding}".strip(", ")
         if negative_embedding is not None and negative_embedding.strip():
             output_negative = f"{output_negative}, {negative_embedding}".strip(", ")
 
-        # 7. Apply mute_negative toggle
+        # 8. Apply mute_negative toggle
         if mute_negative:
             output_negative = ""
 
-        actual_seed = int(seed) if seed is not None else 0
+        # 9. Direct CLIP conditioning & Pipe generation
+        pos_cond = []
+        neg_cond = []
+        active_clip = clip
+        model = None
+        vae = None
+
+        if pipe is not None and isinstance(pipe, (tuple, list)):
+            model = pipe[0] if len(pipe) > 0 else None
+            if active_clip is None and len(pipe) > 1:
+                active_clip = pipe[1]
+            vae = pipe[2] if len(pipe) > 2 else None
+
+        if active_clip is not None:
+            try:
+                encoder = CLIPTextEncode()
+                pos_cond = encoder.encode(active_clip, output_positive)[0]
+                neg_cond = encoder.encode(active_clip, output_negative)[0]
+            except Exception as e:
+                print(f"[ModusFlow TextEditor] CLIP encode error: {e}")
+                pos_cond = []
+                neg_cond = []
+
+        output_pipe = (model, active_clip, vae, pos_cond, neg_cond) if (pipe is not None or active_clip is not None) else None
 
         # Update the node's widget values in the workflow metadata if available
         if unique_id is not None and extra_pnginfo is not None:
@@ -414,4 +465,4 @@ class ModusFlowTextEditor:
                 if node:
                     node["widgets_values"] = [positive, negative, saved_prompt, weight_mode, actual_seed]
 
-        return (output_positive, output_negative, actual_seed,)
+        return (output_positive, output_negative, actual_seed, pos_cond, neg_cond, output_pipe)

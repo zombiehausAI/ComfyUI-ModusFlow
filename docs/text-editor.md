@@ -18,7 +18,9 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **File Browser**: Browse and load saved prompts from a dropdown
 - **Update in Place**: Overwrite an existing prompt with current text
 - **Custom Directory**: Configure save location via `config.json` or ComfyUI Settings
-- **Pass-through Outputs**: Both positive and negative text, as well as the seed integer, are available as outputs
+- **Pass-through Outputs**: Positive/negative text, seed integer, direct CLIP conditioning (`positive_cond`, `negative_cond`), and pipeline passthrough (`PIPE`)
+- **Direct CLIP Encoding**: Wire an optional `clip` or `pipe` to encode conditionings directly without separate CLIPTextEncode nodes
+- **Workflow Tools**: Tag weight stepping (`Ctrl+Up/Down`), prompt deduplication, baseline negative presets, session history, and live resolved preview
 
 ## Inputs
 
@@ -34,6 +36,10 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 
 ### Optional
 - **seed** (INT): Seed controlling deterministic evaluation of `{a|b|c}`, `{shuffle: ...}`, and wildcards (set to 0 for random).
+- **seed_action** (dropdown): Seed evolution behavior (`fixed`, `randomize`, `increment`, `decrement`).
+- **clip** (CLIP): Optional CLIP model to encode prompt text directly into conditionings.
+- **pipe** (PIPE): Optional ModusFlow pipeline (`model`, `clip`, `vae`, `positive`, `negative`) for seamless pass-through.
+- **mute_negative** (BOOLEAN): Instantly mute/bypass negative prompt output without deleting text notes.
 - **curator_input** (STRING): Curated trait from `ModusFlow List Curator`. Replaces `{curator}` (or `{list}`, `{item}`) **directly in place** in the positive prompt (or appends if no placeholder is typed).
 - **curator_input_2** (STRING): Secondary curated trait. Replaces `{curator2}` **directly in place** in the positive prompt.
 - **curator_negative** (STRING): Curated negative trait. Replaces `{curator}` in the negative prompt.
@@ -47,6 +53,9 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **positive** (STRING): Processed, comment-filtered, wildcard-resolved positive prompt text
 - **negative** (STRING): Processed, comment-filtered, wildcard-resolved negative prompt text
 - **seed** (INT): Seed passthrough (connects to KSampler, Save Image `%seed%`, LoRA Loader, etc.)
+- **positive_cond** (CONDITIONING): Directly encoded positive conditioning (when `clip` or `pipe` is connected)
+- **negative_cond** (CONDITIONING): Directly encoded negative conditioning (when `clip` or `pipe` is connected)
+- **pipe** (PIPE): Updated ModusFlow pipeline containing active model, clip, vae, and newly encoded conditionings
 
 > [!TIP]
 > For a full tutorial on weight adaptation, tag shuffling, wildcards, and dynamic choices, see the [Text Editor & Wildcard Mastery Guide](guides/text-editor-mastery.md).
@@ -57,12 +66,17 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **Positive**: Large text area for comfortable editing
 - **Negative**: Smaller default height but fully resizable
 - Both support multi-line, word wrapping, undo/redo (Ctrl+Z / Ctrl+Y)
+- **Tag Weight Stepping**: Select a tag (or place cursor inside a word) and press `Ctrl + Up` or `Ctrl + Down` (Cmd+Up/Down on Mac) to adjust numerical weights by $\pm 0.05$ (e.g. `tag` $\rightarrow$ `(tag:1.05)` $\rightarrow$ `(tag:1.1)`). Stepping down to 1.0 automatically unwraps to clean plain text.
+- **Negative Presets**: Quick-fill dropdown for curated quality baselines (*SDXL Quality*, *Pony Score Baseline*, *Photorealistic*, *Anime / 2D Quality*, *Flux / Chroma Minimal*).
 - **Live Token & Word Counter**: Real-time counter badge at the bottom-right corner showing word count, estimated CLIP tokens, and 75-token chunks (e.g. `14w · ~18 tok (1 chunk)`). Warns in amber when crossing standard 75-token chunks!
 
-### Save Controls
+### Action Toolbar
 - **💾 Save Prompt**: Prompts for a filename and optional category, then saves both texts as a `.json` file
-- **✏️ Update Selected**: Overwrites the currently selected prompt with the current text (preserves existing category)
-- **🔄 Refresh List**: Reloads the dropdown to show any newly added files
+- **✏️ Update Selected**: Overwrites the currently selected prompt with current text
+- **🔄 Refresh List**: Reloads the dropdown to reflect newly added prompt files
+- **🧹 Prettify / Dedupe**: One-click cleanup to eliminate duplicate tags, collapse duplicate commas, and normalize tag spacing
+- **🔍 Preview Resolved**: Opens a live simulation modal showing exactly how dynamic prompts `{a|b}`, `{shuffle}`, and weight translation resolve with any seed
+- **🕒 Prompt History**: Browse and restore recent session snapshots from local storage
 
 ## Live Syntax Highlighting & Themes
 
