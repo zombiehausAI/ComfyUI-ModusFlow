@@ -27,6 +27,9 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 ### Required
 - **positive** (STRING): Positive prompt text (large editor area)
 - **negative** (STRING): Negative prompt text (smaller editor area, resizable)
+- **prompt_style** (dropdown / toolbar selector): Active target model prompting philosophy:
+  - `Tags (SDXL / Pony)`: Formats and manages comma-separated weighted tags for Danbooru/tag-based models (Pony, SDXL, Illustrious). The Ollama prompt enhancer returns high-density visual tags, and negative pedalboards insert weighted syntax.
+  - `Expressions (Flux / SD3)`: Formats and manages fluent natural language expressions and descriptive prose for modern T5 diffusion models (FLUX.1, SD3, Midjourney-style). The Ollama prompt enhancer returns vivid descriptive sentences without attention weights or tag soup, and negative pedalboards insert clean unweighted tokens.
 - **saved_prompt** (dropdown): Select a previously saved `.json` prompt file
 - **weight_mode** (dropdown): Model weight adaptation strategy:
   - `Pass-Through (SDXL / Pony)`: Preserves raw numerical weights `(tag:1.3)`.
@@ -66,6 +69,7 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **Positive**: Large text area for comfortable editing
 - **Negative**: Smaller default height but fully resizable
 - Both support multi-line, word wrapping, undo/redo (Ctrl+Z / Ctrl+Y)
+- **Prompt Style Selector**: Toggle between `🏷️ Tags (SDXL / Pony)` and `✍️ Expressions (Flux / SD3)` directly from the node combo widget, the Pop-Out Studio toolbar, or the Studio Tools menu.
 - **Tag Weight Stepping**: Select a tag (or place cursor inside a word) and press `Ctrl + Up` or `Ctrl + Down` (Cmd+Up/Down on Mac) to adjust numerical weights by $\pm 0.05$ (e.g. `tag` $\rightarrow$ `(tag:1.05)` $\rightarrow$ `(tag:1.1)`). Stepping down to 1.0 automatically unwraps to clean plain text.
 - **Move Line Up / Down (`Alt + Up` / `Alt + Down`)**: Transposes the current line or selection up or down without cutting/pasting. Ideal for adjusting CLIP prompt priority.
 - **Duplicate Line Down (`Shift + Alt + Down`)**: Duplicates the current line or selected block directly below in one keystroke.
@@ -85,7 +89,11 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **Drag & Drop Image Metadata**: Drop any `.png` or `.webp` generated image onto the node (or directly into the text boxes) to instantly extract the positive prompt, negative prompt, and seed. Tailored specifically for `ModusFlowTextEditor`: when a workflow contains multiple text editor nodes, it intelligently traces the execution graph and canvas link topology to extract from **the node actively connected to downstream samplers, pipelines, and conditionings** rather than inactive or draft nodes. Also seamlessly falls back to standard ComfyUI CLIP/KSampler pairs and A1111/Forge `parameters`.
 
 ### Action Toolbar
-- **✨ Enhance with Ollama**: One-click local AI prompt expansion! Sends the current positive prompt to your local Ollama LLM to enrich lighting, atmosphere, and sensory details in-place. Features automatic model detection via a dynamic dropdown in ComfyUI Settings, live status diagnostics, and non-blocking availability checks that never stall canvas loading. Shift+Click or click when offline (or right-click $\rightarrow$ **🤖 Ollama Status & Model Settings...**) to inspect connection status, test endpoints, or switch models on the fly.
+- **✨ Enhance with Ollama**: One-click local AI prompt expansion! Automatically conditions its system prompt on the active **Prompt Style**:
+  - In **Tags** mode: Produces rich visual keyword tags for SDXL/Pony.
+  - In **Expressions** mode: Crafts fluent, descriptive natural English prose for FLUX.1/SD3.
+  - Shift+Click or click when offline (or right-click $\rightarrow$ **🤖 Ollama Status & Model Settings...**) to inspect connection status, test endpoints, or switch models on the fly.
+- **⇄ Style (Convert: Tags ↔ Expressions)**: One-click bidirectional prompt converter. Converts a Pony tag list to fluent natural prose for Flux (stripping negative weights), or converts a Flux prose prompt to clean keyword tags for Pony/SDXL.
 - **⚡ Quick Chips**: Opens an interactive modal with curated visual tag chips organized into *Lighting & Atmosphere*, *Optics & Framing*, *Style & Aesthetics*, and *Mood & Color Palette*. Features a real-time filter search and one-click insertion at the cursor.
 - **🎨 LoRA Deck**: Interactive modal displaying all `<lora:name:weight>` detected in your prompt. Features `[-]` and `[+]` ($\pm 0.1$) steppers, a continuous weight slider, and an instant **Mute/Unmute** toggle (wraps the LoRA in `/* ... */` comments so you can disable it without deleting your configuration).
 - **⇄ Swap Prompts**: Instantly swaps text between Positive and Negative prompt textareas with one click.
@@ -99,14 +107,26 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **🔍 Preview Resolved**: Opens a live simulation modal showing exactly how dynamic prompts `{a|b}`, `{shuffle}`, and weight translation resolve with any seed.
 - **🕒 Prompt History**: Browse and restore recent session snapshots from local storage.
 
-## Ollama AI Integration & Status Diagnostics
+## Ollama AI Integration & Studio Settings Access
 
-The Text Editor integrates directly with your local Ollama instance for instant prompt enhancement:
+The Text Editor integrates directly with your local Ollama instance for instant prompt enhancement and offers multiple universal ways to manage configuration:
 
-### Settings Panel (`ComfyUI Settings -> ModusFlow`)
-1. **Ollama Server URL (`ModusFlow.OllamaURL`)**: Endpoint for your Ollama service (defaults to `http://127.0.0.1:11434` or custom LAN IP like `http://192.168.x.x:11434`). Automatically sanitizes whitespace, trailing slashes, and accidental trailing dots (e.g., `205.:11434`).
+### Accessing ModusFlow Settings
+You can open the ModusFlow configuration at any time through any of these entry points:
+1. **ComfyUI Settings Panel**: Click the gear icon in ComfyUI, navigate to the **ModusFlow** category, or click the **"⚙️ Open ModusFlow Settings Dialog"** button.
+2. **Persistent ComfyUI Menu Button**: Click the **⚙️ ModusFlow** button docked directly in ComfyUI's main sidebar menu.
+3. **Pop-Out Studio Toolbar**: Click **⚙️ Settings** in the top ribbon.
+4. **Canvas Node Menu**: Click **🛠️ Studio Tools ▾** $\rightarrow$ **⚙️ ModusFlow Settings...**.
+5. **Right-Click Context Menu**: Right-click the `ModusFlowTextEditor` node and choose **⚙️ ModusFlow Studio & AI Settings...**.
+6. **Browser Console**: Execute `window.modusflowShowSettings()`.
+
+### Configuration Options
+1. **Ollama Server URL (`ModusFlow.OllamaURL`)**: Endpoint for your local Ollama service (defaults to `http://127.0.0.1:11434` or custom LAN IP like `http://192.168.x.x:11434`). Automatically sanitizes whitespace, trailing slashes, and accidental trailing dots.
 2. **Enhancement Model Dropdown (`ModusFlow.OllamaEnhanceModel`)**: Automatically discovers installed models from your Ollama server (e.g. `deepseek-r1`, `dolphin-mistral`, `llama3.2`, `qwen2.5`, etc.) and presents them in a dropdown combo for easy selection.
-3. **Check Status / Connection Test (`ModusFlow.OllamaCheckStatus`)**: A dedicated **"🔍 Check Status / Refresh"** button that immediately probes the endpoint and displays a live badge: `🟢 Online (X models detected)` or `🔴 Offline`.
+3. **Check Status / Connection Test (`ModusFlow.OllamaCheckStatus`)**: Dedicated test button that immediately probes the endpoint and displays a live badge: `🟢 Online (X models detected)` or `🔴 Offline`.
+4. **Cloud LLM Integration**: Configure Cloud Base URL, API Key, and Model ID (OpenRouter, DeepSeek, OpenAI, Groq) for cloud prompt assistance.
+5. **Civitai API Key**: Securely store your Civitai API key for high-resolution LoRA cards and metadata previews.
+6. **Prompts Directory Override**: Specify a custom folder to store prompt presets across different workflows.
 
 ### On-Node Status & Model Modal
 - **Clicking when Offline**: If Ollama was offline or recovering, clicking **✨ Enhance with Ollama (Offline)** runs an immediate live probe and, if still unreachable, opens the diagnostic modal with exact error details and troubleshooting tips.
@@ -200,13 +220,22 @@ The Text Editor is built as the ultimate prompt engineering cockpit in ComfyUI, 
 - **One-Click Auto-Dedupe**: Clicking the `[Fix]` badge instantly eliminates duplicates, normalizes spacing, and displays a toast confirming the clean-up while saving an undo snapshot to prompt history.
 - **Heavy Weight Warning**: Flags weights $>1.6$ to prevent unintentional prompt burning.
 
-### 5. Negative Pedalboard (Tactile Guard Rack)
+### 5. Negative Pedalboard (Tactile Guard Rack) with Style Awareness
 Directly above the Negative prompt box, a hardware-inspired pedalboard rack lets you toggle essential negative protection layers with illuminated active states:
-- **`✦ Quality`**: Toggles baseline quality protection: `(worst quality, low quality, normal quality:1.4)`
-- **`🚫 Anatomy`**: Toggles anatomical and limb deformity protection: `(bad anatomy, bad hands, missing fingers, extra digits:1.3)`
-- **`🎨 3D Guard`**: Toggles CGI / 3D render guard for 2D or photorealistic models: `(cgi, 3d render, cartoon, illustration:1.2)`
-- **`💧 Watermark`**: Toggles watermark, text, and signature suppression: `(watermark, text, signature, username:1.2)`
+- **`✦ Quality`**: Toggles baseline quality protection:
+  - In **Tags** mode: `(worst quality, low quality, normal quality:1.4)`
+  - In **Expressions** mode: `worst quality, low quality, normal quality` (unweighted)
+- **`🚫 Anatomy`**: Toggles anatomical and limb deformity protection:
+  - In **Tags** mode: `(bad anatomy, bad hands, missing fingers, extra digits:1.3)`
+  - In **Expressions** mode: `bad anatomy, bad hands, missing fingers, extra digits` (unweighted)
+- **`🎨 3D Guard`**: Toggles CGI / 3D render guard for 2D or photorealistic models:
+  - In **Tags** mode: `(cgi, 3d render, cartoon, illustration:1.2)`
+  - In **Expressions** mode: `cgi, 3d render, cartoon, illustration` (unweighted)
+- **`💧 Watermark`**: Toggles watermark, text, and signature suppression:
+  - In **Tags** mode: `(watermark, text, signature, username:1.2)`
+  - In **Expressions** mode: `watermark, text, signature, username` (unweighted)
 - **Live State Sync**: The pedalboard buttons automatically illuminate (`active`) when their tags are present in the negative prompt, even if typed manually, and dim when removed.
+- **Clean Disengagement**: Clicking an active pedal button cleanly strips out the guard regardless of whether it was stored in weighted or unweighted syntax.
 
 ### 6. Interactive 2D Color Spectrum Studio & Pigment Resolver
 - **Visual Color Spectrum (`🌈 Color Spectrum`)**: Features a dedicated 2D Saturation-Brightness canvas and continuous rainbow Hue slider directly on the canvas node, the Pop-Out Studio toolbar, and the right-click menu.
@@ -254,8 +283,11 @@ Directly above the Negative prompt box, a hardware-inspired pedalboard rack lets
 - **Attention Spikes**: Tags with weights $> 1.1$ render as luminous bars whose heights indicate the magnitude of the attention spike.
 - **Interactive Inspection**: Hover over any bar segment to see the associated tag and token count.
 
-### 10. Multi-Model Tone Converter
+### 10. Multi-Model Tone Converter & Bidirectional Style Translation
 One-click prompt restructuring tailored to specific diffusion architectures:
+- **`⇄ Style` / `Convert: Tags ↔ Expressions`**: Automatically converts your entire prompt between **Pony/SDXL Tags** and **Flux/SD3 Expressions**:
+  - **Converting to Expressions**: Formats positive tags into fluent descriptive sentences and strips attention weights (e.g., `(worst quality:1.4)` $\rightarrow$ `worst quality`) from the negative prompt to prevent T5 text-encoder artifacts.
+  - **Converting to Tags**: Normalizes descriptive prose into clean comma-delimited visual tags and sets the prompt style to Tags.
 - **✍️ Prosify (Fluent / Natural Language)**: Converts tag soup (`cyberpunk girl, neon lights, rainy street, 8k, cinematic`) into coherent, descriptive natural English sentences tailored for **FLUX.1**, **SD3**, and **Midjourney-style** models.
 - **🏷 Tagify (Booru / Danbooru Tags)**: Converts long descriptive prose into clean, comma-delimited keyword tags with proper weighting for **SDXL**, **SD 1.5**, and **Pony / Illustrious** models.
 
@@ -294,6 +326,21 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
   - **📂 Prompt Selector Dropdown**: Browse and instantly load any saved prompt directly within the studio.
   - **`💾 Save` / `🔄 Update` / `🔃 Refresh`**: Full prompt lifecycle management without switching back to the node.
 - **Dynamic Syntax Theme Switcher**: Change syntax themes (Modus Neon, Cyberpunk 2077, Dracula, Monokai Pro, Nord Frost, Solarized Dark, High Contrast, or Off) live inside the studio with instantaneous backdrop, text, caret, and container color updates.
+- **Font Family Selector (Persistent)**: Choose your preferred typography from a curated font family dropdown:
+  - `Monospace (Default)`: Clean modern system monospace stack (`ui-monospace`, `SFMono-Regular`, `Consolas`, `Monaco`).
+  - `JetBrains Mono`: High-legibility developer font optimized for symbol alignment and tag scanning.
+  - `Fira Code`: Modern programming font with ligature support.
+  - `Consolas`: Classic Windows console font.
+  - `Clean Sans (Inter / System)`: Highly readable proportional sans-serif interface font.
+  - `Editorial Serif`: Literary serif typography (`Georgia`, `Cambria`, `Times New Roman`) for expressive prose writing.
+  - `Readable / Dyslexic`: High-contrast, friendly rounded font (`Comic Neue`, `Chalkboard SE`).
+  - *Persists automatically in browser storage across sessions and reloads.*
+- **Font Size Steppers & Dynamic Zoom (Persistent)**:
+  - **Size Dropdown**: Select exact font sizes from `11px` up to `28px` directly from the toolbar.
+  - **`A-` and `A+` Stepper Buttons**: Instantly step font size down or up in $1\text{px}$ increments.
+  - **Keyboard Shortcuts**: Press `Ctrl + Plus` (`Ctrl + =`) to zoom in, `Ctrl + Minus` to zoom out, or `Ctrl + 0` to reset to default $14\text{px}$.
+  - **Mouse Wheel Zoom**: Hold `Ctrl` (or `Cmd` on Mac) and scroll your mouse wheel anywhere inside the positive or negative textareas for fluid real-time scaling.
+  - *Pixel-perfect syntax alignment*: Both the text editing layer and the syntax highlighting layer scale in lockstep with zero offset drift.
 - **100% Live 2-Way Connected**: Works directly with the underlying node on canvas. Any edits, tags, weight changes, or presets applied inside the Pop-Out Studio update the canvas node in real-time, preserving all execution wires, conditioning outputs, and workflow states.
 - **Draggable & Resizable**: Grab the top header bar to move the studio anywhere on screen or drag it to a secondary monitor. Resize freely from any edge or corner with automatic geometry memory.
 - **Fullscreen Immersion (`⇱`)**: Maximize into a full-viewport distraction-free writing environment ($100vw \times 100vh$).
@@ -301,6 +348,23 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
 - **Direct Generation Queue (`🚀 Queue` / `Ctrl+Enter`)**: Queue ComfyUI generations straight from the studio without closing or switching back to the canvas.
 - **Integrated Studio Ribbon**: Access all studio tools directly from the window toolbar: Tag Studio mode, Aesthetic Ribbon, Prosify, Tagify, Variation Grid, Ollama AI Enhance, LoRA Deck, Dedupe & Prettify, Color Spectrum, and Find & Replace.
 - **Dock Back (`✕ Dock`)**: Seamlessly close the pop-out window and return to the standard node view.
+
+### 16. Right-Click Ollama Selection Refiner (`🤖 Ollama: Refine Selection ▾`)
+- **Surgical Prompt Inpainting with Local AI**: Instead of re-generating an entire prompt, select any word or phrase (or simply right-click with the cursor placed inside a word) in either the Pop-Out Studio or canvas textareas to invoke the local Ollama refinement engine.
+- **Dark Glassmorphic Context Menu**: A dedicated floating menu appears displaying the target text snippet and 7 specialized transformation actions:
+  - **`✨ Expand & Elaborate`**: Adds rich sensory textures, lighting nuances, and material details to the highlighted concept.
+  - **`🔄 Visual Synonyms & Alternatives...`**: Queries Ollama for 5–8 vivid visual alternatives and opens an interactive floating picker modal:
+    - **One-Click Replace**: Audition options and click any chip to replace the selection in-place.
+    - **`⚄ Wrap All as Dynamic Choice`**: Packages the original term and all alternatives into a `{original|alt1|alt2}` block in one click.
+    - **`📋 Copy to Clipboard`**: Copies any alternative without modifying the editor.
+  - **`⚄ Wrap as Dynamic Choice`**: Instantly transforms the selection into a `{original|alt1|alt2}` permutation block directly in the prompt text.
+  - **`⚡ Intensify & Elevate`**: Elevates mild descriptors into dramatic, evocative, high-impact phrasing.
+  - **`✂️ Simplify & Compact`**: Prunes overly verbose descriptions down to crisp, essential keywords.
+  - **`✍️ Prosify (Fluent Prose)`**: Converts tag-like selections into flowing natural language clauses tuned for FLUX.1 and SD3.
+  - **`🏷️ Tagify (Keyword Tags)`**: Breaks descriptive phrases down into comma-separated visual tags tuned for SDXL and Pony Diffusion.
+- **Prompt Style & Model Awareness**: System prompts adapt dynamically based on your active **Prompt Style** (`Tags` vs `Expressions`) and communicate directly with your selected local Ollama model.
+- **Smart Word Snapping**: If no text is explicitly highlighted, right-clicking automatically snaps to the word or token under the cursor, eliminating tedious selection dragging.
+- **Works Universally**: Fully supported across both Positive and Negative prompts in both the Pop-Out Studio and the standard ComfyUI canvas node.
 
 ## Configuration
 

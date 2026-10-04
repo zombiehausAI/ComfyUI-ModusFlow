@@ -126,6 +126,7 @@ async def enhance_prompt(request):
         body = await request.json()
         prompt_text = body.get("prompt", "").strip()
         model = body.get("model", "").strip()
+        style = body.get("style", "tags").strip().lower()
 
         if not prompt_text:
             return web.json_response({"success": False, "message": "Prompt is empty"})
@@ -150,13 +151,23 @@ async def enhance_prompt(request):
         if not model:
             return web.json_response({"success": False, "message": "No Ollama model specified or available"})
 
-        system_prompt = (
-            "You are an expert AI prompt engineer specializing in visual image generation (Stable Diffusion, FLUX, Midjourney). "
-            "Your task is to enrich and enhance the user's prompt by adding vivid, atmospheric, lighting, textural, and sensory details. "
-            "Maintain the core subject and intent of the original prompt. "
-            "Return ONLY the enhanced prompt as a clean comma-separated list of descriptive visual tags or descriptive phrases. "
-            "Do NOT include explanations, quotes, preambles, or markdown formatting."
-        )
+        if "expression" in style:
+            system_prompt = (
+                "You are an expert AI prompt engineer specializing in modern natural language diffusion models (FLUX.1, SD3, Midjourney). "
+                "Your task is to enrich and enhance the user's prompt into a vivid, descriptive natural English paragraph (fluent sentences). "
+                "Describe the subject, environment, lighting, camera angle, textures, and sensory nuances in rich natural prose without using comma tag soup or attention weights like (word:1.2). "
+                "Maintain the core subject and intent of the original prompt. "
+                "Return ONLY the enhanced prompt as natural descriptive sentences. "
+                "Do NOT include explanations, quotes, preambles, or markdown formatting."
+            )
+        else:
+            system_prompt = (
+                "You are an expert AI prompt engineer specializing in tag-based visual image models (SDXL, Pony Diffusion, Illustrious, Anime/Danbooru). "
+                "Your task is to enrich and enhance the user's prompt by adding vivid, high-quality visual keyword tags. "
+                "Maintain the core subject and intent of the original prompt. "
+                "Return ONLY the enhanced prompt as a clean comma-separated list of descriptive visual tags (e.g. 1girl, solo, masterpiece, cinematic lighting, detailed background). "
+                "Do NOT include explanations, quotes, preambles, or markdown formatting."
+            )
 
         payload = {
             "model": model,
@@ -182,6 +193,149 @@ async def enhance_prompt(request):
         cleaned = cleaned.strip('"\'')
 
         return web.json_response({"success": True, "enhanced": cleaned, "model": model})
+    except requests.exceptions.Timeout:
+        return web.json_response({"success": False, "message": "Ollama request timed out"})
+    except requests.exceptions.ConnectionError:
+        return web.json_response({"success": False, "message": "Could not connect to Ollama server"})
+    except Exception as e:
+        return web.json_response({"success": False, "message": str(e)})
+
+@server.PromptServer.instance.routes.post("/modusflow/refine_selection")
+async def refine_selection(request):
+    """Refine a selected phrase or word using Ollama with targeted actions."""
+    try:
+        body = await request.json()
+        selected_text = body.get("text", "").strip()
+        action = body.get("action", "expand").strip().lower()
+        context = body.get("context", "").strip()
+        model = body.get("model", "").strip()
+        style = body.get("style", "tags").strip().lower()
+
+        if not selected_text:
+            return web.json_response({"success": False, "message": "No text selected"})
+
+        ollama_url = sanitize_ollama_url(settings.get('ollama_url', 'http://127.0.0.1:11434'))
+        timeout_val = settings.get('ollama_timeout', 60)
+
+        # Fallback to first available model if none provided
+        if not model:
+            for test_url in [ollama_url, "http://127.0.0.1:11434"]:
+                try:
+                    tags_resp = requests.get(f"{test_url}/api/tags", timeout=3.0)
+                    if tags_resp.status_code == 200:
+                        models_list = tags_resp.json().get("models", [])
+                        if models_list:
+                            model = models_list[0].get("name", "")
+                            ollama_url = test_url
+                            break
+                except Exception:
+                    pass
+
+        if not model:
+            return web.json_response({"success": False, "message": "No Ollama model specified or available"})
+
+        context_hint = f" Surrounding prompt context: \"{context}\"." if context else ""
+
+        if action == "expand":
+            if "expression" in style:
+                system_prompt = (
+                    "You are an expert AI prompt engineer. "
+                    "Enrich and expand the user's selected word or phrase with evocative sensory, lighting, material, and visual details in natural descriptive English prose suitable for FLUX.1/SD3. "
+                    "Do NOT use comma tag lists or numerical attention weights. "
+                    "Maintain the core subject and intent. Output ONLY the replacement text without quotes or explanations."
+                )
+            else:
+                system_prompt = (
+                    "You are an expert AI prompt engineer for SDXL/Pony image generation. "
+                    "Enrich the user's selected word or phrase by adding high-impact visual modifier tags. "
+                    "Output ONLY the replacement text as a clean comma-separated sequence of visual keyword tags without quotes or explanations."
+                )
+            user_prompt = f"Expand this phrase:{context_hint} \"{selected_text}\""
+
+        elif action in ("synonyms", "wrap_choice"):
+            system_prompt = (
+                "You are a creative visual vocabulary assistant for image generation prompts. "
+                "Provide 4 to 5 evocative visual synonyms or alternative phrasing for the given concept. "
+                "Output ONLY a clean comma-separated list of alternatives (e.g. option1, option2, option3, option4) without numbering, quotes, or conversational filler."
+            )
+            user_prompt = f"Provide 4-5 visual alternatives for:{context_hint} \"{selected_text}\""
+
+        elif action == "intensify":
+            system_prompt = (
+                "You are an expert prompt crafter. "
+                "Rephrase the user's selected text to be dramatically more intense, striking, majestic, and visually powerful. "
+                "Output ONLY the intensified replacement text without quotes or explanations."
+            )
+            user_prompt = f"Intensify this phrase:{context_hint} \"{selected_text}\""
+
+        elif action == "simplify":
+            system_prompt = (
+                "You are an expert prompt editor. "
+                "Boil down the user's selected text into its most concise, essential, high-impact core visual keywords, removing redundant filler words. "
+                "Output ONLY the simplified replacement text without quotes or explanations."
+            )
+            user_prompt = f"Simplify this phrase:{context_hint} \"{selected_text}\""
+
+        elif action == "prosify":
+            system_prompt = (
+                "You are an expert prompt engineer for FLUX.1 and SD3. "
+                "Rewrite the user's selected tags into a fluent, cohesive, natural English description without parentheses or weights. "
+                "Output ONLY the fluent prose replacement without quotes or explanations."
+            )
+            user_prompt = f"Convert to natural prose:{context_hint} \"{selected_text}\""
+
+        elif action == "tagify":
+            system_prompt = (
+                "You are an expert prompt engineer for SDXL and Pony Diffusion. "
+                "Convert the user's selected prose into clean, comma-separated visual keyword tags. "
+                "Output ONLY the comma-separated tags without quotes or explanations."
+            )
+            user_prompt = f"Convert to keyword tags:{context_hint} \"{selected_text}\""
+
+        else:
+            system_prompt = "Refine the user's selected image prompt phrase. Output ONLY the refined text."
+            user_prompt = f"Refine this:{context_hint} \"{selected_text}\""
+
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            "stream": False,
+            "options": {
+                "temperature": 0.7,
+                "num_predict": 180
+            }
+        }
+
+        response = requests.post(f"{ollama_url}/api/chat", json=payload, timeout=timeout_val)
+        response.raise_for_status()
+        data = response.json()
+        raw_content = data.get("message", {}).get("content", "").strip()
+
+        cleaned = re.sub(r"^```(?:markdown|text)?\n?", "", raw_content, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\n?```$", "", cleaned).strip()
+        cleaned = cleaned.strip('"\'')
+
+        # For synonyms/wrap_choice, parse into list
+        options = []
+        if action in ("synonyms", "wrap_choice"):
+            raw_opts = re.split(r"[\n,]+", cleaned)
+            for opt in raw_opts:
+                t = re.sub(r"^\d+[\.\)]\s*", "", opt).strip().strip('"\'')
+                if t and t.lower() != selected_text.lower():
+                    options.append(t)
+            if not options and cleaned:
+                options = [cleaned]
+
+        return web.json_response({
+            "success": True,
+            "result": cleaned,
+            "options": options,
+            "action": action,
+            "model": model
+        })
     except requests.exceptions.Timeout:
         return web.json_response({"success": False, "message": "Ollama request timed out"})
     except requests.exceptions.ConnectionError:

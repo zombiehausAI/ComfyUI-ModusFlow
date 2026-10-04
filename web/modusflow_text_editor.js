@@ -638,8 +638,8 @@ function injectSyntaxStyles() {
             background: transparent;
             color: transparent;
             caret-color: #ffffff;
-            font-family: ui-monospace, SFMono-Regular, monospace;
-            font-size: 14px;
+            font-family: var(--mf-popout-font-family, ui-monospace, SFMono-Regular, monospace);
+            font-size: var(--mf-popout-font-size, 14px);
             line-height: 1.5;
             padding: 12px;
             border: none;
@@ -658,8 +658,8 @@ function injectSyntaxStyles() {
             right: 0;
             bottom: 0;
             padding: 12px;
-            font-family: ui-monospace, SFMono-Regular, monospace;
-            font-size: 14px;
+            font-family: var(--mf-popout-font-family, ui-monospace, SFMono-Regular, monospace);
+            font-size: var(--mf-popout-font-size, 14px);
             line-height: 1.5;
             white-space: pre-wrap;
             word-wrap: break-word;
@@ -2528,15 +2528,21 @@ async function enhancePromptWithOllama(node, btn) {
         model = status.models.length ? status.models[0] : "llama3.2";
     }
 
+    const styleWidget = node.widgets?.find(w => w.name === "prompt_style");
+    const styleVal = styleWidget?.value || "Tags (SDXL / Pony)";
+    const isExpressions = styleVal.toLowerCase().includes("expression");
+    const styleParam = isExpressions ? "expressions" : "tags";
+    const styleLabel = isExpressions ? "Expressions" : "Tags";
+
     const origLabel = btn?.name || "✨ Enhance with Ollama";
-    if (btn) btn.name = "⏳ Enhancing (" + model + ")...";
+    if (btn) btn.name = "⏳ Enhancing [" + styleLabel + "] (" + model + ")...";
     app.graph?.setDirtyCanvas(true, true);
 
     try {
         const resp = await fetch("/modusflow/enhance_prompt", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: pw.value, model: model })
+            body: JSON.stringify({ prompt: pw.value, model: model, style: styleParam })
         });
         const res = await resp.json();
         if (res.success && res.enhanced) {
@@ -2544,8 +2550,8 @@ async function enhancePromptWithOllama(node, btn) {
             pw.value = res.enhanced;
             if (pw.inputEl) pw.inputEl.value = res.enhanced;
             pw._updateSyntaxHighlight?.();
-            pushPromptHistory(node, "✨ Enhanced with " + (res.model || model));
-            showStudioToast("Prompt enhanced with " + (res.model || model) + "!");
+            pushPromptHistory(node, "✨ Enhanced [" + styleLabel + "] with " + (res.model || model));
+            showStudioToast("Prompt enhanced [" + styleLabel + "] with " + (res.model || model) + "!");
             app.graph?.setDirtyCanvas(true, true);
         } else {
             showStudioToast("Ollama enhancement failed: " + (res.message || "Unknown error"), "error");
@@ -2557,6 +2563,552 @@ async function enhancePromptWithOllama(node, btn) {
         app.graph?.setDirtyCanvas(true, true);
     }
 }
+
+// ── Ollama Selection / Highlight Refinement & Synonyms Picker ────────────────
+async function executeSelectionRefinement(action, selected, start, end, ta, widget, node, onInputCallback) {
+    let status = await checkOllamaStatus(false);
+    if (!status.available) {
+        status = await checkOllamaStatus(true);
+    }
+    if (!status.available) {
+        showStudioToast("Ollama server is offline. Check settings.", "error");
+        showOllamaStatusModal(node);
+        return;
+    }
+
+    let model = app.ui?.settings?.getSettingValue?.("ModusFlow.OllamaEnhanceModel");
+    if (!model || !model.trim() || model === "-- none --") {
+        model = status.models.length ? status.models[0] : "llama3.2";
+    }
+
+    const styleWidget = node.widgets?.find(w => w.name === "prompt_style");
+    const styleVal = (styleWidget?.value || "Tags (SDXL / Pony)").toLowerCase();
+    const styleParam = styleVal.includes("expression") ? "expressions" : "tags";
+
+    const labelMap = {
+        expand: "Expand Details",
+        synonyms: "Visual Synonyms",
+        wrap_choice: "Wrap Choices",
+        intensify: "Intensify",
+        simplify: "Simplify",
+        prosify: "Prosify",
+        tagify: "Tagify"
+    };
+
+    const actionLabel = labelMap[action] || action;
+    const previewText = selected.length > 20 ? selected.slice(0, 18) + "..." : selected;
+    showStudioToast(`⏳ Ollama [${actionLabel}]: "${previewText}"...`);
+
+    const fullText = ta.value || "";
+    const context = fullText.slice(Math.max(0, start - 120), Math.min(fullText.length, end + 120));
+
+    try {
+        const resp = await fetch("/modusflow/refine_selection", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                text: selected,
+                action: action,
+                context: context,
+                model: model,
+                style: styleParam
+            })
+        });
+        const res = await resp.json();
+        if (!res.success) {
+            showStudioToast("Ollama refinement failed: " + (res.message || "Unknown error"), "error");
+            return;
+        }
+
+        if (action === "synonyms") {
+            const rawOpts = res.options && res.options.length ? res.options : [res.result];
+            showSynonymsPickerModal(selected, rawOpts, start, end, ta, widget, node, onInputCallback);
+            return;
+        }
+
+        let replacement = res.result;
+        if (action === "wrap_choice") {
+            const rawOpts = res.options && res.options.length ? res.options : [res.result];
+            const filteredOpts = [selected, ...rawOpts.filter(o => o.toLowerCase() !== selected.toLowerCase())].slice(0, 4);
+            replacement = `{${filteredOpts.join("|")}}`;
+        }
+
+        pushPromptHistory(node, `Pre-Refine (${actionLabel}): ${selected}`);
+        ta.setRangeText(replacement, start, end, "select");
+        if (widget) {
+            widget.value = ta.value;
+            if (widget.inputEl && widget.inputEl !== ta) widget.inputEl.value = ta.value;
+            widget._updateSyntaxHighlight?.();
+        }
+        pushPromptHistory(node, `Refined (${actionLabel}): ${selected}`);
+        showStudioToast(`✓ Refined [${actionLabel}] with ${res.model || model}!`);
+        if (typeof onInputCallback === "function") {
+            onInputCallback();
+        }
+        app.graph?.setDirtyCanvas(true, true);
+    } catch (err) {
+        showStudioToast("Error refining with Ollama: " + err.message, "error");
+    }
+}
+
+function showSynonymsPickerModal(selected, options, start, end, ta, widget, node, onInputCallback) {
+    const existing = document.getElementById("modusflow-synonyms-modal");
+    if (existing) existing.remove();
+
+    const overlay = document.createElement("div");
+    overlay.id = "modusflow-synonyms-modal";
+    overlay.className = "modusflow-modal-overlay";
+    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 10009; backdrop-filter: blur(4px);";
+
+    const dialog = document.createElement("div");
+    dialog.style.cssText = "background: #181825; border: 1px solid #45475a; border-radius: 12px; padding: 18px; width: 480px; max-width: 92vw; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.75); color: #cdd6f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;";
+
+    const header = document.createElement("div");
+    header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #313244; padding-bottom: 8px;";
+    header.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <h3 style="margin: 0; font-size: 15px; color: #89b4fa; display: flex; align-items: center; gap: 6px;">🔄 Visual Alternatives</h3>
+            <span style="font-size: 11px; background: rgba(137, 180, 250, 0.15); color: #89b4fa; padding: 1px 7px; border-radius: 10px;">"${escapeHtml(selected)}"</span>
+        </div>
+    `;
+
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "✕";
+    closeBtn.style.cssText = "background: none; border: none; color: #6c7086; font-size: 18px; cursor: pointer;";
+    closeBtn.onclick = () => overlay.remove();
+    header.appendChild(closeBtn);
+    dialog.appendChild(header);
+
+    const hint = document.createElement("div");
+    hint.style.cssText = "font-size: 11px; color: #a6adc8;";
+    hint.textContent = "Click any alternative below to replace in-place, or wrap all into a dynamic choice:";
+    dialog.appendChild(hint);
+
+    const list = document.createElement("div");
+    list.style.cssText = "display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto;";
+
+    const replaceText = (replacement, desc) => {
+        pushPromptHistory(node, `Pre-Alternative: ${selected}`);
+        ta.setRangeText(replacement, start, end, "select");
+        if (widget) {
+            widget.value = ta.value;
+            if (widget.inputEl && widget.inputEl !== ta) widget.inputEl.value = ta.value;
+            widget._updateSyntaxHighlight?.();
+        }
+        pushPromptHistory(node, `${desc}: ${replacement}`);
+        showStudioToast(`Applied: ${replacement}`);
+        overlay.remove();
+        if (typeof onInputCallback === "function") onInputCallback();
+        app.graph?.setDirtyCanvas(true, true);
+    };
+
+    options.forEach(opt => {
+        const btn = document.createElement("button");
+        btn.style.cssText = "background: #1e1e2e; border: 1px solid #313244; border-radius: 6px; padding: 8px 12px; color: #cdd6f4; font-size: 12px; text-align: left; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; justify-content: space-between;";
+        btn.innerHTML = `<span>${escapeHtml(opt)}</span><span style="font-size: 10px; color: #6c7086;">Click to swap</span>`;
+        btn.onmouseenter = () => { btn.style.borderColor = "#89b4fa"; btn.style.background = "#2a2b3d"; btn.style.color = "#89b4fa"; };
+        btn.onmouseleave = () => { btn.style.borderColor = "#313244"; btn.style.background = "#1e1e2e"; btn.style.color = "#cdd6f4"; };
+        btn.onclick = () => replaceText(opt, "Alternative");
+        list.appendChild(btn);
+    });
+    dialog.appendChild(list);
+
+    const footer = document.createElement("div");
+    footer.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #313244; padding-top: 10px; margin-top: 4px;";
+
+    const wrapAllBtn = document.createElement("button");
+    wrapAllBtn.style.cssText = "background: rgba(137, 180, 250, 0.15); border: 1px solid #89b4fa; border-radius: 6px; padding: 6px 12px; color: #89b4fa; font-size: 11px; font-weight: 600; cursor: pointer;";
+    wrapAllBtn.innerHTML = `⚄ Wrap All as Choice {${options.length + 1} items}`;
+    wrapAllBtn.onclick = () => {
+        const allOpts = [selected, ...options.filter(o => o.toLowerCase() !== selected.toLowerCase())];
+        replaceText(`{${allOpts.join("|")}}`, "Wrapped Choices");
+    };
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.style.cssText = "background: #1e1e2e; border: 1px solid #313244; border-radius: 6px; padding: 6px 12px; color: #a6adc8; font-size: 11px; cursor: pointer;";
+    cancelBtn.onclick = () => overlay.remove();
+
+    footer.appendChild(wrapAllBtn);
+    footer.appendChild(cancelBtn);
+    dialog.appendChild(footer);
+
+    overlay.appendChild(dialog);
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+}
+
+function showOllamaSelectionMenu(x, y, selected, start, end, ta, widget, node, onInputCallback) {
+    const existing = document.getElementById("modusflow-selection-menu");
+    if (existing) existing.remove();
+
+    const menu = document.createElement("div");
+    menu.id = "modusflow-selection-menu";
+    menu.style.cssText = "position: fixed; z-index: 10008; background: #181825; border: 1px solid #45475a; border-radius: 9px; box-shadow: 0 16px 40px rgba(0,0,0,0.8), 0 0 1px 1px rgba(255,255,255,0.1); padding: 6px; min-width: 270px; color: #cdd6f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px;";
+
+    let posX = Math.min(window.innerWidth - 290, Math.max(10, x));
+    let posY = Math.min(window.innerHeight - 380, Math.max(10, y));
+    menu.style.left = `${posX}px`;
+    menu.style.top = `${posY}px`;
+
+    const preview = selected.length > 22 ? selected.slice(0, 19) + "..." : selected;
+
+    const head = document.createElement("div");
+    head.style.cssText = "padding: 5px 8px 6px 8px; border-bottom: 1px solid #313244; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; gap: 8px;";
+    head.innerHTML = `
+        <div style="font-weight: 700; color: #89b4fa; display: flex; align-items: center; gap: 6px; font-size: 12px;">
+            <span>🤖 Ollama: Refine Selection</span>
+        </div>
+        <span style="font-size: 11px; color: #f5c2e7; background: rgba(245, 194, 231, 0.12); padding: 1px 6px; border-radius: 4px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">"${escapeHtml(preview)}"</span>
+    `;
+    menu.appendChild(head);
+
+    const items = [
+        { action: "expand", icon: "✨", title: "Expand & Elaborate", desc: "Sensory, lighting & material details" },
+        { action: "synonyms", icon: "🔄", title: "Visual Synonyms...", desc: "Browse 4-5 alternative choices" },
+        { action: "wrap_choice", icon: "⚄", title: "Wrap as Dynamic Choice", desc: "Format as {original | opt1 | opt2}" },
+        { action: "intensify", icon: "⚡", title: "Intensify & Elevate", desc: "Dramatic, striking & powerful phrasing" },
+        { action: "simplify", icon: "✂️", title: "Simplify & Compact", desc: "Boil down to core visual keywords" },
+        { action: "prosify", icon: "✍️", title: "Prosify (Fluent Sentences)", desc: "Natural English prose for Flux/SD3" },
+        { action: "tagify", icon: "🏷️", title: "Tagify (Keyword Tags)", desc: "Comma visual tags for SDXL/Pony" }
+    ];
+
+    items.forEach(it => {
+        const itemEl = document.createElement("div");
+        itemEl.style.cssText = "padding: 6px 8px; border-radius: 5px; cursor: pointer; display: flex; flex-direction: column; gap: 1px; transition: all 0.12s ease;";
+        itemEl.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #cdd6f4;">
+                <span>${it.icon}</span>
+                <span>${it.title}</span>
+            </div>
+            <div style="font-size: 10px; color: #6c7086; padding-left: 20px;">${it.desc}</div>
+        `;
+        itemEl.onmouseenter = () => {
+            itemEl.style.background = "#313244";
+            itemEl.querySelector("span:last-child").style.color = "#89b4fa";
+        };
+        itemEl.onmouseleave = () => {
+            itemEl.style.background = "transparent";
+            itemEl.querySelector("span:last-child").style.color = "#6c7086";
+        };
+        itemEl.onclick = (e) => {
+            e.stopPropagation();
+            menu.remove();
+            executeSelectionRefinement(it.action, selected, start, end, ta, widget, node, onInputCallback);
+        };
+        menu.appendChild(itemEl);
+    });
+
+    const closeListener = (e) => {
+        if (!menu.contains(e.target)) {
+            menu.remove();
+            document.removeEventListener("pointerdown", closeListener, true);
+        }
+    };
+    setTimeout(() => {
+        document.addEventListener("pointerdown", closeListener, true);
+    }, 10);
+
+    document.body.appendChild(menu);
+}
+
+function attachOllamaSelectionContextMenu(widgetOrEl, widget, node, onInputCallback) {
+    const bind = (el) => {
+        if (!el || el._hasOllamaContextMenu) return;
+        el._hasOllamaContextMenu = true;
+        el.addEventListener("contextmenu", (e) => {
+            let start = el.selectionStart;
+            let end = el.selectionEnd;
+            let selected = (el.value || "").slice(start, end).trim();
+
+            if (!selected) {
+                let wStart = start;
+                while (wStart > 0 && /[^\s,\n]/.test(el.value[wStart - 1])) wStart--;
+                let wEnd = end;
+                while (wEnd < el.value.length && /[^\s,\n]/.test(el.value[wEnd])) wEnd++;
+                selected = (el.value || "").slice(wStart, wEnd).trim();
+                if (selected) {
+                    start = wStart;
+                    end = wEnd;
+                }
+            }
+
+            if (!selected) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+            showOllamaSelectionMenu(e.clientX, e.clientY, selected, start, end, el, widget, node, onInputCallback);
+        });
+    };
+
+    if (widgetOrEl instanceof HTMLElement) {
+        bind(widgetOrEl);
+    } else if (widgetOrEl?.inputEl) {
+        bind(widgetOrEl.inputEl);
+    }
+    requestAnimationFrame(() => {
+        const el = widgetOrEl instanceof HTMLElement ? widgetOrEl : (widgetOrEl?.inputEl || widgetOrEl?.element);
+        if (el) bind(el);
+    });
+}
+
+// ── Convert Prompt Style (Tags ↔ Expressions / Pony ↔ Flux) ─────────────────
+function convertPromptStyle(node, targetStyle) {
+    const pw = node.widgets?.find(w => w.name === "positive");
+    const nw = node.widgets?.find(w => w.name === "negative");
+    const styleWidget = node.widgets?.find(w => w.name === "prompt_style");
+    if (!pw) return;
+
+    if (!targetStyle) {
+        const cur = (styleWidget?.value || "").toLowerCase();
+        targetStyle = cur.includes("expression") ? "Tags (SDXL / Pony)" : "Expressions (Flux / SD3)";
+    }
+
+    const isTargetExpressions = targetStyle.toLowerCase().includes("expression");
+
+    if (isTargetExpressions) {
+        prosifyPositivePrompt(node);
+        if (nw && nw.value) {
+            let neg = nw.value;
+            neg = neg.replace(/\(([^():\r\n]+):\s*\d+(?:\.\d+)?\)/g, "$1");
+            nw.value = neg;
+            if (nw.inputEl) nw.inputEl.value = neg;
+            nw._updateSyntaxHighlight?.();
+        }
+        if (styleWidget) styleWidget.value = "Expressions (Flux / SD3)";
+        node.properties = node.properties || {};
+        node.properties["prompt_style"] = "Expressions (Flux / SD3)";
+        node._popoutSyncStyle?.("Expressions (Flux / SD3)");
+        node._popoutSyncFromNode?.();
+        showStudioToast("Converted to Expressions style (Flux/SD3 natural language)");
+    } else {
+        tagifyPositivePrompt(node);
+        if (styleWidget) styleWidget.value = "Tags (SDXL / Pony)";
+        node.properties = node.properties || {};
+        node.properties["prompt_style"] = "Tags (SDXL / Pony)";
+        node._popoutSyncStyle?.("Tags (SDXL / Pony)");
+        node._popoutSyncFromNode?.();
+        showStudioToast("Converted to Tags style (SDXL/Pony weighted tags)");
+    }
+    app.graph?.setDirtyCanvas(true, true);
+}
+
+// ── Dedicated ModusFlow Studio & AI Settings Modal ───────────────────────────
+async function showModusFlowSettingsModal(node) {
+    const existing = document.getElementById("modusflow-settings-modal");
+    if (existing) existing.remove();
+
+    const overlay = document.createElement("div");
+    overlay.id = "modusflow-settings-modal";
+    overlay.className = "modusflow-modal-overlay";
+    overlay.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 10006; backdrop-filter: blur(5px);";
+
+    const dialog = document.createElement("div");
+    dialog.style.cssText = "background: #181825; border: 1px solid #45475a; border-radius: 12px; padding: 22px; width: 620px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 24px 60px rgba(0,0,0,0.8); color: #cdd6f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; overflow-y: auto;";
+
+    const header = document.createElement("div");
+    header.style.cssText = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #313244; padding-bottom: 10px;";
+    header.innerHTML = '<h3 style="margin: 0; font-size: 16px; color: #89b4fa; display: flex; align-items: center; gap: 8px;">⚙️ <span>ModusFlow Studio &amp; AI Settings</span></h3>';
+
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "✕";
+    closeBtn.style.cssText = "background: none; border: none; color: #6c7086; font-size: 18px; cursor: pointer; padding: 2px 6px; border-radius: 4px;";
+    closeBtn.onclick = () => overlay.remove();
+    header.appendChild(closeBtn);
+    dialog.appendChild(header);
+
+    let cfg = {
+        ollama_url: "http://127.0.0.1:11434",
+        ollama_timeout: 120,
+        cloud_api_url: "https://openrouter.ai/api/v1",
+        cloud_api_key: "",
+        cloud_model: "deepseek/deepseek-chat",
+        civitai_api_key: "",
+        prompts_save_directory: ""
+    };
+    try {
+        const resp = await fetch("/modusflow/get_config");
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data.success && data.data) cfg = Object.assign(cfg, data.data);
+        }
+    } catch (_) {}
+
+    const body = document.createElement("div");
+    body.style.cssText = "display: flex; flex-direction: column; gap: 14px;";
+
+    const mkSection = (title) => {
+        const sec = document.createElement("div");
+        sec.style.cssText = "font-size: 11px; font-weight: 700; color: #89b4fa; text-transform: uppercase; letter-spacing: 0.6px; border-bottom: 1px solid #313244; padding-bottom: 4px; margin-top: 4px;";
+        sec.textContent = title;
+        body.appendChild(sec);
+    };
+
+    const mkField = (label, el, hint = "") => {
+        const row = document.createElement("div");
+        row.style.cssText = "display: flex; flex-direction: column; gap: 4px;";
+        const lbl = document.createElement("label");
+        lbl.style.cssText = "font-size: 12px; font-weight: 600; color: #cdd6f4;";
+        lbl.textContent = label;
+        row.appendChild(lbl);
+        row.appendChild(el);
+        if (hint) {
+            const h = document.createElement("div");
+            h.style.cssText = "font-size: 11px; color: #6c7086; line-height: 1.3;";
+            h.textContent = hint;
+            row.appendChild(h);
+        }
+        body.appendChild(row);
+        return el;
+    };
+
+    const mkInput = (val, placeholder = "", type = "text") => {
+        const input = document.createElement("input");
+        input.type = type;
+        input.value = val || "";
+        input.placeholder = placeholder;
+        input.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 6px; padding: 7px 10px; color: #cdd6f4; font-size: 12px; outline: none;";
+        input.onfocus = () => { input.style.borderColor = "#89b4fa"; };
+        input.onblur = () => { input.style.borderColor = "#313244"; };
+        return input;
+    };
+
+    // 1. Local Ollama Settings
+    mkSection("1. Local Ollama AI LLM");
+    const ollamaUrlInput = mkField("Local Ollama Server URL", mkInput(cfg.ollama_url, "http://127.0.0.1:11434"), "Endpoint for local Ollama instance (default: http://127.0.0.1:11434)");
+
+    const modelRow = document.createElement("div");
+    modelRow.style.cssText = "display: flex; gap: 8px; align-items: flex-end;";
+
+    const selWrap = document.createElement("div");
+    selWrap.style.cssText = "flex: 1; display: flex; flex-direction: column; gap: 4px;";
+    const selLbl = document.createElement("label");
+    selLbl.style.cssText = "font-size: 12px; font-weight: 600; color: #cdd6f4;";
+    selLbl.textContent = "Enhancement Model";
+    selWrap.appendChild(selLbl);
+
+    const modelSel = document.createElement("select");
+    modelSel.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 6px; padding: 7px 10px; color: #cdd6f4; font-size: 12px; outline: none; cursor: pointer;";
+    selWrap.appendChild(modelSel);
+    modelRow.appendChild(selWrap);
+
+    const testBtn = document.createElement("button");
+    testBtn.textContent = "🔍 Test / Refresh";
+    testBtn.style.cssText = "background: #313244; border: 1px solid #45475a; border-radius: 6px; padding: 8px 12px; color: #89b4fa; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;";
+    modelRow.appendChild(testBtn);
+    body.appendChild(modelRow);
+
+    const statusPill = document.createElement("div");
+    statusPill.style.cssText = "font-size: 11px; padding: 5px 8px; border-radius: 5px; background: rgba(17, 17, 27, 0.8); border: 1px solid #313244; color: #a6adc8;";
+    statusPill.textContent = "Checking Ollama status...";
+    body.appendChild(statusPill);
+
+    const updateOllamaUi = (st) => {
+        modelSel.innerHTML = "";
+        const curModel = app.ui?.settings?.getSettingValue?.("ModusFlow.OllamaEnhanceModel") || "";
+        if (st.available && st.models?.length) {
+            st.models.forEach(m => {
+                const opt = document.createElement("option");
+                opt.value = m;
+                opt.textContent = m;
+                if (m === curModel) opt.selected = true;
+                modelSel.appendChild(opt);
+            });
+            statusPill.innerHTML = `<span style="color: #a6e3a1; font-weight: bold;">🟢 Online</span> · Connected to ${escapeHtml(st.url)} (${st.models.length} models)`;
+        } else {
+            const opt = document.createElement("option");
+            opt.value = "";
+            opt.textContent = "-- No models detected --";
+            modelSel.appendChild(opt);
+            statusPill.innerHTML = `<span style="color: #f38ba8; font-weight: bold;">🔴 Offline</span> · ${escapeHtml(st.error || 'Connection failed')}`;
+        }
+    };
+
+    checkOllamaStatus(false).then(updateOllamaUi);
+    testBtn.onclick = async () => {
+        testBtn.textContent = "⏳ Testing...";
+        testBtn.disabled = true;
+        _ollamaUrl = (ollamaUrlInput.value || "").trim().replace(/\/+$/, "");
+        const st = await checkOllamaStatus(true);
+        updateOllamaUi(st);
+        testBtn.textContent = "🔍 Test / Refresh";
+        testBtn.disabled = false;
+    };
+
+    const timeoutInput = mkField("Ollama Timeout (seconds)", mkInput(cfg.ollama_timeout || 120, "120", "number"), "Timeout before canceling long LLM completions.");
+
+    // 2. Cloud LLM Settings
+    mkSection("2. Cloud LLMs (OpenAI, OpenRouter, Groq, DeepSeek)");
+    const cloudUrlInput = mkField("Cloud API Base URL", mkInput(cfg.cloud_api_url, "https://openrouter.ai/api/v1"), "OpenAI-compatible chat completions endpoint");
+    const cloudKeyInput = mkField("Cloud API Key", mkInput(cfg.cloud_api_key, "sk-...", "password"), "API key for OpenRouter or OpenAI cloud models");
+    const cloudModelInput = mkField("Default Cloud Model", mkInput(cfg.cloud_model, "deepseek/deepseek-chat"), "e.g. deepseek/deepseek-chat, anthropic/claude-3.5-sonnet, openai/gpt-4o-mini");
+
+    // 3. Studio & Storage Defaults
+    mkSection("3. Prompt Studio Defaults & Storage");
+    const civitaiKeyInput = mkField("Civitai API Key", mkInput(cfg.civitai_api_key, "API Key"), "Used for high-resolution LoRA cards and metadata previews");
+    const saveDirInput = mkField("Prompts Directory Override", mkInput(cfg.prompts_save_directory, "Leave blank for default: BASE_DIR/saved_prompts"), "Custom storage folder for prompt presets");
+
+    const footer = document.createElement("div");
+    footer.style.cssText = "display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #313244; padding-top: 12px; margin-top: 8px;";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.style.cssText = "background: #1e1e2e; border: 1px solid #313244; border-radius: 6px; padding: 7px 14px; color: #a6adc8; font-size: 12px; cursor: pointer;";
+    cancelBtn.onclick = () => overlay.remove();
+
+    const saveBtn = document.createElement("button");
+    saveBtn.textContent = "💾 Save & Apply Settings";
+    saveBtn.style.cssText = "background: #89b4fa; border: none; border-radius: 6px; padding: 7px 16px; color: #11111b; font-size: 12px; font-weight: 700; cursor: pointer;";
+
+    saveBtn.onclick = async () => {
+        saveBtn.textContent = "⏳ Saving...";
+        saveBtn.disabled = true;
+
+        const payload = {
+            ollama_url: (ollamaUrlInput.value || "").trim().replace(/\/+$/, ""),
+            ollama_timeout: parseInt(timeoutInput.value, 10) || 120,
+            cloud_api_url: (cloudUrlInput.value || "").trim().replace(/\/+$/, ""),
+            cloud_api_key: (cloudKeyInput.value || "").trim(),
+            cloud_model: (cloudModelInput.value || "").trim(),
+            civitai_api_key: (civitaiKeyInput.value || "").trim(),
+            prompts_save_directory: (saveDirInput.value || "").trim()
+        };
+
+        if (modelSel.value) {
+            app.ui?.settings?.setSettingValue?.("ModusFlow.OllamaEnhanceModel", modelSel.value);
+        }
+
+        try {
+            const resp = await fetch("/modusflow/save_config", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const res = await resp.json();
+            if (res.success) {
+                showStudioToast("Settings saved successfully!");
+                overlay.remove();
+            } else {
+                showStudioToast("Failed to save settings: " + res.message, "error");
+            }
+        } catch (err) {
+            showStudioToast("Save error: " + err.message, "error");
+        } finally {
+            saveBtn.textContent = "💾 Save & Apply Settings";
+            saveBtn.disabled = false;
+        }
+    };
+
+    footer.appendChild(cancelBtn);
+    footer.appendChild(saveBtn);
+
+    dialog.appendChild(body);
+    dialog.appendChild(footer);
+    overlay.appendChild(dialog);
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+}
+window.modusflowShowSettings = showModusFlowSettingsModal;
 
 // ── Quick Chips Modal ────────────────────────────────────────────────────────
 const QUICK_CHIPS_DATA = {
@@ -3258,6 +3810,7 @@ app.registerExtension({
                     attachSyntaxHighlighter(positiveWidget, node);
                     attachAutocomplete(positiveWidget, node);
                     setupTagStudio(positiveWidget, node);
+                    attachOllamaSelectionContextMenu(positiveWidget, positiveWidget, node);
                 }
                 if (negativeWidget) {
                     negativeWidget.label = "Negative";
@@ -3265,6 +3818,7 @@ app.registerExtension({
                     attachSyntaxHighlighter(negativeWidget, node);
                     attachAutocomplete(negativeWidget, node);
                     attachNegativePedalboard(negativeWidget, node);
+                    attachOllamaSelectionContextMenu(negativeWidget, negativeWidget, node);
                 }
 
                 // ── Negative widget height control ────────────────────────────────
@@ -3288,6 +3842,22 @@ app.registerExtension({
                                      (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_syntax_theme")) ||
                                      "Modus Neon (Default)";
                 node._currentSyntaxTheme = initialTheme;
+
+                // ── Prompt Style combo (Tags vs Expressions) ─────────────────────
+                const initialStyle = node.properties?.["prompt_style"] || "Tags (SDXL / Pony)";
+                const styleWidget = node.addWidget(
+                    "combo",
+                    "prompt_style",
+                    initialStyle,
+                    (value) => {
+                        node.properties = node.properties || {};
+                        node.properties["prompt_style"] = value;
+                        node._popoutSyncStyle?.(value);
+                        app.graph?.setDirtyCanvas(true, true);
+                    },
+                    { values: ["Tags (SDXL / Pony)", "Expressions (Flux / SD3)"] }
+                );
+                styleWidget.label = "Prompt Style";
 
                 const themeWidget = node.addWidget(
                     "combo",
@@ -3318,14 +3888,16 @@ app.registerExtension({
                 );
                 categoryWidget.label = "Category";
 
-                // Move theme, type, and category filters to appear right before saved_prompt
+                // Move style, theme, type, and category filters to appear right before saved_prompt
                 if (dropdownWidget) {
                     const dropIdx = node.widgets.indexOf(dropdownWidget);
+                    const styleIdx = node.widgets.indexOf(styleWidget);
                     const themeIdx = node.widgets.indexOf(themeWidget);
                     const typeIdx  = node.widgets.indexOf(typeWidget);
                     const catIdx   = node.widgets.indexOf(categoryWidget);
                     if (dropIdx >= 0) {
                         const items = [
+                            { w: styleWidget, idx: styleIdx },
                             { w: themeWidget, idx: themeIdx },
                             { w: typeWidget,  idx: typeIdx },
                             { w: categoryWidget, idx: catIdx }
@@ -3336,7 +3908,7 @@ app.registerExtension({
                         }
 
                         const newDropIdx = node.widgets.indexOf(dropdownWidget);
-                        node.widgets.splice(newDropIdx, 0, themeWidget, typeWidget, categoryWidget);
+                        node.widgets.splice(newDropIdx, 0, styleWidget, themeWidget, typeWidget, categoryWidget);
                     }
                 }
 
@@ -3393,7 +3965,7 @@ app.registerExtension({
                 attachImageDropHandlers(node);
 
                 // ── Initial size ──────────────────────────────────────────────────
-                node.size = [560, 580];
+                node.size = [560, 605];
                 node.resizable = true;
 
                 requestAnimationFrame(() => refreshPrompts(node));
@@ -3409,6 +3981,14 @@ app.registerExtension({
                     {
                         content: "⛶ Pop Out Prompt Studio (Floating / Fullscreen)",
                         callback: () => showPopOutStudio(this)
+                    },
+                    {
+                        content: "⇄ Convert Style: Tags ↔ Expressions (Pony ↔ Flux)",
+                        callback: () => convertPromptStyle(this)
+                    },
+                    {
+                        content: "⚙️ ModusFlow Studio & AI Settings...",
+                        callback: () => showModusFlowSettingsModal(this)
                     },
                     {
                         content: "🤖 Ollama Status & Model Settings...",
@@ -3497,6 +4077,9 @@ app.registerExtension({
                     if (tw && tw.value) {
                         setNodeTheme(this, tw.value);
                     }
+                if (this.properties?.prompt_style) {
+                    const sw = this.widgets?.find(w => w.name === "prompt_style");
+                    if (sw) sw.value = this.properties.prompt_style;
                 }
 
                 const vals = config?.widgets_values;
@@ -3514,12 +4097,14 @@ app.registerExtension({
                     attachSyntaxHighlighter(pw, this);
                     attachAutocomplete(pw, this);
                     setupTagStudio(pw, this);
+                    attachOllamaSelectionContextMenu(pw, pw, this);
                 }
                 if (nw) {
                     attachCommentShortcuts(nw);
                     attachSyntaxHighlighter(nw, this);
                     attachAutocomplete(nw, this);
                     attachNegativePedalboard(nw, this);
+                    attachOllamaSelectionContextMenu(nw, nw, this);
                 }
             };
 
@@ -5182,28 +5767,32 @@ app.registerExtension({
                     label: "✦ Quality",
                     tooltip: "Toggle baseline quality guard (worst quality, low quality, normal quality)",
                     matchTag: "worst quality",
-                    text: "(worst quality, low quality, normal quality:1.4)"
+                    text: "(worst quality, low quality, normal quality:1.4)",
+                    unweightedText: "worst quality, low quality, normal quality"
                 },
                 {
                     id: "anatomy",
                     label: "🚫 Anatomy",
                     tooltip: "Toggle anatomical & hand deformity guard",
                     matchTag: "bad anatomy",
-                    text: "(bad anatomy, bad hands, missing fingers, extra digits:1.3)"
+                    text: "(bad anatomy, bad hands, missing fingers, extra digits:1.3)",
+                    unweightedText: "bad anatomy, bad hands, missing fingers, extra digits"
                 },
                 {
                     id: "cgi",
                     label: "🎨 3D Guard",
                     tooltip: "Toggle 3D render / CGI guard for 2D or realistic styles",
                     matchTag: "3d render",
-                    text: "(cgi, 3d render, cartoon, illustration:1.2)"
+                    text: "(cgi, 3d render, cartoon, illustration:1.2)",
+                    unweightedText: "cgi, 3d render, cartoon, illustration"
                 },
                 {
                     id: "watermark",
                     label: "💧 Watermark",
                     tooltip: "Toggle watermark, text, and signature suppression",
                     matchTag: "watermark",
-                    text: "(watermark, text, signature, username:1.2)"
+                    text: "(watermark, text, signature, username:1.2)",
+                    unweightedText: "watermark, text, signature, username"
                 }
             ];
 
@@ -5238,8 +5827,13 @@ app.registerExtension({
                             let cur = (ta.value || "").trim();
                             const hasTag = cur.toLowerCase().includes(mod.matchTag.toLowerCase());
 
+                            const styleVal = (node.widgets?.find(w => w.name === "prompt_style")?.value || "").toLowerCase();
+                            const isExpressions = styleVal.includes("expression");
+                            const insertText = isExpressions ? mod.unweightedText : mod.text;
+
                             if (hasTag) {
                                 cur = cur.replace(mod.text, "");
+                                cur = cur.replace(mod.unweightedText, "");
                                 const escTag = mod.matchTag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                                 cur = cur.replace(new RegExp(`\\([^)]*${escTag}[^)]*\\)`, "gi"), "");
                                 cur = cur.replace(/,\s*,+/g, ", ").replace(/^,\s*/, "").replace(/,\s*$/, "").trim();
@@ -5247,8 +5841,8 @@ app.registerExtension({
                             } else {
                                 if (cur && !cur.endsWith(",")) cur += ", ";
                                 else if (cur && cur.endsWith(",")) cur += " ";
-                                cur += mod.text;
-                                showStudioToast(`Engaged [${mod.label}] guard`);
+                                cur += insertText;
+                                showStudioToast(`Engaged [${mod.label}] guard${isExpressions ? ' (unweighted)' : ''}`);
                             }
 
                             ta.value = cur;
@@ -6093,6 +6687,7 @@ app.registerExtension({
                     {
                         title: "Prose & Flow",
                         items: [
+                            { label: "🔄 Convert: Tags ↔ Expressions", action: () => convertPromptStyle(node) },
                             { label: "✍️ Prosify (Fluent Prose)", action: () => prosifyPositivePrompt(node) },
                             { label: "🏷 Tagify (Tags & Weights)", action: () => tagifyPositivePrompt(node) },
                             { label: "⇄ Swap Positive / Negative", action: () => swapPositiveNegative(node) },
@@ -6110,6 +6705,12 @@ app.registerExtension({
                             { label: "🔍 Find & Replace (Ctrl+F)", action: () => showFindReplaceBar(node) },
                             { label: "📜 Prompt History", action: () => showHistoryDialog(node) },
                             { label: "🔃 Refresh Saved Prompts", action: () => refreshPrompts(node) }
+                        ]
+                    },
+                    {
+                        title: "Configuration",
+                        items: [
+                            { label: "⚙️ ModusFlow Settings...", action: () => showModusFlowSettingsModal(node) }
                         ]
                     }
                 ];
@@ -6382,6 +6983,41 @@ app.registerExtension({
                 divSep.style.cssText = "width: 1px; height: 18px; background: #313244; margin: 0 4px;";
                 toolbar.appendChild(divSep);
 
+                // Prompt Style selector in Popout
+                const styleSel = document.createElement("select");
+                styleSel.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 5px; color: #fab387; font-size: 11px; font-weight: 600; padding: 3px 6px; outline: none; cursor: pointer;";
+                styleSel.title = "Prompt Style: Tags (SDXL/Pony) vs Expressions (Flux/SD3)";
+                const styleOpt1 = document.createElement("option");
+                styleOpt1.value = "Tags (SDXL / Pony)";
+                styleOpt1.textContent = "🏷️ Tags (Pony)";
+                const styleOpt2 = document.createElement("option");
+                styleOpt2.value = "Expressions (Flux / SD3)";
+                styleOpt2.textContent = "✍️ Expressions (Flux)";
+                const curStyle = node.widgets?.find(w => w.name === "prompt_style")?.value || "Tags (SDXL / Pony)";
+                if (curStyle.includes("Expression")) styleOpt2.selected = true;
+                else styleOpt1.selected = true;
+                styleSel.appendChild(styleOpt1);
+                styleSel.appendChild(styleOpt2);
+                styleSel.onchange = () => {
+                    const sw = node.widgets?.find(w => w.name === "prompt_style");
+                    if (sw) sw.value = styleSel.value;
+                    node.properties = node.properties || {};
+                    node.properties["prompt_style"] = styleSel.value;
+                    showStudioToast(`Prompt style: ${styleSel.value}`);
+                    app.graph?.setDirtyCanvas(true, true);
+                };
+                node._popoutSyncStyle = (val) => {
+                    if (styleSel) {
+                        styleSel.value = val.includes("Expression") ? "Expressions (Flux / SD3)" : "Tags (SDXL / Pony)";
+                    }
+                };
+                toolbar.appendChild(styleSel);
+
+                addToolBtn("⇄ Style", "Convert prompt between Tags (Pony) and Expressions (Flux)", () => {
+                    convertPromptStyle(node);
+                    syncFromNode();
+                });
+
                 const themeSel = document.createElement("select");
                 themeSel.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 5px; color: #cdd6f4; font-size: 11px; padding: 3px 6px; outline: none; cursor: pointer;";
                 getThemeOptions().forEach(t => {
@@ -6398,6 +7034,127 @@ app.registerExtension({
                     updatePopoutBackdrops();
                 };
                 toolbar.appendChild(themeSel);
+
+                // ── Typography Controls (Font Family & Font Size with Persistence) ──
+                const POPOUT_FONT_FAMILIES = {
+                    "Monospace": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+                    "JetBrains Mono": "'JetBrains Mono', Consolas, Monaco, monospace",
+                    "Fira Code": "'Fira Code', 'Cascadia Code', Consolas, monospace",
+                    "Consolas": "'Cascadia Code', Consolas, 'Courier New', monospace",
+                    "Clean Sans (Inter)": "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+                    "Editorial Serif": "'Georgia', 'Cambria', 'Times New Roman', serif",
+                    "Readable / Dyslexic": "'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', sans-serif"
+                };
+
+                let savedFontKey = "Monospace";
+                try {
+                    const sf = localStorage.getItem("modusflow_popout_font_family");
+                    if (sf && POPOUT_FONT_FAMILIES[sf]) savedFontKey = sf;
+                } catch (_) {}
+
+                let savedFontSize = 14;
+                try {
+                    const rawSz = localStorage.getItem("modusflow_popout_font_size");
+                    if (rawSz) savedFontSize = parseInt(rawSz, 10) || 14;
+                } catch (_) {}
+                savedFontSize = Math.max(10, Math.min(32, savedFontSize));
+
+                const fontSel = document.createElement("select");
+                fontSel.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 5px; color: #cdd6f4; font-size: 11px; padding: 3px 6px; outline: none; cursor: pointer; max-width: 140px;";
+                fontSel.title = "Select Popout Editor Font Family (Persists across sessions)";
+                Object.keys(POPOUT_FONT_FAMILIES).forEach(k => {
+                    const opt = document.createElement("option");
+                    opt.value = k;
+                    opt.textContent = k;
+                    if (k === savedFontKey) opt.selected = true;
+                    fontSel.appendChild(opt);
+                });
+
+                const sizeGroup = document.createElement("div");
+                sizeGroup.style.cssText = "display: inline-flex; align-items: center; background: #11111b; border: 1px solid #313244; border-radius: 5px; overflow: hidden;";
+
+                const sizeDecBtn = document.createElement("button");
+                sizeDecBtn.className = "modusflow-popout-btn";
+                sizeDecBtn.style.cssText = "border: none; border-radius: 0; padding: 3px 6px; font-size: 11px; font-weight: bold; background: transparent;";
+                sizeDecBtn.textContent = "A-";
+                sizeDecBtn.title = "Decrease font size (Ctrl + Minus)";
+
+                const sizeSel = document.createElement("select");
+                sizeSel.style.cssText = "background: transparent; border: none; color: #89b4fa; font-size: 11px; font-weight: 600; padding: 3px 4px; outline: none; cursor: pointer;";
+                sizeSel.title = "Popout Font Size (Persists across sessions, Ctrl+Wheel to zoom)";
+                [11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 28].forEach(sz => {
+                    const opt = document.createElement("option");
+                    opt.value = sz;
+                    opt.textContent = `${sz}px`;
+                    if (sz === savedFontSize) opt.selected = true;
+                    sizeSel.appendChild(opt);
+                });
+
+                const sizeIncBtn = document.createElement("button");
+                sizeIncBtn.className = "modusflow-popout-btn";
+                sizeIncBtn.style.cssText = "border: none; border-radius: 0; padding: 3px 6px; font-size: 11px; font-weight: bold; background: transparent;";
+                sizeIncBtn.textContent = "A+";
+                sizeIncBtn.title = "Increase font size (Ctrl + Plus)";
+
+                function applyTypography(sz, fontKey) {
+                    savedFontSize = Math.max(10, Math.min(32, sz));
+                    savedFontKey = POPOUT_FONT_FAMILIES[fontKey] ? fontKey : "Monospace";
+                    const cssFamily = POPOUT_FONT_FAMILIES[savedFontKey];
+
+                    win.style.setProperty("--mf-popout-font-size", `${savedFontSize}px`);
+                    win.style.setProperty("--mf-popout-font-family", cssFamily);
+
+                    if (posBackdrop) {
+                        posBackdrop.style.fontSize = `${savedFontSize}px`;
+                        posBackdrop.style.fontFamily = cssFamily;
+                    }
+                    if (negBackdrop) {
+                        negBackdrop.style.fontSize = `${savedFontSize}px`;
+                        negBackdrop.style.fontFamily = cssFamily;
+                    }
+                    if (posTa) {
+                        posTa.style.fontSize = `${savedFontSize}px`;
+                        posTa.style.fontFamily = cssFamily;
+                    }
+                    if (negTa) {
+                        negTa.style.fontSize = `${savedFontSize}px`;
+                        negTa.style.fontFamily = cssFamily;
+                    }
+
+                    if (sizeSel && sizeSel.value !== String(savedFontSize)) {
+                        sizeSel.value = String(savedFontSize);
+                        if (!sizeSel.value) {
+                            const customOpt = document.createElement("option");
+                            customOpt.value = String(savedFontSize);
+                            customOpt.textContent = `${savedFontSize}px`;
+                            customOpt.selected = true;
+                            sizeSel.appendChild(customOpt);
+                        }
+                    }
+                    if (fontSel && fontSel.value !== savedFontKey) {
+                        fontSel.value = savedFontKey;
+                    }
+
+                    try {
+                        localStorage.setItem("modusflow_popout_font_size", String(savedFontSize));
+                        localStorage.setItem("modusflow_popout_font_family", savedFontKey);
+                    } catch (_) {}
+
+                    onPosInput();
+                    onNegInput();
+                }
+
+                fontSel.onchange = () => applyTypography(savedFontSize, fontSel.value);
+                sizeSel.onchange = () => applyTypography(parseInt(sizeSel.value, 10) || 14, savedFontKey);
+                sizeDecBtn.onclick = (e) => { e.preventDefault(); applyTypography(savedFontSize - 1, savedFontKey); };
+                sizeIncBtn.onclick = (e) => { e.preventDefault(); applyTypography(savedFontSize + 1, savedFontKey); };
+
+                sizeGroup.appendChild(sizeDecBtn);
+                sizeGroup.appendChild(sizeSel);
+                sizeGroup.appendChild(sizeIncBtn);
+
+                toolbar.appendChild(fontSel);
+                toolbar.appendChild(sizeGroup);
 
                 const tagStudioBtn = addToolBtn("🏷 Tag Studio", "Toggle Tag Matrix / Chip Flow", () => togglePopoutTagStudio());
                 addToolBtn("🎞 Aesthetic", "Visual Aesthetic Ribbon (Optics, Films, Rigs)", () => showAestheticRibbonModal(node));
@@ -6433,6 +7190,8 @@ app.registerExtension({
                     syncFromNode();
                 });
                 addToolBtn("🔍 Find", "Find & Replace (Ctrl+F)", () => showFindReplaceBar(node));
+
+                addToolBtn("⚙️ Settings", "ModusFlow Studio & AI Settings", () => showModusFlowSettingsModal(node));
 
                 win.appendChild(toolbar);
 
@@ -6517,8 +7276,14 @@ app.registerExtension({
                     btn.onclick = () => {
                         let cur = (negTa.value || "").trim();
                         const hasTag = cur.toLowerCase().includes(mod.matchTag.toLowerCase());
+
+                        const styleVal = (node.widgets?.find(w => w.name === "prompt_style")?.value || "").toLowerCase();
+                        const isExpressions = styleVal.includes("expression");
+                        const insertText = isExpressions ? mod.unweightedText : mod.text;
+
                         if (hasTag) {
                             cur = cur.replace(mod.text, "");
+                            cur = cur.replace(mod.unweightedText, "");
                             const escTag = mod.matchTag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                             cur = cur.replace(new RegExp(`\\([^)]*${escTag}[^)]*\\)`, "gi"), "");
                             cur = cur.replace(/,\s*,+/g, ", ").replace(/^,\s*/, "").replace(/,\s*$/, "").trim();
@@ -6526,8 +7291,8 @@ app.registerExtension({
                         } else {
                             if (cur && !cur.endsWith(",")) cur += ", ";
                             else if (cur && cur.endsWith(",")) cur += " ";
-                            cur += mod.text;
-                            showStudioToast(`Engaged [${mod.label}] guard`);
+                            cur += insertText;
+                            showStudioToast(`Engaged [${mod.label}] guard${isExpressions ? ' (unweighted)' : ''}`);
                         }
                         negTa.value = cur;
                         onNegInput();
@@ -6718,6 +7483,24 @@ app.registerExtension({
                     negBackdrop.scrollLeft = negTa.scrollLeft;
                 });
 
+                attachOllamaSelectionContextMenu(posTa, pw, node, onPosInput);
+                attachOllamaSelectionContextMenu(negTa, nw, node, onNegInput);
+
+                // Ctrl+MouseWheel font zoom listener
+                const handleZoomWheel = (e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (e.deltaY < 0) {
+                            applyTypography(savedFontSize + 1, savedFontKey);
+                        } else if (e.deltaY > 0) {
+                            applyTypography(savedFontSize - 1, savedFontKey);
+                        }
+                    }
+                };
+                posTa.addEventListener("wheel", handleZoomWheel, { passive: false });
+                negTa.addEventListener("wheel", handleZoomWheel, { passive: false });
+
                 function syncFromNode() {
                     posTa.value = pw.value || "";
                     negTa.value = nw.value || "";
@@ -6743,6 +7526,15 @@ app.registerExtension({
                     } else if (e.key === "f" && (e.ctrlKey || e.metaKey)) {
                         e.preventDefault();
                         showFindReplaceBar(node);
+                    } else if ((e.key === "=" || e.key === "+") && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        applyTypography(savedFontSize + 1, savedFontKey);
+                    } else if ((e.key === "-" || e.key === "_") && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        applyTypography(savedFontSize - 1, savedFontKey);
+                    } else if (e.key === "0" && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        applyTypography(14, savedFontKey);
                     } else if (e.key === "Escape" && !win.classList.contains("is-minimized")) {
                         if (document.activeElement !== posTa && document.activeElement !== negTa) {
                             closePopout();
@@ -6833,6 +7625,7 @@ app.registerExtension({
                             height: win.style.height
                         };
                     }
+                    node._popoutSyncStyle = null;
                     node._popoutSyncPromptsDropdown = null;
                     node._popoutSyncFromNode = null;
                     win.remove();
@@ -6844,6 +7637,7 @@ app.registerExtension({
                 }
 
                 document.body.appendChild(win);
+                applyTypography(savedFontSize, savedFontKey);
                 updatePopoutBackdrops();
                 onPosInput();
                 onNegInput();
