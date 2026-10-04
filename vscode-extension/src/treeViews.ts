@@ -21,7 +21,7 @@ export class PromptsTreeProvider implements vscode.TreeDataProvider<PromptTreeIt
             const categories = new Map<string, PromptFileItem[]>();
 
             for (const item of list) {
-                const cat = (item.category || "Uncategorized").trim();
+                const cat = (item.category || "General").trim() || "General";
                 if (!categories.has(cat)) categories.set(cat, []);
                 categories.get(cat)!.push(item);
             }
@@ -45,8 +45,10 @@ export class PromptsTreeProvider implements vscode.TreeDataProvider<PromptTreeIt
                     vscode.TreeItemCollapsibleState.None,
                     "promptFile"
                 );
+                item.filename = p.filename;
+                item.promptCategory = p.category || "General";
                 item.description = p.positive ? p.positive.substring(0, 35) + "..." : "";
-                item.tooltip = `Positive:\n${p.positive || ""}\n\nNegative:\n${p.negative || ""}`;
+                item.tooltip = `Category: ${p.category || "General"}\n\nPositive:\n${p.positive || ""}\n\nNegative:\n${p.negative || ""}`;
                 item.command = {
                     command: "modusflow.openPromptFile",
                     title: "Open Prompt",
@@ -61,6 +63,9 @@ export class PromptsTreeProvider implements vscode.TreeDataProvider<PromptTreeIt
 }
 
 export class PromptTreeItem extends vscode.TreeItem {
+    public filename?: string;
+    public promptCategory?: string;
+
     constructor(
         public readonly label: string,
         public readonly collapsibleState: vscode.TreeItemCollapsibleState,
