@@ -331,7 +331,7 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
 - **Nested `{this|this}` Inside Lists**: Full recursive syntax resolution supports nested choices inside choice blocks, wildcards inside lists, and variables inside choices (e.g., `{red|{blue|cyan}}`, or a list row containing `portrait with {cybernetic|organic} enhancements`).
 - **CASE Statements (`{$var: pattern => result | * => default}`)**: Multi-branch switch/case statements that cleanly map variable values to prompt branches using pipe delimiters (`|`) and fat arrows (`=>`):
   - **Exact Value Matching**: `{$season: spring => cherry blossoms | summer => sunflower field | autumn => golden leaves | winter => snowy pines | * => lush meadow}`
-  - **Multiple Matches Per Branch**: Comma-separated patterns allow grouping values: `{$weather: rain, storm, drizzle => rain poncho, wet streets | * => casual jacket}`
+  - **Multiple Matches Per Branch (Commas or Choice Sets)**: Group values either with comma-separated patterns (`futanari, man => things`) or dynamic choice sets (`{futanari|man} => things`). Both formats match if the variable equals any of the listed options.
   - **Relational Conditions in Cases**: Supports numerical and lexicographical comparisons: `{$level: >= 50 => grandmaster warrior | >= 20 => veteran knight | * => novice adventurer}`
   - **Default / Wildcard Fallbacks**: Any of `*`, `default`, `_`, or `else` acts as the fallback when no prior patterns match. If omitted and no branch matches, resolves to an empty string.
   - **Nested Dynamic Choices & Wildcards**: Branches fully support nested choice blocks, shuffles, wildcards, and ternaries: `{$season: spring => {cherry|peach} blossoms | winter => {snowy peaks|ice glaze}}`

@@ -457,7 +457,23 @@ class ModusFlowTextEditor:
                                             default_val = result_str
                                         continue
 
-                                    sub_patterns = [p.strip() for p in patterns_str.split(",") if p.strip()]
+                                    sub_patterns = []
+                                    for p in patterns_str.split(","):
+                                        p = p.strip()
+                                        if not p:
+                                            continue
+                                        # Support dynamic choice syntax in patterns: {opt1|opt2} => ...
+                                        m_choice = re.match(r"^\{([^}]+)\}$", p)
+                                        if m_choice:
+                                            sub_patterns.extend([c.strip() for c in m_choice.group(1).split("|") if c.strip()])
+                                        else:
+                                            choice_matches = list(re.finditer(r"\{([^}]+)\}", p))
+                                            if choice_matches:
+                                                parts = [c.strip() for c in choice_matches[0].group(1).split("|") if c.strip()]
+                                                for part in parts:
+                                                    sub_patterns.append(p[:choice_matches[0].start()] + part + p[choice_matches[0].end():])
+                                            else:
+                                                sub_patterns.append(p)
                                     branch_matched = False
                                     for pat in sub_patterns:
                                         m_op = re.match(r"^(==|!=|>=|<=|>|<)\s*(.*)$", pat)
