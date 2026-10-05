@@ -1447,39 +1447,64 @@ class ModusFlowTextEditor:
                                         eval_target = ModusFlowTextEditor.resolve_dynamic_prompts(eval_target, seed=seed, cycle_index=cycle_index, initial_vars=variables)
                                     var_val = eval_target.strip()
 
-                                # Split cases_part by '|' at depth 0, ensuring '|' is a branch separator (followed by '=>')
-                                branches = []
-                                cur_b = []
+                                # Split cases_part into branches (checking if '|' separates branches at depth 0)
+                                has_pipe_separator = False
                                 d = 0
                                 cp_len = len(cases_part)
-                                for c_idx, ch in enumerate(cases_part):
-                                    if ch == "{":
-                                        d += 1
-                                        cur_b.append(ch)
-                                    elif ch == "}":
-                                        d -= 1
-                                        cur_b.append(ch)
-                                    elif (ch == "|" or ch == "\n") and d == 0:
-                                        # Check if this '|' or newline separates a branch (has '=>' ahead at depth 0 before the next branch)
-                                        has_arrow_ahead = False
+                                for idx, c in enumerate(cases_part):
+                                    if c == "{": d += 1
+                                    elif c == "}": d -= 1
+                                    elif c == "|" and d == 0:
                                         sub_d = 0
-                                        for f_idx in range(c_idx + 1, cp_len):
+                                        for f_idx in range(idx + 1, cp_len):
                                             f_ch = cases_part[f_idx]
                                             if f_ch == "{": sub_d += 1
                                             elif f_ch == "}": sub_d -= 1
-                                            elif sub_d == 0:
-                                                if cases_part[f_idx:f_idx+2] == "=>":
-                                                    has_arrow_ahead = True
-                                                    break
-                                        if has_arrow_ahead:
+                                            elif sub_d == 0 and cases_part[f_idx:f_idx+2] == "=>":
+                                                has_pipe_separator = True
+                                                break
+                                        if has_pipe_separator:
+                                            break
+
+                                branches = []
+                                cur_b = []
+                                d = 0
+
+                                if has_pipe_separator:
+                                    for idx, ch in enumerate(cases_part):
+                                        if ch == "{":
+                                            d += 1; cur_b.append(ch)
+                                        elif ch == "}":
+                                            d -= 1; cur_b.append(ch)
+                                        elif ch == "|" and d == 0:
                                             branches.append("".join(cur_b).strip())
                                             cur_b = []
                                         else:
                                             cur_b.append(ch)
-                                    else:
-                                        cur_b.append(ch)
-                                if cur_b:
-                                    branches.append("".join(cur_b).strip())
+                                    if cur_b:
+                                        branches.append("".join(cur_b).strip())
+                                else:
+                                    lines = cases_part.splitlines(keepends=True)
+                                    cur_lines = []
+                                    for line in lines:
+                                        has_arrow_at_depth0 = False
+                                        sub_d = 0
+                                        for l_idx in range(len(line) - 1):
+                                            c = line[l_idx]
+                                            if c == "{": sub_d += 1
+                                            elif c == "}": sub_d -= 1
+                                            elif sub_d == 0 and line[l_idx:l_idx+2] == "=>":
+                                                has_arrow_at_depth0 = True
+                                                break
+
+                                        if has_arrow_at_depth0 and cur_lines:
+                                            branches.append("".join(cur_lines).strip())
+                                            cur_lines = [line]
+                                        else:
+                                            cur_lines.append(line)
+
+                                    if cur_lines:
+                                        branches.append("".join(cur_lines).strip())
 
                                 matched_branch_val = None
                                 default_val = None
