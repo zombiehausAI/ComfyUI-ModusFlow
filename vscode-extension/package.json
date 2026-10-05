@@ -2,7 +2,7 @@
   "name": "modusflow-prompt-studio",
   "displayName": "ModusFlow Prompt Studio",
   "description": "Rich prompt engineering studio for ComfyUI: live node sync, syntax highlighting, wildcards, LoRA autocomplete, and local Ollama AI enhancement.",
-  "version": "1.0.1-dev.3",
+  "version": "1.0.1-dev.4",
   "publisher": "zombiehaus",
   "license": "MIT",
   "repository": {
