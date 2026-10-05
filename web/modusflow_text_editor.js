@@ -471,7 +471,8 @@ function injectSyntaxStyles() {
             box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.1);
             max-height: 230px;
             overflow-y: auto;
-            z-index: 100030;
+            z-index: 100050 !important;
+            pointer-events: auto !important;
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
             display: none;
             box-sizing: border-box;
@@ -592,8 +593,10 @@ function injectSyntaxStyles() {
             overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             color: #cdd6f4;
-            min-width: 650px;
-            min-height: 480px;
+            min-width: min(650px, calc(100vw - 20px));
+            min-height: min(480px, calc(100vh - 20px));
+            max-width: calc(100vw - 20px);
+            max-height: calc(100vh - 20px);
             resize: both;
             box-sizing: border-box;
         }
@@ -687,7 +690,7 @@ function injectSyntaxStyles() {
             min-height: 0;
             border: 1px solid #313244;
             border-radius: 8px;
-            overflow: hidden;
+            overflow: visible;
             background: #181825;
         }
         .modusflow-popout-ta {
@@ -1815,13 +1818,18 @@ function fetchWildcardList(force = false) {
         });
 }
 
+let _fetchingWildcards = false;
+let _fetchingLoras = false;
+
 function fetchLoraList(force = false) {
     if (_cachedLoras && !force) return Promise.resolve(_cachedLoras);
+    if (_fetchingLoras) return Promise.resolve(_cachedLoras || []);
+    _fetchingLoras = true;
     return fetch("/modusflow/get_loras")
         .then(r => r.json())
         .then(data => {
             if (data.success && Array.isArray(data.data)) {
-                _cachedLoras = data.data.map(name => name.replace(/\.(safetensors|pt|ckpt|bin)$/i, ""));
+                _cachedLoras = data.data.map(name => name.replace(/\.(safetensors|pt|ckpt|bin)$/i, "").replace(/\\/g, "/"));
             } else {
                 _cachedLoras = [];
             }
@@ -1830,6 +1838,9 @@ function fetchLoraList(force = false) {
         .catch(err => {
             console.debug("[ModusFlow Autocomplete] LoRA fetch:", err.message);
             return _cachedLoras || [];
+        })
+        .finally(() => {
+            _fetchingLoras = false;
         });
 }
 
@@ -1933,12 +1944,16 @@ function detectTrigger(text, cursor) {
     }
 
     // 5. LoRA tag: <lora: or <l
-    const loraMatch = sub.match(/(?:^|[\s,.:;!?([{\"])(<(?:lora:)?([a-zA-Z0-9_.\/-]*))$/i);
+    const loraMatch = sub.match(/(?:^|[\s,.:;!?([{\"])(<(?:lora:)?([a-zA-Z0-9_.\/\\-]*))$/i);
     if (loraMatch) {
+        let q = (loraMatch[2] || "").replace(/\\/g, "/");
+        if (/^l(ora)?$/i.test(q) && !loraMatch[1].includes(":")) {
+            q = "";
+        }
         return {
             type: "lora",
             fullToken: loraMatch[1],
-            query: loraMatch[2] || "",
+            query: q,
             replaceStart: cursor - loraMatch[1].length,
             replaceEnd: cursor
         };
@@ -2097,7 +2112,9 @@ function attachAutocomplete(widget, node) {
 
     let attempts = 0;
     const bind = () => {
-        const ta = widget.inputEl || widget.element;
+        const ta = (widget instanceof HTMLElement && widget.tagName === "TEXTAREA")
+            ? widget
+            : (widget?.inputEl || widget?.element);
         if (!ta || !ta.parentElement) {
             if (attempts++ < 30) requestAnimationFrame(bind);
             return;
@@ -2225,7 +2242,9 @@ function attachAutocomplete(widget, node) {
             if (!currentTrigger) return;
             const replacement = formatReplacement(item, currentTrigger.type);
             ta.setRangeText(replacement, currentTrigger.replaceStart, currentTrigger.replaceEnd, "end");
-            widget.value = ta.value;
+            if (widget && 'value' in widget && widget !== ta) {
+                widget.value = ta.value;
+            }
             ta.dispatchEvent(new Event("input", { bubbles: true }));
             closeMenu();
         }
@@ -2237,12 +2256,12 @@ function attachAutocomplete(widget, node) {
                 return;
             }
 
-            if (trigger.type === "wildcard" && !_cachedWildcards) {
-                fetchWildcardList().then(() => checkTriggerAndSuggest());
+            if (trigger.type === "wildcard" && (!_cachedWildcards || _cachedWildcards.length === 0) && !_fetchingWildcards) {
+                fetchWildcardList(true).then(() => checkTriggerAndSuggest());
                 return;
             }
-            if (trigger.type === "lora" && !_cachedLoras) {
-                fetchLoraList().then(() => checkTriggerAndSuggest());
+            if (trigger.type === "lora" && (!_cachedLoras || _cachedLoras.length === 0) && !_fetchingLoras) {
+                fetchLoraList(true).then(() => checkTriggerAndSuggest());
                 return;
             }
 
@@ -4553,6 +4572,10 @@ app.registerExtension({
                     {
                         content: "⛶ Pop Out Prompt Studio (Floating / Fullscreen)",
                         callback: () => showPopOutStudio(this)
+                    },
+                    {
+                        content: "🎯 Reset / Center Pop-Out Studio",
+                        callback: () => resetPopOutStudioPosition(this)
                     },
                     {
                         content: "⇄ Convert Style: Tags ↔ Expressions (Pony ↔ Flux)",
@@ -7633,6 +7656,79 @@ app.registerExtension({
             }
 
             // ── Pop-Out Prompt Studio (Floating & Fullscreen Workstation) ─────────
+            function clampPopoutWindowToViewport(win, forceCenter = false) {
+                if (!win || win.classList.contains("is-maximized") || win.classList.contains("is-minimized")) return;
+
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+
+                let w = parseInt(win.style.width, 10) || win.offsetWidth || Math.min(1000, vw - 40);
+                let h = parseInt(win.style.height, 10) || win.offsetHeight || Math.min(700, vh - 40);
+
+                // Ensure dimensions fit the screen
+                if (w > vw - 20) {
+                    w = Math.max(320, vw - 20);
+                    win.style.width = `${w}px`;
+                }
+                if (h > vh - 20) {
+                    h = Math.max(240, vh - 20);
+                    win.style.height = `${h}px`;
+                }
+
+                if (forceCenter) {
+                    const top = Math.max(10, Math.floor((vh - h) / 2));
+                    const left = Math.max(10, Math.floor((vw - w) / 2));
+                    win.style.top = `${top}px`;
+                    win.style.left = `${left}px`;
+                    return;
+                }
+
+                let top = parseInt(win.style.top, 10);
+                let left = parseInt(win.style.left, 10);
+
+                if (isNaN(top)) top = Math.max(10, Math.floor((vh - h) / 2));
+                if (isNaN(left)) left = Math.max(10, Math.floor((vw - w) / 2));
+
+                // Always pull the left edge back if it is off-screen (< 10px)
+                if (left < 10) left = 10;
+                // Ensure right edge doesn't strand the window completely past the right
+                const maxLeft = Math.max(10, vw - Math.min(w, 150));
+                left = Math.min(left, maxLeft);
+                if (left + w > vw - 10) {
+                    left = Math.max(10, vw - w - 10);
+                }
+
+                // Always pull top edge back if off-screen (< 10px)
+                if (top < 10) top = 10;
+                const maxTop = Math.max(10, vh - 50);
+                top = Math.min(top, maxTop);
+                if (top + h > vh - 10) {
+                    top = Math.max(10, vh - h - 10);
+                }
+
+                win.style.left = `${left}px`;
+                win.style.top = `${top}px`;
+            }
+
+            function resetPopOutStudioPosition(node) {
+                try {
+                    localStorage.removeItem("modusflow_popout_geometry");
+                } catch (_) {}
+                if (node) node._popoutSavedRect = null;
+                if (node && node._popoutStudioEl && document.body.contains(node._popoutStudioEl)) {
+                    node._popoutStudioEl.classList.remove("is-minimized");
+                    node._popoutStudioEl.classList.remove("is-maximized");
+                    clampPopoutWindowToViewport(node._popoutStudioEl, true);
+                    node._popoutStudioEl.querySelector("textarea")?.focus();
+                    showStudioToast("🎯 Prompt Studio centered on screen");
+                } else if (node) {
+                    showPopOutStudio(node);
+                    if (node._popoutStudioEl) {
+                        clampPopoutWindowToViewport(node._popoutStudioEl, true);
+                    }
+                }
+            }
+
             function showPopOutStudio(node) {
                 if (node._popoutStudioEl && document.body.contains(node._popoutStudioEl)) {
                     if (node._popoutStudioEl.classList.contains("is-minimized")) {
@@ -7640,6 +7736,7 @@ app.registerExtension({
                     }
                     const currentZ = parseInt(node._popoutStudioEl.style.zIndex || "10001", 10);
                     node._popoutStudioEl.style.zIndex = String(currentZ + 1);
+                    clampPopoutWindowToViewport(node._popoutStudioEl);
                     node._popoutStudioEl.querySelector("textarea")?.focus();
                     showStudioToast("Prompt Studio brought to front");
                     return;
@@ -7681,6 +7778,7 @@ app.registerExtension({
                     win.style.width = `${defW}px`;
                     win.style.height = `${defH}px`;
                 }
+                clampPopoutWindowToViewport(win);
 
                 // ── Header Bar ──
                 const header = document.createElement("div");
@@ -7724,6 +7822,16 @@ app.registerExtension({
                     showStudioToast("🚀 Prompt queued to ComfyUI!");
                 };
 
+                const centerBtn = document.createElement("button");
+                centerBtn.className = "modusflow-popout-btn";
+                centerBtn.innerHTML = "⌖";
+                centerBtn.title = "Center Studio on screen";
+                centerBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    clampPopoutWindowToViewport(win, true);
+                    showStudioToast("Prompt Studio centered on screen");
+                };
+
                 const minBtn = document.createElement("button");
                 minBtn.className = "modusflow-popout-btn";
                 minBtn.innerHTML = "—";
@@ -7753,6 +7861,7 @@ app.registerExtension({
                 };
 
                 winControls.appendChild(queueBtn);
+                winControls.appendChild(centerBtn);
                 winControls.appendChild(minBtn);
                 winControls.appendChild(maxBtn);
                 winControls.appendChild(dockBtn);
@@ -8724,6 +8833,12 @@ app.registerExtension({
                 let winStartX = 0;
                 let winStartY = 0;
 
+                header.addEventListener("dblclick", (e) => {
+                    if (e.target.tagName === "BUTTON" || e.target.tagName === "SELECT" || e.target.tagName === "INPUT") return;
+                    clampPopoutWindowToViewport(win, true);
+                    showStudioToast("🎯 Prompt Studio centered on screen");
+                });
+
                 header.addEventListener("mousedown", (e) => {
                     if (e.target.tagName === "BUTTON" || e.target.tagName === "SELECT" || e.target.tagName === "INPUT") return;
                     if (win.classList.contains("is-maximized")) return;
@@ -8738,14 +8853,17 @@ app.registerExtension({
                         if (!isDragging) return;
                         const dx = ev.clientX - dragStartX;
                         const dy = ev.clientY - dragStartY;
-                        win.style.left = `${Math.max(0, winStartX + dx)}px`;
-                        win.style.top = `${Math.max(0, winStartY + dy)}px`;
+                        const maxL = Math.max(10, window.innerWidth - 120);
+                        const maxT = Math.max(10, window.innerHeight - 50);
+                        win.style.left = `${Math.min(Math.max(10, winStartX + dx), maxL)}px`;
+                        win.style.top = `${Math.min(Math.max(10, winStartY + dy), maxT)}px`;
                     };
 
                     const onMouseUp = () => {
                         isDragging = false;
                         window.removeEventListener("mousemove", onMouseMove);
                         window.removeEventListener("mouseup", onMouseUp);
+                        clampPopoutWindowToViewport(win);
                         if (!win.classList.contains("is-maximized") && !win.classList.contains("is-minimized")) {
                             node._popoutSavedRect = {
                                 top: win.style.top,
@@ -8763,6 +8881,11 @@ app.registerExtension({
                     window.addEventListener("mouseup", onMouseUp);
                 });
 
+                const onWindowResize = () => {
+                    clampPopoutWindowToViewport(win);
+                };
+                window.addEventListener("resize", onWindowResize);
+
                 function toggleMaximize() {
                     const isMax = win.classList.toggle("is-maximized");
                     maxBtn.innerHTML = isMax ? "🗗" : "⇱";
@@ -8772,6 +8895,7 @@ app.registerExtension({
                         win.style.left = node._popoutSavedRect.left;
                         win.style.width = node._popoutSavedRect.width;
                         win.style.height = node._popoutSavedRect.height;
+                        clampPopoutWindowToViewport(win);
                     }
                     updatePopoutBackdrops();
                 }
@@ -8790,11 +8914,13 @@ app.registerExtension({
                         statGroup.style.display = "flex";
                         minBtn.innerHTML = "—";
                         minBtn.title = "Minimize to floating dock";
+                        clampPopoutWindowToViewport(win);
                         updatePopoutBackdrops();
                     }
                 }
 
                 function closePopout() {
+                    window.removeEventListener("resize", onWindowResize);
                     if (!win.classList.contains("is-maximized") && !win.classList.contains("is-minimized")) {
                         node._popoutSavedRect = {
                             top: win.style.top,
@@ -8823,6 +8949,10 @@ app.registerExtension({
                 onPosInput();
                 onNegInput();
                 pushPopoutHistory();
+                attachAutocomplete(posTa, node);
+                attachAutocomplete(negTa, node);
+                fetchLoraList(true);
+                fetchWildcardList(true);
                 posTa.focus();
                 showStudioToast("Prompt Studio popped out! (Drag header to move, 🚀 Queue to run)");
             }
