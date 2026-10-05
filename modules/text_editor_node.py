@@ -165,7 +165,7 @@ class ModusFlowTextEditor:
         return ", ".join(added_tags)
 
     @staticmethod
-    def resolve_dynamic_prompts(text: str, seed: int = None, cycle_index: int = 0) -> str:
+    def resolve_dynamic_prompts(text: str, seed: int = None, cycle_index: int = 0, initial_vars: dict = None) -> str:
         """
         Resolve:
         - Synced Tuples ([$hero, $color] = { [knight, silver] | [mage, violet] };)
@@ -222,104 +222,123 @@ class ModusFlowTextEditor:
                 pool.remove(chosen)
             return picked
 
-        # 1. Resolve Synced Tuples: [$var1, $var2, ...] = { [val1, val2, ...] | [val1, val2, ...] };
-        variables = {}
-        tuple_def_regex = re.compile(
-            r'\[\s*(\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)+)\s*\]\s*=\s*\{\s*(\[[^\]]+\](?:\s*\|\s*\[[^\]]+\])*)\s*\}[;\s]*',
-            re.DOTALL
-        )
-        for match in tuple_def_regex.finditer(text):
-            var_names = [v.strip().lstrip('$') for v in match.group(1).split(',')]
-            options_block = match.group(2)
-            raw_tuples = re.findall(r'\[([^\]]+)\]', options_block)
-            if raw_tuples:
-                chosen_tuple_str = rng.choice(raw_tuples)
-                tuple_vals = [tv.strip() for tv in chosen_tuple_str.split(',')]
-                for idx, v_name in enumerate(var_names):
-                    val = tuple_vals[idx] if idx < len(tuple_vals) else ""
-                    variables[v_name] = ModusFlowTextEditor.resolve_dynamic_prompts(val, seed=seed, cycle_index=cycle_index)
-        text = tuple_def_regex.sub('', text)
-
-        # 2. Resolve Triple-Quoted Multiline Variables: $varname = """ ... """ or ''' ... '''
-        triple_quote_regex = re.compile(
-            r'(?:^|\n)\s*\$([a-zA-Z0-9_]+)\s*=\s*(?:"""([\s\S]*?)"""|\'\'\'([\s\S]*?)\'\'\')[;\s]*',
-            re.MULTILINE
-        )
-        for m in triple_quote_regex.finditer(text):
-            v_name = m.group(1).strip()
-            raw_content = m.group(2) if m.group(2) is not None else m.group(3)
-            raw_content = ModusFlowTextEditor.filter_comments(raw_content)
-            lines = [l.strip() for l in raw_content.splitlines() if l.strip()]
-            clean_val = "\n".join(lines)
-            eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index)
-            variables[v_name] = eval_val
-        text = triple_quote_regex.sub('\n', text)
-
-        # 3. Resolve Braced Multiline Variables: $varname = { ... };
-        # Balanced brace tracking allows nested dynamic choices, shuffles, or wildcards inside the block
+        # 1. Sequentially resolve all variable definitions top-to-bottom
+        variables = dict(initial_vars) if initial_vars else {}
         out_chars = []
         ti = 0
         tn = len(text)
+        depth = 0
         while ti < tn:
-            m_braced = re.match(r'(?:^|\n)\s*\$([a-zA-Z0-9_]+)\s*=\s*\{', text[ti:])
-            if m_braced:
-                v_name = m_braced.group(1)
-                brace_start = ti + m_braced.end() - 1
-                b_depth = 1
-                b_pos = brace_start + 1
-                while b_pos < tn and b_depth > 0:
-                    ch = text[b_pos]
-                    if ch == "{":
-                        b_depth += 1
-                    elif ch == "}":
-                        b_depth -= 1
-                    b_pos += 1
-
-                if b_depth == 0:
-                    inner_content = text[brace_start + 1 : b_pos - 1]
-                    trailing_semi = re.match(r'^\s*;', text[b_pos:])
-                    if trailing_semi:
-                        b_pos += trailing_semi.end()
-
-                    inner_content = ModusFlowTextEditor.filter_comments(inner_content)
-                    lines = [l.strip() for l in inner_content.splitlines() if l.strip()]
-                    clean_val = "\n".join(lines)
-                    eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index)
-                    variables[v_name] = eval_val
-                    ti = b_pos
+            if depth == 0:
+                # Check for Synced Tuples: [ $a, $b ] = { [x, y] | [w, z] };
+                m_tuple = re.match(
+                    r'^\s*\[\s*(\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)+)\s*\]\s*=\s*\{\s*(\[[^\]]+\](?:\s*\|\s*\[[^\]]+\])*)\s*\}[;\s]*',
+                    text[ti:]
+                )
+                if m_tuple:
+                    var_names = [v.strip().lstrip('$') for v in m_tuple.group(1).split(',')]
+                    options_block = m_tuple.group(2)
+                    raw_tuples = re.findall(r'\[([^\]]+)\]', options_block)
+                    if raw_tuples:
+                        chosen_tuple_str = rng.choice(raw_tuples)
+                        tuple_vals = [tv.strip() for tv in chosen_tuple_str.split(',')]
+                        for idx, v_name in enumerate(var_names):
+                            val = tuple_vals[idx] if idx < len(tuple_vals) else ""
+                            variables[v_name] = ModusFlowTextEditor.resolve_dynamic_prompts(val, seed=seed, cycle_index=cycle_index, initial_vars=variables)
+                    ti += m_tuple.end()
                     continue
+
+                # Check for variable definition starting with $varname = (excluding => and ==)
+                m_var = re.match(r'(?:^|\n)\s*\$([a-zA-Z0-9_]+)\s*=(?![>=])\s*', text[ti:])
+                if m_var:
+                    v_name = m_var.group(1)
+                    val_start = ti + m_var.end()
+
+                    # Case A: Triple-quoted multiline: """ ... """ or ''' ... '''
+                    m_tq = re.match(r'^(?:"""([\s\S]*?)"""|\'\'\'([\s\S]*?)\'\'\')[;\s]*', text[val_start:])
+                    if m_tq:
+                        raw_content = m_tq.group(1) if m_tq.group(1) is not None else m_tq.group(2)
+                        raw_content = ModusFlowTextEditor.filter_comments(raw_content)
+                        lines = [l.strip() for l in raw_content.splitlines() if l.strip()]
+                        clean_val = "\n".join(lines)
+                        eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index, initial_vars=variables)
+                        variables[v_name] = eval_val
+                        ti = val_start + m_tq.end()
+                        continue
+
+                    # Case B: Braced multiline: { ... }
+                    if val_start < tn and text[val_start] == "{":
+                        b_depth = 1
+                        b_pos = val_start + 1
+                        while b_pos < tn and b_depth > 0:
+                            ch = text[b_pos]
+                            if ch == "{": b_depth += 1
+                            elif ch == "}": b_depth -= 1
+                            b_pos += 1
+                        if b_depth == 0:
+                            inner_content = text[val_start + 1 : b_pos - 1]
+                            m_semi = re.match(r'^\s*;', text[b_pos:])
+                            if m_semi:
+                                b_pos += m_semi.end()
+
+                            inner_content = ModusFlowTextEditor.filter_comments(inner_content)
+                            lines = [l.strip() for l in inner_content.splitlines() if l.strip()]
+                            clean_val = "\n".join(lines)
+
+                            # Check if inner_content is dynamic syntax ({a|b} choices, CASE statements, seq, etc.)
+                            is_dynamic_syntax = False
+                            d = 0
+                            for idx, c in enumerate(inner_content):
+                                if c == "{": d += 1
+                                elif c == "}": d -= 1
+                                elif d == 0 and (c == "|" or c == "?" or inner_content[idx:idx+2] == "=>"):
+                                    is_dynamic_syntax = True
+                                    break
+                            trimmed_inner = inner_content.strip()
+                            if trimmed_inner.lower().startswith(("case ", "switch ", "seq:", "cycle:", "shuffle:", "range:", "rand:")):
+                                is_dynamic_syntax = True
+                            if trimmed_inner.startswith("$") and ":" in trimmed_inner:
+                                is_dynamic_syntax = True
+
+                            if is_dynamic_syntax:
+                                clean_val = "{" + clean_val + "}"
+
+                            eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index, initial_vars=variables)
+                            variables[v_name] = eval_val
+                            ti = b_pos
+                            continue
+
+                    # Case C: Semicolon-terminated (single or multiline): ... ;
+                    m_semi = re.match(r'^([^;]+);', text[val_start:])
+                    if m_semi:
+                        raw_content = m_semi.group(1)
+                        raw_content = ModusFlowTextEditor.filter_comments(raw_content)
+                        lines = [l.strip() for l in raw_content.splitlines() if l.strip()]
+                        clean_val = "\n".join(lines)
+                        eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index, initial_vars=variables)
+                        variables[v_name] = eval_val
+                        ti = val_start + m_semi.end()
+                        continue
+
+                    # Case D: Single line without semicolon: ... \n
+                    m_line = re.match(r'^([^\n;]+)(?:\n|$)', text[val_start:])
+                    if m_line:
+                        raw_content = m_line.group(1)
+                        raw_content = ModusFlowTextEditor.filter_comments(raw_content)
+                        clean_val = raw_content.strip()
+                        eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index, initial_vars=variables)
+                        variables[v_name] = eval_val
+                        ti = val_start + m_line.end()
+                        continue
+
+            if text[ti] == "{":
+                depth += 1
+            elif text[ti] == "}":
+                depth = max(0, depth - 1)
+
             out_chars.append(text[ti])
             ti += 1
         text = "".join(out_chars)
-
-        # 4. Resolve Semicolon-Terminated Variables (Single or Multiline): $varname = ... ;
-        semi_var_regex = re.compile(
-            r'(?:^|\n)\s*\$([a-zA-Z0-9_]+)\s*=\s*([^;]+);',
-            re.MULTILINE
-        )
-        for m in semi_var_regex.finditer(text):
-            v_name = m.group(1).strip()
-            raw_content = m.group(2)
-            raw_content = ModusFlowTextEditor.filter_comments(raw_content)
-            lines = [l.strip() for l in raw_content.splitlines() if l.strip()]
-            clean_val = "\n".join(lines)
-            eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index)
-            variables[v_name] = eval_val
-        text = semi_var_regex.sub('\n', text)
-
-        # 5. Resolve Simple Single-Line Variables without semicolon: $varname = value\n
-        var_pattern = r'^\s*\$([a-zA-Z0-9_]+)\s*=\s*([^\n;]+)$'
-        cleaned_lines = []
-        for line in text.splitlines():
-            m = re.match(var_pattern, line)
-            if m:
-                var_name = m.group(1).strip()
-                var_expr = m.group(2).strip()
-                eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(var_expr, seed=seed, cycle_index=cycle_index)
-                variables[var_name] = eval_val
-            else:
-                cleaned_lines.append(line)
-        text = "\n".join(cleaned_lines)
 
         # 2. Resolve Ternary Conditionals: {$var==val?true:false}, {$var!=val?...}, {$var?true:false}
         def eval_condition(var_val, op, target):
@@ -357,11 +376,11 @@ class ModusFlowTextEditor:
             n = len(input_text)
             has_match = False
             while i < n:
-                is_case_prefix = input_text[i:i+6].lower() == "{case "
+                m_case_pre = re.match(r'^\{(?:case|switch)\s+', input_text[i:], re.IGNORECASE)
                 is_var_prefix = input_text[i:i+2] == "{$"
-                if is_var_prefix or is_case_prefix:
+                if is_var_prefix or m_case_pre:
                     start = i
-                    i += 6 if is_case_prefix else 2
+                    i += m_case_pre.end() if m_case_pre else 2
                     depth = 1
                     inner_chars = []
                     while i < n and depth > 0:
@@ -404,18 +423,28 @@ class ModusFlowTextEditor:
                                 var_part = inner[:colon_idx].strip()
                                 cases_part = inner[colon_idx+1:]
 
-                                if var_part.lower().startswith("case "):
+                                if var_part.lower().startswith(("case ", "switch ")):
                                     var_part = var_part[5:].strip()
-                                if var_part.startswith("$"):
-                                    var_part = var_part[1:].strip()
+                                if var_part.startswith("{") and var_part.endswith("}"):
+                                    var_part = var_part[1:-1].strip()
 
-                                var_val = variables.get(var_part, "")
+                                clean_vname = var_part.lstrip("$").strip()
+                                if clean_vname in variables:
+                                    var_val = str(variables[clean_vname])
+                                else:
+                                    eval_target = var_part
+                                    for vn, vv in variables.items():
+                                        eval_target = re.sub(rf'\${vn}\b', str(vv), eval_target)
+                                    if "{" in eval_target or "|" in eval_target:
+                                        eval_target = ModusFlowTextEditor.resolve_dynamic_prompts(eval_target, seed=seed, cycle_index=cycle_index, initial_vars=variables)
+                                    var_val = eval_target.strip()
 
-                                # Split cases_part by '|' at depth 0
+                                # Split cases_part by '|' at depth 0, ensuring '|' is a branch separator (followed by '=>')
                                 branches = []
                                 cur_b = []
                                 d = 0
-                                for ch in cases_part:
+                                cp_len = len(cases_part)
+                                for c_idx, ch in enumerate(cases_part):
                                     if ch == "{":
                                         d += 1
                                         cur_b.append(ch)
@@ -423,8 +452,24 @@ class ModusFlowTextEditor:
                                         d -= 1
                                         cur_b.append(ch)
                                     elif ch == "|" and d == 0:
-                                        branches.append("".join(cur_b).strip())
-                                        cur_b = []
+                                        # Check if this '|' separates a branch (has '=>' ahead at depth 0 before the next '|')
+                                        has_arrow_ahead = False
+                                        sub_d = 0
+                                        for f_idx in range(c_idx + 1, cp_len):
+                                            f_ch = cases_part[f_idx]
+                                            if f_ch == "{": sub_d += 1
+                                            elif f_ch == "}": sub_d -= 1
+                                            elif sub_d == 0:
+                                                if f_ch == "|":
+                                                    break
+                                                if cases_part[f_idx:f_idx+2] == "=>":
+                                                    has_arrow_ahead = True
+                                                    break
+                                        if has_arrow_ahead:
+                                            branches.append("".join(cur_b).strip())
+                                            cur_b = []
+                                        else:
+                                            cur_b.append(ch)
                                     else:
                                         cur_b.append(ch)
                                 if cur_b:
@@ -476,15 +521,21 @@ class ModusFlowTextEditor:
                                                 sub_patterns.append(p)
                                     branch_matched = False
                                     for pat in sub_patterns:
+                                        if pat.startswith("$") and pat[1:] in variables:
+                                            pat = variables[pat[1:]]
                                         m_op = re.match(r"^(==|!=|>=|<=|>|<)\s*(.*)$", pat)
                                         if m_op:
                                             op = m_op.group(1)
                                             target = m_op.group(2).strip()
+                                            if target.startswith("$") and target[1:] in variables:
+                                                target = variables[target[1:]]
                                             if eval_condition(var_val, op, target):
                                                 branch_matched = True
                                                 break
                                         else:
                                             clean_pat = pat.strip("'\"")
+                                            if clean_pat.startswith("$") and clean_pat[1:] in variables:
+                                                clean_pat = str(variables[clean_pat[1:]]).strip("'\"")
                                             clean_var = str(var_val).strip().strip("'\"")
                                             if clean_var.lower() == clean_pat.lower():
                                                 branch_matched = True
