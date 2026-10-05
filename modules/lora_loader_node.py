@@ -3,6 +3,7 @@ import folder_paths
 import os
 import json
 import random
+import re
 from nodes import LoraLoader as CoreLoraLoader
 from ..config import settings
 
@@ -62,6 +63,8 @@ class ModusFlowLoraLoader:
                 "negative": ("CONDITIONING",),
                 # Seed is a passthrough and provides deterministic random selection.
                 "seed": ("INT", {"forceInput": True}),
+                # Optional prompt text to dynamically detect and load <lora:name:strength> tags
+                "prompt": ("STRING", {"forceInput": True, "multiline": True}),
                 # This widget is for the UI only, to filter the LoRA list.
                 "lora_filter": ("STRING", {"default": "", "multiline": False}),
                 # This widget holds the API key, making it part of the workflow.
@@ -141,8 +144,49 @@ class ModusFlowLoraLoader:
 
         return []
 
-    RETURN_TYPES = ("MODEL", "CLIP", "CONDITIONING", "CONDITIONING", "INT", "PIPE", "STRING", "STRING")
-    RETURN_NAMES = ("model", "clip", "positive", "negative", "seed", "pipe", "loaded_loras", "trigger_words")
+    @staticmethod
+    def extract_prompt_loras(prompt: str) -> tuple[list[dict], str]:
+        """
+        Parses <lora:name:strength> or <lora:name:model_weight:clip_weight> tags from prompt text.
+        Ignores tags wrapped in /* ... */ comments.
+        Returns:
+            (lora_entries: list of dict(name, model_strength, clip_strength), clean_prompt: str)
+        """
+        if not prompt or not isinstance(prompt, str):
+            return [], ""
+
+        # Remove C-style block comments /* ... */ first so commented/muted tags are ignored
+        uncommented = re.sub(r'/\*.*?\*/', '', prompt, flags=re.DOTALL)
+
+        # Match <lora:filename:model_weight:clip_weight> or <lora:filename:weight> or <lora:filename>
+        pattern = r'<lora:([^:>]+)(?::([+-]?[0-9]*\.?[0-9]+))?(?::([+-]?[0-9]*\.?[0-9]+))?>'
+
+        loras = []
+        for m in re.finditer(pattern, uncommented, flags=re.IGNORECASE):
+            name = m.group(1).strip()
+            w1 = m.group(2)
+            w2 = m.group(3)
+
+            model_w = float(w1) if w1 is not None and w1 != '' else 1.0
+            clip_w = float(w2) if w2 is not None and w2 != '' else model_w
+
+            loras.append({
+                "name": name,
+                "model_strength": model_w,
+                "clip_strength": clip_w,
+            })
+
+        # Produce clean prompt: strip all <lora:[^>]+> and commented loras
+        clean = re.sub(r'/\*\s*<lora:[^>]+>\s*\*/|<lora:[^>]+>', '', prompt)
+        clean = re.sub(r'[ \t]+', ' ', clean)
+        clean = re.sub(r'\s*,\s*,+', ', ', clean)
+        clean = re.sub(r'\s+,', ',', clean)
+        clean = re.sub(r'^[,\s]+|[,\s]+$', '', clean)
+
+        return loras, clean
+
+    RETURN_TYPES = ("MODEL", "CLIP", "CONDITIONING", "CONDITIONING", "INT", "PIPE", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("model", "clip", "positive", "negative", "seed", "pipe", "loaded_loras", "trigger_words", "prompt")
     FUNCTION = "load_loras"
     CATEGORY = "ModusFlow/Loaders"
 
@@ -160,7 +204,7 @@ class ModusFlowLoraLoader:
             pass
         return False
 
-    def load_loras(self, lora_stack, base_model_name, pipe=None, model=None, clip=None, positive=None, negative=None, lora_filter="", seed=0, civitai_api_key="", random_pick_count=1, auto_keyword_discovery=True, keyword_blacklist="", **kwargs):
+    def load_loras(self, lora_stack, base_model_name, pipe=None, model=None, clip=None, positive=None, negative=None, lora_filter="", seed=0, civitai_api_key="", random_pick_count=1, auto_keyword_discovery=True, keyword_blacklist="", prompt=None, **kwargs):
         # Extract from pipe if provided (individual inputs override pipe)
         if pipe is not None:
             # Pipe format: (model, clip, vae, positive, negative)
@@ -182,6 +226,9 @@ class ModusFlowLoraLoader:
         lora_loader = CoreLoraLoader()
         lora_paths = folder_paths.get_filename_list("loras")
 
+        # Parse prompt-tagged LoRAs (<lora:name:strength>)
+        prompt_loras, clean_prompt = self.extract_prompt_loras(prompt) if prompt else ([], prompt or "")
+
         try:
             lora_items = json.loads(lora_stack)
             if not isinstance(lora_items, list):
@@ -198,11 +245,19 @@ class ModusFlowLoraLoader:
 
         enabled_loras = [item for item in lora_items if item.get("enabled", False)]
 
-        if not enabled_loras:
+        if not enabled_loras and not prompt_loras:
+            # If positive conditioning was not provided and clean_prompt is available, encode with clip
+            if (positive is None or len(positive) == 0) and clean_prompt and clip is not None:
+                try:
+                    from nodes import CLIPTextEncode
+                    encoder = CLIPTextEncode()
+                    positive = encoder.encode(clip, clean_prompt)[0]
+                except Exception:
+                    pass
             if positive is None: positive = []
             if negative is None: negative = []
             output_pipe = (model, clip, vae, positive, negative)
-            return (model, clip, positive, negative, seed, output_pipe, "No LoRAs loaded", "")
+            return (model, clip, positive, negative, seed, output_pipe, "No LoRAs loaded", "", clean_prompt)
 
         # Separate fixed vs random pool
         fixed_loras = [item for item in enabled_loras if not item.get("random", False)]
@@ -231,6 +286,7 @@ class ModusFlowLoraLoader:
         active_loras = [(item, "Fixed") for item in fixed_loras] + [(item, "Random") for item in chosen_random]
         loaded_summaries = []
         all_trigger_words = []
+        applied_lora_files = set()
 
         for item, tag in active_loras:
             lora_name = item.get("name")
@@ -239,6 +295,7 @@ class ModusFlowLoraLoader:
 
             lora_file = self.find_lora_path(lora_name, lora_paths)
             if lora_file:
+                applied_lora_files.add(lora_file.lower().replace('\\', '/'))
                 if auto_keyword_discovery:
                     full_lora_path = folder_paths.get_full_path("loras", lora_file)
                     if full_lora_path:
@@ -257,6 +314,53 @@ class ModusFlowLoraLoader:
                 except Exception as e:
                     pass
 
+        # Apply prompt-tagged LoRAs (<lora:name:strength>)
+        for p_item in prompt_loras:
+            lora_name = p_item.get("name")
+            if not lora_name:
+                continue
+
+            lora_file = self.find_lora_path(lora_name, lora_paths)
+            if lora_file:
+                lora_key = lora_file.lower().replace('\\', '/')
+                # Avoid duplicate application if already loaded in this run
+                if lora_key in applied_lora_files:
+                    continue
+                applied_lora_files.add(lora_key)
+
+                if auto_keyword_discovery:
+                    full_lora_path = folder_paths.get_full_path("loras", lora_file)
+                    if full_lora_path:
+                        triggers = self.extract_lora_trigger_words(full_lora_path, blacklist=blacklist_set)
+                        for t in triggers:
+                            if (not blacklist_set or t.strip().lower() not in blacklist_set) and t not in all_trigger_words:
+                                all_trigger_words.append(t)
+
+                m_strength = p_item.get("model_strength", 1.0)
+                c_strength = p_item.get("clip_strength", m_strength)
+                if m_strength == 0 and c_strength == 0:
+                    continue
+
+                try:
+                    model, clip = lora_loader.load_lora(model, clip, lora_file, m_strength, c_strength)
+                    if m_strength == c_strength:
+                        loaded_summaries.append(f"[Prompt] {lora_name} (strength: {m_strength:g})")
+                    else:
+                        loaded_summaries.append(f"[Prompt] {lora_name} (model: {m_strength:g}, clip: {c_strength:g})")
+                except Exception as e:
+                    pass
+            else:
+                loaded_summaries.append(f"[Prompt] {lora_name} (NOT FOUND on disk)")
+
+        # If positive conditioning was not provided and clean_prompt is available, encode with modified clip
+        if (positive is None or len(positive) == 0) and clean_prompt and clip is not None:
+            try:
+                from nodes import CLIPTextEncode
+                encoder = CLIPTextEncode()
+                positive = encoder.encode(clip, clean_prompt)[0]
+            except Exception:
+                pass
+
         # Ensure conditioning outputs are valid lists, not None
         if positive is None: positive = []
         if negative is None: negative = []
@@ -264,7 +368,7 @@ class ModusFlowLoraLoader:
         output_pipe = (model, clip, vae, positive, negative)
         lora_summary_text = "\n".join(loaded_summaries) if loaded_summaries else "No LoRAs loaded"
         trigger_words_str = ", ".join(all_trigger_words)
-        return (model, clip, positive, negative, seed, output_pipe, lora_summary_text, trigger_words_str)
+        return (model, clip, positive, negative, seed, output_pipe, lora_summary_text, trigger_words_str, clean_prompt)
 
 NODE_CLASS_MAPPINGS = {
     "ModusFlowLoraLoader": ModusFlowLoraLoader

@@ -53,10 +53,10 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 
 ## Outputs
 
-- **positive** (STRING): Processed, comment-filtered, wildcard-resolved positive prompt text
+- **positive** (STRING): Processed, comment-filtered, wildcard-resolved positive prompt text (retains resolved `<lora:name:strength>` tags for downstream nodes like **LoRA Loader** to detect and load)
 - **negative** (STRING): Processed, comment-filtered, wildcard-resolved negative prompt text
 - **seed** (INT): Seed passthrough (connects to KSampler, Save Image `%seed%`, LoRA Loader, etc.)
-- **positive_cond** (CONDITIONING): Directly encoded positive conditioning (when `clip` or `pipe` is connected)
+- **positive_cond** (CONDITIONING): Directly encoded positive conditioning (when `clip` or `pipe` is connected; automatically strips raw `<lora:...>` tags)
 - **negative_cond** (CONDITIONING): Directly encoded negative conditioning (when `clip` or `pipe` is connected)
 - **pipe** (PIPE): Updated ModusFlow pipeline containing active model, clip, vae, and newly encoded conditionings
 

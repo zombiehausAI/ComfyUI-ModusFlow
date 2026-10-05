@@ -924,9 +924,8 @@ class ModusFlowTextEditor:
         raw_positive = positive_input if positive_input is not None else positive
         raw_negative = negative_input if negative_input is not None else negative
 
-        # 2. Strip raw LoRA tags
-        clean_positive = self.strip_lora_tags(raw_positive)
-        clean_negative = self.strip_lora_tags(raw_negative)
+        clean_positive = raw_positive
+        clean_negative = raw_negative
 
         # 3. In-place placeholder injection for connected List Curators
         if curator_input is not None and str(curator_input).strip():
@@ -1053,8 +1052,10 @@ class ModusFlowTextEditor:
         if active_clip is not None:
             try:
                 encoder = CLIPTextEncode()
-                pos_cond = encoder.encode(active_clip, output_positive)[0]
-                neg_cond = encoder.encode(active_clip, output_negative)[0]
+                clip_positive = self.strip_lora_tags(output_positive)
+                clip_negative = self.strip_lora_tags(output_negative)
+                pos_cond = encoder.encode(active_clip, clip_positive)[0]
+                neg_cond = encoder.encode(active_clip, clip_negative)[0]
             except Exception as e:
                 print(f"[ModusFlow TextEditor] CLIP encode error: {e}")
                 pos_cond = []

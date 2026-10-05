@@ -31,6 +31,7 @@ The ModusFlow LoRA Loader manages a JSON-based stack of LoRAs through an interac
 - **positive** (CONDITIONING): Positive conditioning passthrough
 - **negative** (CONDITIONING): Negative conditioning passthrough
 - **seed** (INT): Seed passthrough and random pool seed (forceInput — must be wired, not typed)
+- **prompt** (STRING): Optional prompt text input (e.g. from **Text Editor**). Automatically scans for `<lora:name:strength>` tags and loads them on the fly
 - **random_pick_count** (INT, default: 1): How many LoRAs to randomly pick from the `🎲 Random Pool`
 - **lora_filter** (STRING): Text filter for the LoRA list in the UI panel; persists automatically across browser sessions via `localStorage` and within saved workflows
 - **civitai_api_key** (STRING, hidden): Civitai API key stored in the workflow; overrides `config.json` key
@@ -43,12 +44,13 @@ The ModusFlow LoRA Loader manages a JSON-based stack of LoRAs through an interac
 |--------|------|-------------|
 | model | MODEL | Model with all enabled and selected LoRAs applied |
 | clip | CLIP | CLIP with all enabled and selected LoRAs applied |
-| positive | CONDITIONING | Positive conditioning passthrough |
+| positive | CONDITIONING | Positive conditioning passthrough (auto-encoded with modified CLIP if `prompt` is wired and input conditioning is empty) |
 | negative | CONDITIONING | Negative conditioning passthrough |
 | seed | INT | Seed passthrough |
 | pipe | PIPE | `(model, clip, vae, positive, negative)` passthrough |
 | loaded_loras | STRING | Formatted list of applied LoRAs (connect to **Show Text**) |
 | trigger_words | STRING | Comma-separated trained trigger words extracted from active LoRAs (connect to **Text Editor** / **CLIP Encode**) |
+| prompt | STRING | Clean prompt text with all `<lora:...>` tags cleanly stripped and punctuation normalized |
 
 ## Random Pool & Hybrid LoRAs
 
@@ -65,7 +67,43 @@ Connect the `loaded_loras` output to the `text` input of a **Show Text** node (`
 ```text
 [Fixed] detailer_v2.safetensors (strength: 1)
 [Random] cyberpunk_girl_v1.safetensors (strength: 0.85)
+[Prompt] futanari_v2 (strength: 0.85)
 ```
+
+## Dynamic Prompt LoRA Tagging (`<lora:name:strength>`)
+
+Instead of configuring every LoRA in the UI panel, you can "tag" LoRAs directly in your prompt (e.g. inside dynamic choices, variables, or CASE statements in `ModusFlowTextEditor`).
+
+### How It Works
+
+1. Wire **Text Editor** `positive` (STRING) &rarr; **LoRA Loader** `prompt` (STRING).
+2. The LoRA Loader scans the incoming text for `<lora:...>` tags at execution time.
+3. It searches your installed LoRAs on disk (`models/loras/` including all subdirectories) using case-insensitive matching.
+4. It dynamically loads them onto `model` and `clip`, triggers automatic keyword discovery for them, and returns clean text via the `prompt` output with the tags stripped.
+
+### Supported Syntax
+
+- `<lora:name>` &rarr; Model & CLIP strength `1.0`
+- `<lora:name:0.8>` &rarr; Model & CLIP strength `0.8`
+- `<lora:name:0.8:0.6>` &rarr; Model strength `0.8`, CLIP strength `0.6`
+- `<lora:subfolder/name:0.75>` &rarr; Subfolder path matching
+- `/* <lora:name:1.0> */` &rarr; Comments are ignored (muted)
+
+### Conditional & Choice Examples
+
+```text
+// Dynamic choice
+{<lora:cyberpunk_v1:0.8> | <lora:fantasy_v2:0.9>}
+
+// Variable & CASE statement
+$character = {futanari | man | woman}
+{case $character:
+    futanari => <lora:futanari_v2:0.85>
+    | man    => <lora:male_enhancer:0.7>
+    | woman  => <lora:female_details:0.8>
+}
+```
+The Text Editor evaluates the variable/case/choice first, and the winning branch's tag is loaded by the LoRA Loader.
 
 ## LoRA Stack
 
