@@ -229,6 +229,19 @@ class ModusFlowLoraLoader:
         # Parse prompt-tagged LoRAs (<lora:name:strength>)
         prompt_loras, clean_prompt = self.extract_prompt_loras(prompt) if prompt else ([], prompt or "")
 
+        # If prompt was not wired directly, auto-discover from incoming positive conditioning or pipe metadata
+        if not prompt_loras:
+            cond_to_check = positive if (positive and isinstance(positive, (list, tuple))) else (pipe[3] if (pipe is not None and len(pipe) > 3 and pipe[3]) else None)
+            if cond_to_check and isinstance(cond_to_check, (list, tuple)):
+                for chunk in cond_to_check:
+                    if isinstance(chunk, (list, tuple)) and len(chunk) > 1 and isinstance(chunk[1], dict):
+                        meta_loras = chunk[1].get("modusflow_prompt_loras")
+                        if meta_loras:
+                            prompt_loras = list(meta_loras)
+                            if not clean_prompt:
+                                clean_prompt = chunk[1].get("clean_prompt", "")
+                            break
+
         try:
             lora_items = json.loads(lora_stack)
             if not isinstance(lora_items, list):

@@ -124,11 +124,47 @@ class ModusFlowTextEditor:
         return "\n".join(lines).strip()
 
     @staticmethod
+    def extract_prompt_loras(prompt: str) -> tuple[list[dict], str]:
+        """
+        Parses <lora:name:strength> or <lora:name:model_weight:clip_weight> tags from prompt text.
+        Ignores tags wrapped in /* ... */ comments.
+        Returns:
+            (lora_entries: list of dict(name, model_strength, clip_strength), clean_prompt: str)
+        """
+        if not prompt or not isinstance(prompt, str):
+            return [], ""
+
+        uncommented = re.sub(r'/\*.*?\*/', '', prompt, flags=re.DOTALL)
+        pattern = r'<lora:([^:>]+)(?::([+-]?[0-9]*\.?[0-9]+))?(?::([+-]?[0-9]*\.?[0-9]+))?>'
+
+        loras = []
+        for m in re.finditer(pattern, uncommented, flags=re.IGNORECASE):
+            name = m.group(1).strip()
+            w1 = m.group(2)
+            w2 = m.group(3)
+
+            model_w = float(w1) if w1 is not None and w1 != '' else 1.0
+            clip_w = float(w2) if w2 is not None and w2 != '' else model_w
+
+            loras.append({
+                "name": name,
+                "model_strength": model_w,
+                "clip_strength": clip_w,
+            })
+
+        clean = re.sub(r'/\*\s*<lora:[^>]+>\s*\*/|<lora:[^>]+>', '', prompt)
+        clean = re.sub(r',\s*,+', ', ', clean)
+        clean = re.sub(r'^[,\s]+|[,\s]+$', '', clean)
+        return loras, clean
+
+    @staticmethod
     def strip_lora_tags(text: str) -> str:
         """Strip <lora:filename:1.0> or <lora:filename> so raw angle brackets do not pollute prompts."""
         if not text or not isinstance(text, str):
             return ""
-        return re.sub(r'<lora:[^>]+>', '', text)
+        clean = re.sub(r'/\*\s*<lora:[^>]+>\s*\*/|<lora:[^>]+>', '', text)
+        clean = re.sub(r',\s*,+', ', ', clean)
+        return re.sub(r'^[,\s]+|[,\s]+$', '', clean)
 
     @staticmethod
     def merge_and_deduplicate_negative(existing_negative: str, incoming_negative: str) -> str:
@@ -1041,8 +1077,9 @@ class ModusFlowTextEditor:
             combined_inline_neg = ", ".join(inline_negs)
             resolved_negative = self.merge_and_deduplicate_negative(resolved_negative, combined_inline_neg)
 
-        # 6. Apply weight translation / front-loading
-        output_positive = self.translate_weights(resolved_positive, weight_mode)
+        # 6. Extract dynamic prompt LoRAs and completely strip them from output prompts
+        extracted_prompt_loras, clean_positive = self.extract_prompt_loras(resolved_positive)
+        output_positive = self.translate_weights(clean_positive, weight_mode)
         output_negative = self.translate_weights(resolved_negative, weight_mode)
 
         # 7. Append embeddings to respective outputs
@@ -1075,6 +1112,13 @@ class ModusFlowTextEditor:
                 clip_negative = self.strip_lora_tags(output_negative)
                 pos_cond = encoder.encode(active_clip, clip_positive)[0]
                 neg_cond = encoder.encode(active_clip, clip_negative)[0]
+
+                # Attach extracted LoRA payload and clean prompt to conditioning metadata
+                if extracted_prompt_loras:
+                    for chunk in pos_cond:
+                        if len(chunk) > 1 and isinstance(chunk[1], dict):
+                            chunk[1]["modusflow_prompt_loras"] = extracted_prompt_loras
+                            chunk[1]["clean_prompt"] = clip_positive
             except Exception as e:
                 print(f"[ModusFlow TextEditor] CLIP encode error: {e}")
                 pos_cond = []
