@@ -172,6 +172,43 @@ portrait of an adventurer in a {$season:
 * **Fallback / Wildcard (`*`)**: Uses `*`, `default`, `_`, or `else` to catch unhandled values. If omitted, unmatched values evaluate to an empty string.
 * **Nested Choices**: Individual branch outputs can contain choice blocks or wildcards (e.g. `spring => {cherry|peach} blossoms`).
 * **Prefix Flexibility**: Both `{$var: ...}` and `{case $var: ...}` syntax forms are supported.
+* **Multiline Branch Assignments**: Branches can span multiple lines to format descriptors and tags cleanly:
+  ```text
+  {case $season:
+      summer =>
+          masterpiece, best quality,
+          sundress, straw hat,
+          tropical sun, sandy beach
+      | winter =>
+          masterpiece, best quality,
+          heavy woolen coat, knitted scarf,
+          snowy pine forest, soft falling snow
+      | * =>
+          casual shirt, blue jeans
+  }
+  ```
+* **Assigning Multiline CASE Statements to Variables**: Wrap the CASE block in a multiline variable (`""" ... """` or `{ ... };`) to reuse it across prompts:
+  ```text
+  $mood = happy;
+
+  $character_expression = """
+  {case $mood:
+      happy =>
+          cheerful smile,
+          sparkling eyes,
+          rosy cheeks
+      | sad =>
+          melancholic gaze,
+          tear on cheek,
+          somber expression
+      | * =>
+          neutral expression
+  }
+  """;
+
+  1girl, solo, $character_expression, portrait
+  ```
+* **Multi-Attribute Coordination**: To coordinate multiple prompt traits from a single condition, either pack the attributes into a master branch variable, define separate conditioned variables per trait, or use Synced Choice Tuples (`[$a, $b] = ...`).
 
 ### Synced Choice Tuples (`[$var1, $var2] = { [a1, b1] | [a2, b2] };`)
 When generating complex characters or coordinated themes, you often want multiple variables to roll together as an indivisible unit:

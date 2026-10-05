@@ -989,6 +989,127 @@ const PROMPT_SNIPPETS = {
     "!optics": "85mm prime lens, f/1.8 aperture, shallow depth of field, subtle film grain, natural distortion"
 };
 
+// ── Tab & Shift+Tab Indent/Dedent Handling (4 Spaces) ─────────────────────────
+function handleEditorTabKey(ta, e, onUpdate) {
+    if (e.key !== "Tab" || e.ctrlKey || e.altKey || e.metaKey) return false;
+
+    const TAB_SPACES = "    ";
+    const TAB_SIZE = 4;
+    const text = ta.value;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+
+    // Shift + Tab: Dedent / Outdent
+    if (e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+        let lineEnd = text.indexOf("\n", end);
+        if (lineEnd === -1) lineEnd = text.length;
+
+        const block = text.slice(lineStart, lineEnd);
+        const lines = block.split("\n");
+        let firstLineRemoved = 0;
+        let totalRemoved = 0;
+
+        const newLines = lines.map((line, idx) => {
+            let removed = 0;
+            if (line.startsWith("\t")) {
+                removed = 1;
+                line = line.slice(1);
+            } else {
+                while (removed < TAB_SIZE && line.startsWith(" ")) {
+                    line = line.slice(1);
+                    removed++;
+                }
+            }
+            if (idx === 0) firstLineRemoved = removed;
+            totalRemoved += removed;
+            return line;
+        });
+
+        const newBlock = newLines.join("\n");
+        ta.setRangeText(newBlock, lineStart, lineEnd, "select");
+        const newStart = Math.max(lineStart, start - firstLineRemoved);
+        const newEnd = Math.max(newStart, end - totalRemoved);
+        ta.selectionStart = newStart;
+        ta.selectionEnd = newEnd;
+        onUpdate?.();
+        return true;
+    }
+
+    // Normal Tab: Check for macro snippet trigger first (!snippet)
+    let wordStart = start;
+    while (wordStart > 0 && /[!a-zA-Z0-9_-]/.test(text[wordStart - 1])) wordStart--;
+    const trigger = text.slice(wordStart, start);
+    if (trigger.startsWith("!") && typeof PROMPT_SNIPPETS !== "undefined" && PROMPT_SNIPPETS[trigger.toLowerCase()]) {
+        e.preventDefault();
+        e.stopPropagation();
+        const expansion = PROMPT_SNIPPETS[trigger.toLowerCase()];
+        ta.setRangeText(expansion, wordStart, start, "end");
+        onUpdate?.();
+        return true;
+    }
+
+    // Normal Tab: Indent / Tab over 4 spaces
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (start !== end && text.slice(start, end).includes("\n")) {
+        // Multi-line selection: indent each line by 4 spaces
+        const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+        let lineEnd = text.indexOf("\n", end);
+        if (lineEnd === -1) lineEnd = text.length;
+
+        const block = text.slice(lineStart, lineEnd);
+        const lines = block.split("\n");
+        const newLines = lines.map(line => TAB_SPACES + line);
+        const newBlock = newLines.join("\n");
+
+        ta.setRangeText(newBlock, lineStart, lineEnd, "select");
+        ta.selectionStart = start + TAB_SIZE;
+        ta.selectionEnd = end + (lines.length * TAB_SIZE);
+        onUpdate?.();
+        return true;
+    } else {
+        // Single cursor or inline selection: replace selection with 4 spaces
+        ta.setRangeText(TAB_SPACES, start, end, "end");
+        onUpdate?.();
+        return true;
+    }
+}
+
+function attachTabPasteNormalization(ta, onUpdate) {
+    if (!ta || ta._hasTabPasteNorm) return;
+    ta._hasTabPasteNorm = true;
+
+    ta.addEventListener("paste", (e) => {
+        const clipData = e.clipboardData || window.clipboardData;
+        if (!clipData) return;
+        const pasted = clipData.getData("text");
+        if (pasted && pasted.includes("\t")) {
+            e.preventDefault();
+            const converted = pasted.replace(/\t/g, "    ");
+            const start = ta.selectionStart;
+            const end = ta.selectionEnd;
+            ta.setRangeText(converted, start, end, "end");
+            ta.dispatchEvent(new Event("input", { bubbles: true }));
+            onUpdate?.();
+        }
+    });
+}
+
+function normalizeRawTabs(ta) {
+    if (!ta || typeof ta.value !== "string" || !ta.value.includes("\t")) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const beforeCount = (ta.value.slice(0, start).match(/\t/g) || []).length;
+    ta.value = ta.value.replace(/\t/g, "    ");
+    ta.selectionStart = start + beforeCount * 3;
+    ta.selectionEnd = end + beforeCount * 3;
+}
+
 function estimateTokens(text) {
     if (!text) return { words: 0, tokens: 0, chunks: 0, currentChunk: 1, chunkProgress: 0, hasBreak: false };
     const clean = text
@@ -1573,7 +1694,13 @@ function attachSyntaxHighlighter(widget, node) {
         widget._updateSyntaxHighlight = render;
         widget._applyTheme = render;
 
+        attachTabPasteNormalization(ta, () => {
+            widget.value = ta.value;
+            render();
+        });
+
         ta.addEventListener("input", () => {
+            normalizeRawTabs(ta);
             render();
             reportCanvasNode(node, true);
         });
@@ -4916,23 +5043,20 @@ app.registerExtension({
                             return;
                         }
 
-                        // 11. Prompt Snippets (Macros) on Tab
-                        if (e.key === "Tab" && !e.shiftKey && !ctrlOrCmd && !e.altKey) {
-                            const text = ta.value;
-                            const pos = ta.selectionStart;
-                            let wordStart = pos;
-                            while (wordStart > 0 && /[!a-zA-Z0-9_-]/.test(text[wordStart - 1])) wordStart--;
-                            const trigger = text.slice(wordStart, pos);
-                            if (trigger.startsWith("!") && PROMPT_SNIPPETS[trigger.toLowerCase()]) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                const expansion = PROMPT_SNIPPETS[trigger.toLowerCase()];
-                                ta.setRangeText(expansion, wordStart, pos, "end");
+                        // 11. Tab and Shift+Tab (4 spaces indent/dedent & macro snippets)
+                        if (e.key === "Tab") {
+                            if (handleEditorTabKey(ta, e, () => {
                                 widget.value = ta.value;
                                 widget._updateSyntaxHighlight?.();
+                            })) {
                                 return;
                             }
                         }
+                    });
+
+                    attachTabPasteNormalization(ta, () => {
+                        widget.value = ta.value;
+                        widget._updateSyntaxHighlight?.();
                     });
                 };
 
@@ -8226,6 +8350,7 @@ app.registerExtension({
                 }
 
                 function onPosInput() {
+                    normalizeRawTabs(posTa);
                     pw.value = posTa.value;
                     if (pw.inputEl) pw.inputEl.value = posTa.value;
                     pw._updateSyntaxHighlight?.();
@@ -8278,6 +8403,7 @@ app.registerExtension({
                 }
 
                 function onNegInput() {
+                    normalizeRawTabs(negTa);
                     nw.value = negTa.value;
                     if (nw.inputEl) nw.inputEl.value = negTa.value;
                     nw._updateSyntaxHighlight?.();
@@ -8468,10 +8594,27 @@ app.registerExtension({
                 };
 
                 posTa.addEventListener("keydown", (e) => {
-                    handleUndoRedoShortcuts(e);
+                    if (handleUndoRedoShortcuts(e)) return;
+                    if (handleEditorTabKey(posTa, e, () => {
+                        onPosInput();
+                        onTypeWithHistory();
+                    })) return;
                 });
+                attachTabPasteNormalization(posTa, () => {
+                    onPosInput();
+                    onTypeWithHistory();
+                });
+
                 negTa.addEventListener("keydown", (e) => {
-                    handleUndoRedoShortcuts(e);
+                    if (handleUndoRedoShortcuts(e)) return;
+                    if (handleEditorTabKey(negTa, e, () => {
+                        onNegInput();
+                        onTypeWithHistory();
+                    })) return;
+                });
+                attachTabPasteNormalization(negTa, () => {
+                    onNegInput();
+                    onTypeWithHistory();
                 });
 
                 attachOllamaSelectionContextMenu(posTa, pw, node, onPosInput);

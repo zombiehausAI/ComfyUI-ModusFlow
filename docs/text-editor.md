@@ -75,6 +75,7 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **Duplicate Line Down (`Shift + Alt + Down`)**: Duplicates the current line or selected block directly below in one keystroke.
 - **Send to Opposite Prompt (`Ctrl + Shift + N`)**: Cuts the active selection from the positive prompt and appends it to negative (or vice versa), cleaning up commas automatically.
 - **Find & Replace (`Ctrl + F` / `Ctrl + H`)**: Opens a floating, non-intrusive Find & Replace bar with live match counter, Prev/Next buttons, Replace, Replace All, Case-Sensitive (`Aa`), and Regex (`.*`) support.
+- **4-Space Tab Indentation & Dedent (`Tab` / `Shift + Tab`)**: Pressing `Tab` indents by 4 spaces (`"    "`) rather than inserting a literal `\t` tab character or moving focus out of the editor. If multiple lines are selected, `Tab` indents each selected line by 4 spaces. Pressing `Shift + Tab` dedents (unindents) the line or selection by up to 4 spaces. Any literal `\t` tab characters pasted or entered into the editor are automatically normalized to 4 spaces.
 - **Prompt Snippets / Macros (Tab Expansion)**: Type a shortcut trigger like `!cine`, `!photo`, `!anime`, `!clean`, `!cyber`, `!portrait`, or `!neg` and press `Tab` to expand into comprehensive visual descriptor bundles.
 - **Interactive Color Hex Inspector & Natural Color Resolver**: Type any `#RRGGBB` or `#RGB` hex code (e.g. `#e63946`, `#2a9d8f`, `#3a86ff`). The editor renders the text in that exact color with a subtle glowing pill container. Clicking or placing your cursor on it opens a floating inspector showing:
   - Exact live color swatch, RGB, and HSL metrics.
@@ -335,6 +336,47 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
   - **Default / Wildcard Fallbacks**: Any of `*`, `default`, `_`, or `else` acts as the fallback when no prior patterns match. If omitted and no branch matches, resolves to an empty string.
   - **Nested Dynamic Choices & Wildcards**: Branches fully support nested choice blocks, shuffles, wildcards, and ternaries: `{$season: spring => {cherry|peach} blossoms | winter => {snowy peaks|ice glaze}}`
   - **Prefix Flexibility**: Both `{$var: ...}` and `{case $var: ...}` syntax formats are recognized.
+  - **Multiline Branch Assignments**: Each branch (`pattern => result`) can span multiple lines with its own indentation, tags, and inline comments:
+    ```text
+    {case $season:
+        summer =>
+            masterpiece, best quality,
+            sundress, straw hat,
+            tropical sun, sandy beach
+        | winter =>
+            masterpiece, best quality,
+            heavy woolen coat, knitted scarf,
+            snowy pine forest, soft falling snow
+        | * =>
+            casual shirt, blue jeans,
+            clear afternoon
+    }
+    ```
+  - **Assigning a Multiline CASE Statement to a Variable**: Wrap the statement in triple quotes (`""" ... """`) or braced blocks (`$var = { ... };`) to store the resolved branch into a reusable variable:
+    ```text
+    $mood = happy;
+
+    $character_expression = """
+    {case $mood:
+        happy =>
+            cheerful smile,
+            sparkling eyes,
+            rosy cheeks
+        | sad =>
+            melancholic gaze,
+            tear on cheek,
+            somber expression
+        | * =>
+            neutral expression
+    }
+    """;
+
+    1girl, solo, $character_expression, portrait
+    ```
+  - **Multi-Attribute Branching Best Practices**: CASE branches output text directly into the prompt. To coordinate multiple attributes from a single condition:
+    1. **Master Block Variable**: Group all related character and scene descriptors into the branch text of a single master variable.
+    2. **Discrete Targeted Variables**: Define separate CASE variables per trait (e.g. `$lighting = {case $time: morning => soft dawn | night => neon};`).
+    3. **Synced Choice Tuples**: Use `[$var1, $var2] = { [v1, v2] | [v3, v4] };` for lockstep coordinated sets.
 - **Ternary If/Else Conditionals (`{$var==val?true:false}`)**: Dynamically branch prompt output based on variable values (using `==` for comparisons so as not to confuse with variable assignment `=`):
   - **Equality (`==`)**: `{$color==red?crimson cloak:azure robe}` or `{$color==red?man:woman}`
   - **Inequality (`!=`)**: `{$weather!=rainy?clear sunny sky:stormy clouds}`
