@@ -226,15 +226,20 @@ class ModusFlowTextEditor:
                     if op == "<=": return var_val <= target
             return False
 
-        def parse_and_resolve_ternaries(input_text):
+        # 2. Resolve Conditionals (CASE Statements and Ternaries):
+        # CASE:    {$var: val1 => result1 | val2 => result2 | * => default} or {case $var: ...}
+        # Ternary: {$var==val?true:false}, {$var!=val?...}, {$var?true:false}
+        def parse_and_resolve_conditionals(input_text):
             out = []
             i = 0
             n = len(input_text)
             has_match = False
             while i < n:
-                if input_text[i:i+2] == "{$":
+                is_case_prefix = input_text[i:i+6].lower() == "{case "
+                is_var_prefix = input_text[i:i+2] == "{$"
+                if is_var_prefix or is_case_prefix:
                     start = i
-                    i += 2
+                    i += 6 if is_case_prefix else 2
                     depth = 1
                     inner_chars = []
                     while i < n and depth > 0:
@@ -251,6 +256,112 @@ class ModusFlowTextEditor:
 
                     if depth == 0:
                         inner = "".join(inner_chars)
+
+                        # Check if this is a CASE statement: contains '=>' at depth 0
+                        has_arrow = False
+                        d = 0
+                        for idx in range(len(inner) - 1):
+                            c = inner[idx]
+                            if c == "{": d += 1
+                            elif c == "}": d -= 1
+                            elif inner[idx:idx+2] == "=>" and d == 0:
+                                has_arrow = True
+                                break
+
+                        if has_arrow:
+                            colon_idx = -1
+                            d = 0
+                            for idx, c in enumerate(inner):
+                                if c == "{": d += 1
+                                elif c == "}": d -= 1
+                                elif c == ":" and d == 0:
+                                    colon_idx = idx
+                                    break
+
+                            if colon_idx != -1:
+                                var_part = inner[:colon_idx].strip()
+                                cases_part = inner[colon_idx+1:]
+
+                                if var_part.lower().startswith("case "):
+                                    var_part = var_part[5:].strip()
+                                if var_part.startswith("$"):
+                                    var_part = var_part[1:].strip()
+
+                                var_val = variables.get(var_part, "")
+
+                                # Split cases_part by '|' at depth 0
+                                branches = []
+                                cur_b = []
+                                d = 0
+                                for ch in cases_part:
+                                    if ch == "{":
+                                        d += 1
+                                        cur_b.append(ch)
+                                    elif ch == "}":
+                                        d -= 1
+                                        cur_b.append(ch)
+                                    elif ch == "|" and d == 0:
+                                        branches.append("".join(cur_b).strip())
+                                        cur_b = []
+                                    else:
+                                        cur_b.append(ch)
+                                if cur_b:
+                                    branches.append("".join(cur_b).strip())
+
+                                matched_branch_val = None
+                                default_val = None
+
+                                for branch in branches:
+                                    if not branch:
+                                        continue
+                                    arrow_idx = -1
+                                    d = 0
+                                    for idx in range(len(branch) - 1):
+                                        c = branch[idx]
+                                        if c == "{": d += 1
+                                        elif c == "}": d -= 1
+                                        elif branch[idx:idx+2] == "=>" and d == 0:
+                                            arrow_idx = idx
+                                            break
+
+                                    if arrow_idx == -1:
+                                        continue
+
+                                    patterns_str = branch[:arrow_idx].strip()
+                                    result_str = branch[arrow_idx+2:].strip()
+
+                                    if patterns_str.lower() in ("*", "_", "default", "else"):
+                                        if default_val is None:
+                                            default_val = result_str
+                                        continue
+
+                                    sub_patterns = [p.strip() for p in patterns_str.split(",") if p.strip()]
+                                    branch_matched = False
+                                    for pat in sub_patterns:
+                                        m_op = re.match(r"^(==|!=|>=|<=|>|<)\s*(.*)$", pat)
+                                        if m_op:
+                                            op = m_op.group(1)
+                                            target = m_op.group(2).strip()
+                                            if eval_condition(var_val, op, target):
+                                                branch_matched = True
+                                                break
+                                        else:
+                                            clean_pat = pat.strip("'\"")
+                                            clean_var = str(var_val).strip().strip("'\"")
+                                            if clean_var.lower() == clean_pat.lower():
+                                                branch_matched = True
+                                                break
+
+                                    if branch_matched:
+                                        matched_branch_val = result_str
+                                        break
+
+                                chosen = matched_branch_val if matched_branch_val is not None else (default_val if default_val is not None else "")
+                                out.append(chosen)
+                                has_match = True
+                                continue
+
+                        # Otherwise check for Ternary conditional: contains '?' at depth 0
                         q_idx = -1
                         d = 0
                         for idx, c in enumerate(inner):
@@ -297,7 +408,7 @@ class ModusFlowTextEditor:
             return "".join(out), has_match
 
         for _ in range(5):
-            text, matched = parse_and_resolve_ternaries(text)
+            text, matched = parse_and_resolve_conditionals(text)
             if not matched:
                 break
 

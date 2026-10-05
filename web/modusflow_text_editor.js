@@ -1098,7 +1098,40 @@ function tokenizeAndHighlight(text, theme) {
     addMatches(/\/\/[^\r\n]*|#[^\r\n]*/g, "comment");
     // 4. LoRA tags: <lora:...>
     addMatches(/<lora:[^>\r\n]+>/gi, "lora");
-    // 4.5 Ternary Conditionals: {$var==val?true:false}, {$var!=val?...}, or {$var?true:false}
+    // 4.5 CASE Statements: {$var: val1 => result1 | * => default} or {case $var: ...}
+    const addCaseMatches = () => {
+        let ci = 0;
+        const cn = text.length;
+        while (ci < cn) {
+            const isCasePrefix = text.slice(ci, ci + 6).toLowerCase() === "{case ";
+            const isVarPrefix = text.slice(ci, ci + 2) === "{$";
+            if (isCasePrefix || isVarPrefix) {
+                const cStart = ci;
+                ci += isCasePrefix ? 6 : 2;
+                let cDepth = 1;
+                while (ci < cn && cDepth > 0) {
+                    const ch = text[ci];
+                    if (ch === "{") cDepth++;
+                    else if (ch === "}") cDepth--;
+                    ci++;
+                }
+                if (cDepth === 0) {
+                    const block = text.slice(cStart, ci);
+                    const inner = block.slice(1, -1);
+                    if (inner.includes(":") && inner.includes("=>")) {
+                        const collides = intervals.some(iv => (cStart < iv.end && ci > iv.start));
+                        if (!collides) {
+                            intervals.push({ start: cStart, end: ci, type: "case_statement" });
+                        }
+                    }
+                }
+            } else {
+                ci++;
+            }
+        }
+    };
+    addCaseMatches();
+    // 4.6 Ternary Conditionals: {$var==val?true:false}, {$var!=val?...}, or {$var?true:false}
     addMatches(/\{\s*\$[a-zA-Z0-9_]+(?:\s*(?:==|!=|>=|<=|>|<)\s*[^}?]+)?\s*\?[^}]*\}/gi, "ternary");
     // 5. Prompt Variables: $name = value; or $name
     addMatches(/\$[a-zA-Z0-9_-]+(?:\s*=\s*[^;\r\n]+;?)?/g, "variable");
@@ -1195,6 +1228,9 @@ function tokenizeAndHighlight(text, theme) {
                 title += " (De-emphasized)";
             }
             html += `<span class="modusflow-weight-token" data-weight="${w}" style="color: ${baseColor}; ${extraStyle}" title="${title}">${tokenText}</span>`;
+        } else if (iv.type === "case_statement") {
+            const color = theme.choice || theme.variable || "#cba6f7";
+            html += `<span style="color: ${color}; font-weight: 600;" title="CASE Statement: ${tokenText}">${tokenText}</span>`;
         } else if (iv.type === "ternary") {
             const color = theme.choice || theme.variable || "#cba6f7";
             html += `<span style="color: ${color}; font-weight: 600;" title="Ternary Conditional: ${tokenText}">${tokenText}</span>`;

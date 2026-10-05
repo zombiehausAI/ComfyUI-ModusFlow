@@ -145,6 +145,7 @@ The Text Editor includes a real-time, zero-latency syntax highlighting engine re
 | **Comments** | `/* notes */`, `# comment`, `// idea` | Dimmed/subtle color indicating exclusion from generation |
 | **Hex Colors** | `#ff5733`, `#00ffff`, `#e63946` | Rendered in the exact hex color with glowing pill badge and interactive hover inspector |
 | **Variables** | `$lighting = neon ambient;`, `$lighting` | Distinct accent color for prompt variable definitions and references |
+| **CASE Statements** | `{$season: spring => cherry blossoms \| * => meadow}` | Multi-branch pattern matching on variable values with relational operators and default fallback |
 | **Ternary Conditionals** | `{$color==red?man:woman}`, `{$hat?fedora:hair}` | Conditional prompt expansion based on variable equality (`==`), inequality (`!=`), or truthiness |
 | **Dynamic Choices** | `{red \| blue \| green}` | Bracketed options highlighted for easy scanning |
 | **Pick-N & Ranges** | `{2$$red \| blue \| green}`, `{1-3$$tags}` | Dynamic combination generators highlighted |
@@ -321,6 +322,13 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
 
 ### 14. Nested Dynamic Choices & Recursive Resolution
 - **Nested `{this|this}` Inside Lists**: Full recursive syntax resolution supports nested choices inside choice blocks, wildcards inside lists, and variables inside choices (e.g., `{red|{blue|cyan}}`, or a list row containing `portrait with {cybernetic|organic} enhancements`).
+- **CASE Statements (`{$var: pattern => result | * => default}`)**: Multi-branch switch/case statements that cleanly map variable values to prompt branches using pipe delimiters (`|`) and fat arrows (`=>`):
+  - **Exact Value Matching**: `{$season: spring => cherry blossoms | summer => sunflower field | autumn => golden leaves | winter => snowy pines | * => lush meadow}`
+  - **Multiple Matches Per Branch**: Comma-separated patterns allow grouping values: `{$weather: rain, storm, drizzle => rain poncho, wet streets | * => casual jacket}`
+  - **Relational Conditions in Cases**: Supports numerical and lexicographical comparisons: `{$level: >= 50 => grandmaster warrior | >= 20 => veteran knight | * => novice adventurer}`
+  - **Default / Wildcard Fallbacks**: Any of `*`, `default`, `_`, or `else` acts as the fallback when no prior patterns match. If omitted and no branch matches, resolves to an empty string.
+  - **Nested Dynamic Choices & Wildcards**: Branches fully support nested choice blocks, shuffles, wildcards, and ternaries: `{$season: spring => {cherry|peach} blossoms | winter => {snowy peaks|ice glaze}}`
+  - **Prefix Flexibility**: Both `{$var: ...}` and `{case $var: ...}` syntax formats are recognized.
 - **Ternary If/Else Conditionals (`{$var==val?true:false}`)**: Dynamically branch prompt output based on variable values (using `==` for comparisons so as not to confuse with variable assignment `=`):
   - **Equality (`==`)**: `{$color==red?crimson cloak:azure robe}` or `{$color==red?man:woman}`
   - **Inequality (`!=`)**: `{$weather!=rainy?clear sunny sky:stormy clouds}`

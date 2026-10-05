@@ -113,6 +113,39 @@ portrait of an elven archer with $color eyes, wearing a matching $color hooded c
 ```
 ModusFlow evaluates `$color` once and replaces it everywhere it appears in the prompt.
 
+### Ternary If/Else Conditionals (`{$var==val?true:false}`)
+Dynamically branch your prompt output based on evaluated variables or conditions:
+```text
+$color = {red|blue};
+portrait of a warrior wearing {$color==red?crimson dragonscale armor:azure plate mail}
+```
+* **Equality (`==`)**: Evaluates true when the variable matches the target value (e.g., `{$color==red?man:woman}`). Strictly uses `==` for comparisons so as not to confuse with variable assignment (`$var = value;`).
+* **Inequality (`!=`)**: Evaluates true when the variable does not match the target value (e.g., `{$weather!=rainy?clear sunny sky:stormy clouds}`).
+* **Truthiness (`{$var?true:false}`)**: Evaluates true if `$var` is defined, non-empty, and not `false`, `0`, or `none` (e.g., `{$wearing_hat?black fedora:messy hair}`).
+* **Optional False Branch**: If the colon and false branch are omitted, it cleanly evaluates to an empty string when false (e.g., `{$color==red?ruby brooch}`).
+* **Nested Choices & Wildcards**: Branches fully support nested choice blocks and wildcards (e.g., `{$color==red?{crimson|ruby}:blue}`).
+
+### CASE Statements (`{$var: pattern => result | * => default}`)
+When branching across three or more options, **CASE statements** provide a cleaner, more readable alternative to nested if/else chains:
+```text
+$season = {spring|summer|autumn|winter};
+portrait of an adventurer in a {$season:
+    spring => blossoming meadow of cherry trees |
+    summer => sun-drenched coastal beach |
+    autumn => misty forest with golden maple leaves |
+    winter => snow-covered mountain pass |
+    * => lush emerald countryside
+}, cinematic lighting
+```
+* **Arrow & Pipe Structure**: Branches are delimited by `|` (just like choice blocks) and map conditions to results with `=>`.
+* **Exact Matching**: Checks variable value against exact strings (case-insensitive, e.g. `summer => sunflowers`).
+* **Multi-Value Patterns**: Match any of several values using commas (e.g. `rain, storm, drizzle => rain slicker`).
+* **Relational Operators**: Supports numerical and lexicographical comparisons (e.g. `>= 50 => grandmaster | * => apprentice`).
+* **Fallback / Wildcard (`*`)**: Uses `*`, `default`, `_`, or `else` to catch unhandled values. If omitted, unmatched values evaluate to an empty string.
+* **Nested Choices**: Individual branch outputs can contain choice blocks or wildcards (e.g. `spring => {cherry|peach} blossoms`).
+* **Prefix Flexibility**: Both `{$var: ...}` and `{case $var: ...}` syntax forms are supported.
+
+
 ### Multi-Pick Wildcards (`__2$$wildcard__`)
 Pick multiple random lines from a single wildcard `.txt` file:
 ```text
