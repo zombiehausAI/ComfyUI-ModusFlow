@@ -1252,8 +1252,48 @@ function tokenizeAndHighlight(text, theme) {
         }
     };
     addCaseMatches();
-    // 4.6 Ternary Conditionals: {$var==val?true:false}, {$var!=val?...}, or {$var?true:false}
-    addMatches(/\{\s*\$[a-zA-Z0-9_]+(?:\s*(?:==|!=|>=|<=|>|<)\s*[^}?]+)?\s*\?[^}]*\}/gi, "ternary");
+    // 4.6 Ternary Conditionals: {$var==val?true:false}, {$var in {a|b}?true:false}, etc. with nested brace support
+    const addTernaryMatches = () => {
+        let ti = 0;
+        const tn = text.length;
+        while (ti < tn) {
+            if (text.slice(ti, ti + 2) === "{$") {
+                const tStart = ti;
+                ti += 2;
+                let tDepth = 1;
+                while (ti < tn && tDepth > 0) {
+                    const ch = text[ti];
+                    if (ch === "{") tDepth++;
+                    else if (ch === "}") tDepth--;
+                    ti++;
+                }
+                if (tDepth === 0) {
+                    const block = text.slice(tStart, ti);
+                    const inner = block.slice(1, -1);
+                    let hasQ = false;
+                    let id = 0;
+                    for (let idx = 0; idx < inner.length; idx++) {
+                        const c = inner[idx];
+                        if (c === "{") id++;
+                        else if (c === "}") id--;
+                        else if (c === "?" && id === 0) {
+                            hasQ = true;
+                            break;
+                        }
+                    }
+                    if (hasQ && !inner.includes("=>")) {
+                        const collides = intervals.some(iv => (tStart < iv.end && ti > iv.start));
+                        if (!collides) {
+                            intervals.push({ start: tStart, end: ti, type: "ternary" });
+                        }
+                    }
+                }
+            } else {
+                ti++;
+            }
+        }
+    };
+    addTernaryMatches();
     // 4.7 Inline Negative Injections: {!neg: ...}
     addMatches(/\{!neg:[^}]+\}/gi, "inline_neg");
     // 4.8 Environment & Workflow Macros: %seed%, %date%, %sampler%, %steps%, etc.
