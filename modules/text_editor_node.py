@@ -1,10 +1,19 @@
 import os
 import sys
 import re
+import json
 import time
 import random
 import torch
 from nodes import CLIPTextEncode
+
+class PromptList(list):
+    def __str__(self):
+        return ", ".join(str(x) for x in self)
+
+class PromptDict(dict):
+    def __str__(self):
+        return ", ".join(f"{k}: {v}" for k, v in self.items())
 
 class ModusFlowTextEditor:
     """
@@ -204,11 +213,17 @@ class ModusFlowTextEditor:
     def resolve_dynamic_prompts(text: str, seed: int = None, cycle_index: int = 0, initial_vars: dict = None) -> str:
         """
         Resolve:
+        - Modular File Imports (@import "path/file.txt", @import "subfolder/prompt.json")
+        - Macro Functions (fn name($a, $b) = { ... }; invoked via @name(...))
         - Synced Tuples ([$hero, $color] = { [knight, silver] | [mage, violet] };)
+        - Loops and Repetition (repeat(N) { ... }, for $var in $list { ... })
         - Variables ($color = {red|blue}; ... $color | filter)
+        - Null-Coalescing ($var ?? "fallback", {$var ?? "fallback"})
+        - Inline Arithmetic ({$age + 10}, (tag:{$weight + 0.2}))
+        - Percentage Chance Modifiers ({40%: text})
         - Sequential & Cycling choices ({seq: a|b|c}, {cycle: a|b|c})
         - Random Numerical Ranges ({range: 18..35}, {range: 0.8..1.4:0.05})
-        - Conditionals (CASE statements and Ternaries)
+        - Conditionals (CASE statements and Compound Ternaries: {$a && $b ? x : y})
         - Pick-N & Range choices ({2$$a|b|c}, {1-3$$a|b|c})
         - Weighted choices ({80::blue | 20::red})
         - Shuffles ({shuffle: a, b, c})
@@ -220,6 +235,65 @@ class ModusFlowTextEditor:
 
         import random
         rng = random.Random(seed) if seed is not None and seed != 0 else random.Random()
+
+        # 0. Resolve Modular File Imports: @import "path/to/file" (.txt or .json)
+        def resolve_imports(raw_text: str, max_depth: int = 5, seen_files: set = None) -> str:
+            if seen_files is None:
+                seen_files = set()
+            if max_depth <= 0 or not raw_text or "@import" not in raw_text:
+                return raw_text
+
+            try:
+                from ..config import settings, BASE_DIR
+                prompts_dir = settings.get('prompts_save_directory', '').strip()
+                if not prompts_dir:
+                    prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
+            except Exception:
+                try:
+                    from config import settings, BASE_DIR
+                    prompts_dir = settings.get('prompts_save_directory', '').strip()
+                    if not prompts_dir:
+                        prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
+                except Exception:
+                    prompts_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'saved_prompts')
+
+            import_pattern = r'@import\s+["\']([^"\']+)["\'][ \t]*(?:;)?'
+
+            def replace_import(m):
+                rel_path = m.group(1).strip()
+                candidates = [
+                    os.path.join(prompts_dir, rel_path),
+                    os.path.join(prompts_dir, f"{rel_path}.txt"),
+                    os.path.join(prompts_dir, f"{rel_path}.json"),
+                    os.path.join(prompts_dir, "prompts", rel_path),
+                    os.path.join(prompts_dir, "prompts", f"{rel_path}.txt"),
+                    os.path.join(prompts_dir, "prompts", f"{rel_path}.json"),
+                ]
+                if os.path.isabs(rel_path):
+                    candidates.insert(0, rel_path)
+
+                for cand in candidates:
+                    cand_norm = os.path.normpath(cand)
+                    if os.path.isfile(cand_norm):
+                        if cand_norm in seen_files:
+                            return f"/* recursive import loop: {rel_path} */"
+                        seen_files.add(cand_norm)
+                        try:
+                            if cand_norm.endswith('.json'):
+                                with open(cand_norm, 'r', encoding='utf-8') as f:
+                                    data = json.load(f)
+                                content = data.get("positive", data.get("prompt", data.get("text", "")))
+                            else:
+                                with open(cand_norm, 'r', encoding='utf-8') as f:
+                                    content = f.read()
+                            return resolve_imports(content, max_depth - 1, seen_files)
+                        except Exception as e:
+                            return f"/* error importing {rel_path}: {e} */"
+                return f"/* @import not found: {rel_path} */"
+
+            return re.sub(import_pattern, replace_import, raw_text)
+
+        text = resolve_imports(text)
 
         # Helper: parse count spec "2" or "1-3"
         def parse_count(spec, total):
@@ -258,7 +332,276 @@ class ModusFlowTextEditor:
                 pool.remove(chosen)
             return picked
 
-        # 1. Sequentially resolve all variable definitions top-to-bottom
+        # Macro Functions: fn name($arg1, $arg2) = { body };
+        macros = {}
+
+        def parse_call_args(args_str):
+            args = []
+            cur = []
+            d = 0
+            in_quote = None
+            for c in args_str:
+                if in_quote:
+                    cur.append(c)
+                    if c == in_quote:
+                        in_quote = None
+                elif c in ('"', "'"):
+                    in_quote = c
+                    cur.append(c)
+                elif c in ('{', '('):
+                    d += 1
+                    cur.append(c)
+                elif c in ('}', ')'):
+                    d -= 1
+                    cur.append(c)
+                elif c == ',' and d == 0:
+                    args.append("".join(cur).strip().strip("'\""))
+                    cur = []
+                else:
+                    cur.append(c)
+            if cur:
+                args.append("".join(cur).strip().strip("'\""))
+            return args
+
+        def resolve_macros(content, macro_defs, current_vars, call_depth=5):
+            if call_depth <= 0 or not macro_defs or "@" not in content:
+                return content
+
+            for fn_name, (params, body) in macro_defs.items():
+                pattern = rf'@{fn_name}\s*\('
+                while True:
+                    m = re.search(pattern, content)
+                    if not m:
+                        break
+                    call_start = m.start()
+                    args_start = m.end()
+                    d = 1
+                    pos = args_start
+                    in_q = None
+                    while pos < len(content) and d > 0:
+                        ch = content[pos]
+                        if in_q:
+                            if ch == in_q:
+                                in_q = None
+                        elif ch in ('"', "'"):
+                            in_q = ch
+                        elif ch == '(':
+                            d += 1
+                        elif ch == ')':
+                            d -= 1
+                            if d == 0:
+                                break
+                        pos += 1
+
+                    if d != 0:
+                        break
+
+                    raw_args = content[args_start:pos]
+                    call_end = pos + 1
+                    passed_args = parse_call_args(raw_args)
+
+                    instantiated = body
+                    for p_idx, p_name in enumerate(params):
+                        val = passed_args[p_idx] if p_idx < len(passed_args) else ""
+                        if val.startswith("$") and val[1:] in current_vars:
+                            val = str(current_vars[val[1:]]).strip().strip("'\"")
+                        else:
+                            val = val.strip().strip("'\"")
+                        instantiated = re.sub(rf'\${p_name}\b', val, instantiated)
+
+                    instantiated = resolve_macros(instantiated, macro_defs, current_vars, call_depth - 1)
+                    content = content[:call_start] + instantiated + content[call_end:]
+            return content
+
+        # Helpers for Array, List, and Dictionary parsing & Property Access
+        def split_top_level(s_text, delims=(',', '\n')):
+            parts = []
+            cur = []
+            d_b = d_br = d_p = 0
+            in_q = None
+            for c in s_text:
+                if in_q:
+                    cur.append(c)
+                    if c == in_q:
+                        in_q = None
+                elif c in ('"', "'"):
+                    in_q = c
+                    cur.append(c)
+                elif c == '{':
+                    d_b += 1; cur.append(c)
+                elif c == '}':
+                    d_b -= 1; cur.append(c)
+                elif c == '[':
+                    d_br += 1; cur.append(c)
+                elif c == ']':
+                    d_br -= 1; cur.append(c)
+                elif c == '(':
+                    d_p += 1; cur.append(c)
+                elif c == ')':
+                    d_p -= 1; cur.append(c)
+                elif c in delims and d_b == 0 and d_br == 0 and d_p == 0:
+                    s_item = "".join(cur).strip()
+                    if s_item:
+                        parts.append(s_item)
+                    cur = []
+                else:
+                    cur.append(c)
+            if cur:
+                s_item = "".join(cur).strip()
+                if s_item:
+                    parts.append(s_item)
+            return parts
+
+        def parse_complex_value(raw: str, current_vars: dict = None):
+            s = raw.strip()
+            if not s:
+                return s
+
+            if s.startswith('[') and s.endswith(']'):
+                inner = s[1:-1].strip()
+                if not inner:
+                    return PromptList()
+                items = split_top_level(inner, delims=(',', '\n'))
+                parsed_items = [parse_complex_value(it, current_vars) for it in items]
+                return PromptList(parsed_items)
+
+            if s.startswith('{') and s.endswith('}'):
+                inner = s[1:-1].strip()
+                d_b = d_br = d_p = 0
+                in_q = None
+                has_pipe_depth0 = False
+                for c in inner:
+                    if in_q:
+                        if c == in_q: in_q = None
+                    elif c in ('"', "'"): in_q = c
+                    elif c == '{': d_b += 1
+                    elif c == '}': d_b -= 1
+                    elif c == '[': d_br += 1
+                    elif c == ']': d_br -= 1
+                    elif c == '(': d_p += 1
+                    elif c == ')': d_p -= 1
+                    elif c == '|' and d_b == 0 and d_br == 0 and d_p == 0:
+                        has_pipe_depth0 = True
+                        break
+
+                if not has_pipe_depth0:
+                    entries = split_top_level(inner, delims=(',', '\n', ';'))
+                    dict_candidates = []
+                    is_dict = bool(entries)
+                    for entry in entries:
+                        col_idx = -1
+                        d_b = d_br = d_p = 0
+                        in_q = None
+                        for idx, c in enumerate(entry):
+                            if in_q:
+                                if c == in_q: in_q = None
+                            elif c in ('"', "'"): in_q = c
+                            elif c == '{': d_b += 1
+                            elif c == '}': d_b -= 1
+                            elif c == '[': d_br += 1
+                            elif c == ']': d_br -= 1
+                            elif c == '(': d_p += 1
+                            elif c == ')': d_p -= 1
+                            elif c == ':' and d_b == 0 and d_br == 0 and d_p == 0:
+                                if idx + 1 < len(entry) and entry[idx+1] == ':': continue
+                                if idx > 0 and entry[idx-1] == ':': continue
+                                col_idx = idx
+                                break
+
+                        if col_idx != -1:
+                            k = entry[:col_idx].strip().strip("'\"")
+                            v = entry[col_idx+1:].strip()
+                            if re.match(r'^[a-zA-Z0-9_]+$', k):
+                                dict_candidates.append((k, v))
+                            else:
+                                is_dict = False
+                                break
+                        else:
+                            is_dict = False
+                            break
+
+                    if is_dict and dict_candidates:
+                        res_dict = PromptDict()
+                        for k, v in dict_candidates:
+                            res_dict[k] = parse_complex_value(v, current_vars)
+                        return res_dict
+
+            if (s.startswith('"') and s.endswith('"') and len(s) >= 2) or (s.startswith("'") and s.endswith("'") and len(s) >= 2):
+                return s[1:-1]
+
+            if s.startswith("$") and current_vars and s[1:] in current_vars:
+                return current_vars[s[1:]]
+
+            return s
+
+        def evaluate_chain(base_val, chain_str):
+            tokens = re.findall(r'\.([a-zA-Z0-9_]+(?:\(\))?)|\[\s*(-?[0-9]+|"[^"]*"|\'[^\']*\')\s*\]', chain_str)
+            curr = base_val
+            for prop, bracket in tokens:
+                if prop:
+                    prop_clean = prop.strip()
+                    if prop_clean in ("length", "count", "length()", "count()"):
+                        if isinstance(curr, (list, dict, str)):
+                            curr = str(len(curr))
+                        else:
+                            curr = "0"
+                    elif prop_clean in ("keys", "keys()"):
+                        if isinstance(curr, dict):
+                            curr = PromptList(list(curr.keys()))
+                        else:
+                            curr = PromptList()
+                    elif prop_clean in ("values", "values()"):
+                        if isinstance(curr, dict):
+                            curr = PromptList(list(curr.values()))
+                        else:
+                            curr = PromptList()
+                    elif prop_clean in ("first", "first()"):
+                        if isinstance(curr, list) and curr:
+                            curr = curr[0]
+                        else:
+                            curr = ""
+                    elif prop_clean in ("last", "last()"):
+                        if isinstance(curr, list) and curr:
+                            curr = curr[-1]
+                        else:
+                            curr = ""
+                    elif isinstance(curr, dict):
+                        curr = curr.get(prop_clean, "")
+                    else:
+                        curr = ""
+                elif bracket:
+                    bracket_clean = bracket.strip()
+                    if bracket_clean.startswith(('"', "'")) and bracket_clean.endswith(('"', "'")):
+                        key = bracket_clean[1:-1]
+                        if isinstance(curr, dict):
+                            curr = curr.get(key, "")
+                        else:
+                            curr = ""
+                    else:
+                        try:
+                            idx = int(bracket_clean)
+                            if isinstance(curr, list):
+                                curr = curr[idx]
+                            else:
+                                curr = ""
+                        except (ValueError, IndexError):
+                            curr = ""
+            return curr
+
+        def resolve_property_access(in_text, local_vars):
+            chain_pat = re.compile(
+                r'\$([a-zA-Z0-9_]+)((?:\.[a-zA-Z0-9_]+(?:\(\))?|\[\s*(?:-?[0-9]+|"[^"]*"|\'[^\']*\')\s*\])+)'
+            )
+            def repl(m):
+                base = m.group(1)
+                chain = m.group(2)
+                if base in local_vars:
+                    res = evaluate_chain(local_vars[base], chain)
+                    return str(res)
+                return m.group(0)
+            return chain_pat.sub(repl, in_text)
+
+        # 1. Sequentially resolve all definitions (macros, synced tuples, variables) top-to-bottom
         variables = dict(initial_vars) if initial_vars else {}
         out_chars = []
         ti = 0
@@ -266,6 +609,54 @@ class ModusFlowTextEditor:
         depth = 0
         while ti < tn:
             if depth == 0:
+                # Check for Macro definition: fn name($arg1, $arg2) = ... or def name(...) = ...
+                m_fn = re.match(r'(?:^|\n)\s*(?:fn|def)\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=(?![>=])\s*', text[ti:])
+                if m_fn:
+                    fn_name = m_fn.group(1)
+                    raw_params = m_fn.group(2)
+                    params = [p.strip().lstrip('$') for p in raw_params.split(',') if p.strip()]
+                    val_start = ti + m_fn.end()
+
+                    # Case A: Triple quoted
+                    m_tq = re.match(r'^(?:"""([\s\S]*?)"""|\'\'\'([\s\S]*?)\'\'\')[;\s]*', text[val_start:])
+                    if m_tq:
+                        raw_body = m_tq.group(1) if m_tq.group(1) is not None else m_tq.group(2)
+                        macros[fn_name] = (params, ModusFlowTextEditor.filter_comments(raw_body).strip())
+                        ti = val_start + m_tq.end()
+                        continue
+
+                    # Case B: Braced { ... }
+                    if val_start < tn and text[val_start] == "{":
+                        b_depth = 1
+                        b_pos = val_start + 1
+                        while b_pos < tn and b_depth > 0:
+                            ch = text[b_pos]
+                            if ch == "{": b_depth += 1
+                            elif ch == "}": b_depth -= 1
+                            b_pos += 1
+                        if b_depth == 0:
+                            inner_body = text[val_start + 1 : b_pos - 1]
+                            m_semi = re.match(r'^\s*;', text[b_pos:])
+                            if m_semi:
+                                b_pos += m_semi.end()
+                            macros[fn_name] = (params, ModusFlowTextEditor.filter_comments(inner_body).strip())
+                            ti = b_pos
+                            continue
+
+                    # Case C: Semicolon terminated
+                    m_semi = re.match(r'^([^;]+);', text[val_start:])
+                    if m_semi:
+                        macros[fn_name] = (params, ModusFlowTextEditor.filter_comments(m_semi.group(1)).strip())
+                        ti = val_start + m_semi.end()
+                        continue
+
+                    # Case D: Single line
+                    m_line = re.match(r'^([^\n;]+)(?:\n|$)', text[val_start:])
+                    if m_line:
+                        macros[fn_name] = (params, ModusFlowTextEditor.filter_comments(m_line.group(1)).strip())
+                        ti = val_start + m_line.end()
+                        continue
+
                 # Check for Synced Tuples: [ $a, $b ] = { [x, y] | [w, z] };
                 m_tuple = re.match(
                     r'^\s*\[\s*(\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)+)\s*\]\s*=\s*\{\s*(\[[^\]]+\](?:\s*\|\s*\[[^\]]+\])*)\s*\}[;\s]*',
@@ -321,6 +712,13 @@ class ModusFlowTextEditor:
                             lines = [l.strip() for l in inner_content.splitlines() if l.strip()]
                             clean_val = "\n".join(lines)
 
+                            # First check if this is a dictionary { key: val, ... }
+                            parsed_dict = parse_complex_value("{" + clean_val + "}", variables)
+                            if isinstance(parsed_dict, PromptDict):
+                                variables[v_name] = parsed_dict
+                                ti = b_pos
+                                continue
+
                             # Check if inner_content is dynamic syntax ({a|b} choices, CASE statements, seq, etc.)
                             is_dynamic_syntax = False
                             d = 0
@@ -351,6 +749,15 @@ class ModusFlowTextEditor:
                         raw_content = ModusFlowTextEditor.filter_comments(raw_content)
                         lines = [l.strip() for l in raw_content.splitlines() if l.strip()]
                         clean_val = "\n".join(lines)
+
+                        # Check for list [ ... ] or dict { ... }
+                        if (clean_val.startswith("[") and clean_val.endswith("]")) or (clean_val.startswith("{") and clean_val.endswith("}")):
+                            parsed_comp = parse_complex_value(clean_val, variables)
+                            if isinstance(parsed_comp, (PromptList, PromptDict)):
+                                variables[v_name] = parsed_comp
+                                ti = val_start + m_semi.end()
+                                continue
+
                         if "|" in clean_val and not clean_val.startswith(("$", "{")) and "=>" not in clean_val:
                             clean_val = "{" + clean_val + "}"
                         eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index, initial_vars=variables)
@@ -364,6 +771,15 @@ class ModusFlowTextEditor:
                         raw_content = m_line.group(1)
                         raw_content = ModusFlowTextEditor.filter_comments(raw_content)
                         clean_val = raw_content.strip()
+
+                        # Check for list [ ... ] or dict { ... }
+                        if (clean_val.startswith("[") and clean_val.endswith("]")) or (clean_val.startswith("{") and clean_val.endswith("}")):
+                            parsed_comp = parse_complex_value(clean_val, variables)
+                            if isinstance(parsed_comp, (PromptList, PromptDict)):
+                                variables[v_name] = parsed_comp
+                                ti = val_start + m_line.end()
+                                continue
+
                         if "|" in clean_val and not clean_val.startswith(("$", "{")) and "=>" not in clean_val:
                             clean_val = "{" + clean_val + "}"
                         eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index, initial_vars=variables)
@@ -380,9 +796,233 @@ class ModusFlowTextEditor:
             ti += 1
         text = "".join(out_chars)
 
-        # 2. Resolve Ternary Conditionals: {$var==val?true:false}, {$var!=val?...}, {$var?true:false}
+        # Resolve macro function calls in main text
+        if macros:
+            text = resolve_macros(text, macros, variables)
+
+        # 1.5. Resolve Loop Statements: repeat(N) { ... } and for ... in ... { ... }
+        def parse_list_items(list_expr: str, current_vars: dict):
+            expr = list_expr.strip()
+
+            # Check if expr has property access or method call ($dict.keys(), $party[0].skills, etc.)
+            m_chain = re.match(r'^\$([a-zA-Z0-9_]+)((?:\.[a-zA-Z0-9_]+(?:\(\))?|\[\s*(?:-?[0-9]+|"[^"]*"|\'[^\']*\')\s*\])+)$', expr)
+            if m_chain:
+                base = m_chain.group(1)
+                chain = m_chain.group(2)
+                if base in current_vars:
+                    val = evaluate_chain(current_vars[base], chain)
+                    if isinstance(val, (list, dict)):
+                        return val
+                    expr = str(val).strip()
+
+            if expr.startswith("$") and expr[1:] in current_vars:
+                val = current_vars[expr[1:]]
+                if isinstance(val, (list, dict)):
+                    return val
+                expr = str(val).strip()
+
+            m_range = re.match(r'^range\s*\(\s*([0-9]+)\s*(?:,\s*([0-9]+))?\s*(?:,\s*([0-9]+))?\s*\)$', expr, re.IGNORECASE)
+            if m_range:
+                start = int(m_range.group(1))
+                if m_range.group(2) is not None:
+                    stop = int(m_range.group(2))
+                    step = int(m_range.group(3)) if m_range.group(3) else 1
+                    return [str(x) for x in range(start, stop, step)[:20]]
+                else:
+                    return [str(x) for x in range(start)[:20]]
+
+            m_dots = re.match(r'^([0-9]+)\s*\.\.\s*([0-9]+)$', expr)
+            if m_dots:
+                start = int(m_dots.group(1))
+                stop = int(m_dots.group(2))
+                return [str(x) for x in range(start, stop + 1)[:20]]
+
+            if (expr.startswith("[") and expr.endswith("]")) or (expr.startswith("{") and expr.endswith("}")):
+                parsed_comp = parse_complex_value(expr, current_vars)
+                if isinstance(parsed_comp, (list, dict)):
+                    return parsed_comp
+
+            items = split_top_level(expr, delims=(',',))
+            final_items = []
+            for it in items:
+                it_clean = it.strip()
+                if it_clean.startswith("[") and it_clean.endswith("]"):
+                    sub_items = [s.strip().strip("'\"") for s in it_clean[1:-1].split(",") if s.strip()]
+                    final_items.append(sub_items)
+                else:
+                    final_items.append(it_clean.strip("'\""))
+
+            return final_items[:20]
+
+        def resolve_loops(input_text: str, current_vars: dict) -> str:
+            # A. repeat(count) { body } or repeat(count as $i) { body }
+            repeat_start_pat = re.compile(r'\brepeat\s*\(\s*([^)]+)\s*\)\s*(?:as\s+\$([a-zA-Z0-9_]+)\s*)?\{', re.IGNORECASE)
+            while True:
+                m = repeat_start_pat.search(input_text)
+                if not m:
+                    break
+                raw_count = m.group(1).strip()
+                idx_var_name = m.group(2)
+                start_idx = m.start()
+                body_start = m.end()
+
+                d = 1
+                pos = body_start
+                tn = len(input_text)
+                while pos < tn and d > 0:
+                    ch = input_text[pos]
+                    if ch == '{': d += 1
+                    elif ch == '}':
+                        d -= 1
+                        if d == 0: break
+                    pos += 1
+
+                if d != 0:
+                    break
+
+                body = input_text[body_start:pos].strip()
+                end_idx = pos + 1
+
+                m_trail = re.match(r'^\s*[;,]?', input_text[end_idx:])
+                if m_trail:
+                    end_idx += m_trail.end()
+
+                if raw_count.startswith("$") and raw_count[1:] in current_vars:
+                    raw_count = str(current_vars[raw_count[1:]]).strip()
+                try:
+                    count = max(1, min(20, int(float(raw_count))))
+                except Exception:
+                    count = 1
+
+                needs_delim = not body.rstrip().endswith((",", ";", "\n"))
+                delim = ", " if needs_delim else " "
+
+                parts = []
+                for i in range(count):
+                    iter_body = body
+                    iter_body = re.sub(r'\$index\b', str(i + 1), iter_body)
+                    iter_body = re.sub(r'\$i\b', str(i), iter_body)
+                    if idx_var_name:
+                        iter_body = re.sub(rf'\${idx_var_name}\b', str(i), iter_body)
+                    parts.append(iter_body)
+
+                loop_result = delim.join(parts)
+                input_text = input_text[:start_idx] + loop_result + input_text[end_idx:]
+
+            # B. for ... in ... { body }
+            for_start_pat = re.compile(
+                r'\bfor\s+(?:\[\s*(\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)+)\s*\]|(\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)?))\s+in\s+([^{]+)\s*\{',
+                re.IGNORECASE
+            )
+            while True:
+                m = for_start_pat.search(input_text)
+                if not m:
+                    break
+
+                tuple_vars_raw = m.group(1)
+                single_or_pair_vars_raw = m.group(2)
+                list_expr = m.group(3).strip()
+                start_idx = m.start()
+                body_start = m.end()
+
+                d = 1
+                pos = body_start
+                tn = len(input_text)
+                while pos < tn and d > 0:
+                    ch = input_text[pos]
+                    if ch == '{': d += 1
+                    elif ch == '}':
+                        d -= 1
+                        if d == 0: break
+                    pos += 1
+
+                if d != 0:
+                    break
+
+                body = input_text[body_start:pos].strip()
+                end_idx = pos + 1
+
+                m_trail = re.match(r'^\s*[;,]?', input_text[end_idx:])
+                if m_trail:
+                    end_idx += m_trail.end()
+
+                iterable = parse_list_items(list_expr, current_vars)
+                needs_delim = not body.rstrip().endswith((",", ";", "\n"))
+                delim = ", " if needs_delim else " "
+
+                parts = []
+                if isinstance(iterable, dict):
+                    names = [v.strip().lstrip('$') for v in single_or_pair_vars_raw.split(',') if v.strip()] if single_or_pair_vars_raw else []
+                    for idx, (k, v) in enumerate(list(iterable.items())[:20]):
+                        iter_body = body
+                        iter_vars = dict(current_vars)
+                        if len(names) >= 2:
+                            k_name, v_name = names[0], names[1]
+                            iter_vars[k_name] = k
+                            iter_vars[v_name] = v
+                            iter_body = resolve_property_access(iter_body, iter_vars)
+                            iter_body = re.sub(rf'\${k_name}\b(?![.\[])', str(k), iter_body)
+                            iter_body = re.sub(rf'\${v_name}\b(?![.\[])', str(v), iter_body)
+                        elif len(names) == 1:
+                            v_name = names[0]
+                            iter_vars[v_name] = v
+                            iter_body = resolve_property_access(iter_body, iter_vars)
+                            iter_body = re.sub(rf'\${v_name}\b(?![.\[])', str(v), iter_body)
+                        iter_body = re.sub(r'\$index\b', str(idx + 1), iter_body)
+                        iter_body = re.sub(r'\$i\b', str(idx), iter_body)
+                        parts.append(iter_body)
+                else:
+                    items_list = list(iterable)[:20]
+                    if tuple_vars_raw:
+                        var_names = [v.strip().lstrip('$') for v in tuple_vars_raw.split(',') if v.strip()]
+                        is_tuple = True
+                        idx_name = None
+                    else:
+                        names = [v.strip().lstrip('$') for v in single_or_pair_vars_raw.split(',') if v.strip()]
+                        if len(names) == 2:
+                            idx_name, var_name = names[0], names[1]
+                            var_names = [var_name]
+                            is_tuple = False
+                        else:
+                            idx_name = None
+                            var_names = [names[0]]
+                            is_tuple = False
+
+                    for idx, item in enumerate(items_list):
+                        iter_body = body
+                        iter_vars = dict(current_vars)
+                        if is_tuple:
+                            sub_vals = item if isinstance(item, (list, tuple)) else [item]
+                            for v_idx, v_name in enumerate(var_names):
+                                v_val = sub_vals[v_idx] if v_idx < len(sub_vals) else ""
+                                iter_vars[v_name] = v_val
+                            iter_body = resolve_property_access(iter_body, iter_vars)
+                            for v_idx, v_name in enumerate(var_names):
+                                v_val = iter_vars[v_name]
+                                iter_body = re.sub(rf'\${v_name}\b(?![.\[])', str(v_val), iter_body)
+                        else:
+                            v_name = var_names[0]
+                            iter_vars[v_name] = item
+                            if idx_name:
+                                iter_vars[idx_name] = idx
+                                iter_body = re.sub(rf'\${idx_name}\b(?![.\[])', str(idx), iter_body)
+                            iter_body = resolve_property_access(iter_body, iter_vars)
+                            iter_body = re.sub(rf'\${v_name}\b(?![.\[])', str(item), iter_body)
+
+                        iter_body = re.sub(r'\$index\b', str(idx + 1), iter_body)
+                        iter_body = re.sub(r'\$i\b', str(idx), iter_body)
+                        parts.append(iter_body)
+
+                loop_result = delim.join(parts)
+                input_text = input_text[:start_idx] + loop_result + input_text[end_idx:]
+
+            return input_text
+
+        text = resolve_loops(text, variables)
+
+        # 2. Resolve Conditionals (CASE Statements and Ternaries with Compound Logic):
         def eval_condition(var_val, op, target):
-            var_val = "" if var_val is None else str(var_val).strip()
+            var_val = "" if var_val is None else str(var_val).strip().strip("'\"")
             target = "" if target is None else str(target).strip().strip("'\"")
 
             if not op:
@@ -431,6 +1071,99 @@ class ModusFlowTextEditor:
                     if op == "<=": return var_val <= target
             return False
 
+        def eval_single_condition(sub_cond: str) -> bool:
+            sub_cond = resolve_property_access(sub_cond.strip(), variables)
+            if not sub_cond:
+                return False
+
+            is_negated = False
+            if sub_cond.startswith("!"):
+                is_negated = True
+                sub_cond = sub_cond[1:].strip()
+            elif sub_cond.lower().startswith("not ") and not sub_cond.lower().startswith("not in"):
+                is_negated = True
+                sub_cond = sub_cond[4:].strip()
+
+            m_comp = re.match(r"^([$]?[a-zA-Z0-9_.]+)\s*(==|!=|>=|<=|>|<|not\s+in|in)\s*(.*)$", sub_cond, re.IGNORECASE)
+            if m_comp:
+                left_raw = m_comp.group(1).strip()
+                op = m_comp.group(2).strip().lower()
+                right_raw = m_comp.group(3).strip()
+
+                left_val = left_raw
+                if left_raw.startswith("$") and left_raw[1:] in variables:
+                    left_val = str(variables[left_raw[1:]])
+                elif left_raw in variables:
+                    left_val = str(variables[left_raw])
+
+                res = eval_condition(left_val, op, right_raw)
+                return not res if is_negated else res
+
+            var_name = sub_cond.lstrip("$").strip()
+            if var_name in variables:
+                val = str(variables[var_name]).strip()
+                res = bool(val) and val.lower() not in ("false", "0", "none", "off", "no", "")
+            else:
+                res = bool(var_name) and var_name.lower() not in ("false", "0", "none", "off", "no", "")
+            return not res if is_negated else res
+
+        def eval_compound_condition(cond_str: str) -> bool:
+            cond_str = cond_str.strip()
+            if not cond_str:
+                return False
+
+            def split_by_op(s, op):
+                parts = []
+                cur_chars = []
+                p_d = 0
+                idx = 0
+                slen = len(s)
+                op_len = len(op)
+                while idx < slen:
+                    ch = s[idx]
+                    if ch == "(": p_d += 1
+                    elif ch == ")": p_d -= 1
+                    elif p_d == 0 and s[idx:idx+op_len] == op:
+                        parts.append("".join(cur_chars).strip())
+                        cur_chars = []
+                        idx += op_len
+                        continue
+                    cur_chars.append(ch)
+                    idx += 1
+                if cur_chars:
+                    parts.append("".join(cur_chars).strip())
+                return parts
+
+            or_branches = split_by_op(cond_str, "||")
+            for or_b in or_branches:
+                and_parts = split_by_op(or_b, "&&")
+                all_and_true = True
+                for and_p in and_parts:
+                    p = and_p.strip()
+                    if p.startswith("(") and p.endswith(")"):
+                        inner_d = 0
+                        balanced = True
+                        for inner_ch in p[:-1]:
+                            if inner_ch == "(": inner_d += 1
+                            elif inner_ch == ")":
+                                inner_d -= 1
+                                if inner_d == 0:
+                                    balanced = False
+                                    break
+                        if balanced:
+                            part_res = eval_compound_condition(p[1:-1])
+                        else:
+                            part_res = eval_single_condition(p)
+                    else:
+                        part_res = eval_single_condition(p)
+
+                    if not part_res:
+                        all_and_true = False
+                        break
+                if all_and_true:
+                    return True
+            return False
+
         # 2. Resolve Conditionals (CASE Statements and Ternaries):
         # CASE:    {$var: val1 => result1 | val2 => result2 | * => default} or {case $var: ...}
         # Ternary: {$var==val?true:false}, {$var!=val?...}, {$var?true:false}
@@ -441,10 +1174,14 @@ class ModusFlowTextEditor:
             has_match = False
             while i < n:
                 m_case_pre = re.match(r'^\{(?:case|switch)\s+', input_text[i:], re.IGNORECASE)
-                is_var_prefix = input_text[i:i+2] == "{$"
-                if is_var_prefix or m_case_pre:
+                is_cond_candidate = (
+                    input_text[i:i+2] in ("{$", "{(") or
+                    (input_text[i:i+2] == "{!" and not input_text[i:].lower().startswith("{!neg:")) or
+                    m_case_pre
+                )
+                if is_cond_candidate:
                     start = i
-                    i += m_case_pre.end() if m_case_pre else 2
+                    i += m_case_pre.end() if m_case_pre else 1
                     depth = 1
                     inner_chars = []
                     while i < n and depth > 0:
@@ -516,8 +1253,9 @@ class ModusFlowTextEditor:
                                     var_val = str(variables[clean_vname])
                                 else:
                                     eval_target = var_part
+                                    eval_target = resolve_property_access(eval_target, variables)
                                     for vn, vv in variables.items():
-                                        eval_target = re.sub(rf'\${vn}\b', str(vv), eval_target)
+                                        eval_target = re.sub(rf'\${vn}\b(?![.\[])', str(vv), eval_target)
                                     if "{" in eval_target or "|" in eval_target:
                                         eval_target = ModusFlowTextEditor.resolve_dynamic_prompts(eval_target, seed=seed, cycle_index=cycle_index, initial_vars=variables)
                                     var_val = eval_target.strip()
@@ -534,8 +1272,8 @@ class ModusFlowTextEditor:
                                     elif ch == "}":
                                         d -= 1
                                         cur_b.append(ch)
-                                    elif ch == "|" and d == 0:
-                                        # Check if this '|' separates a branch (has '=>' ahead at depth 0 before the next '|')
+                                    elif (ch == "|" or ch == "\n") and d == 0:
+                                        # Check if this '|' or newline separates a branch (has '=>' ahead at depth 0 before the next branch)
                                         has_arrow_ahead = False
                                         sub_d = 0
                                         for f_idx in range(c_idx + 1, cp_len):
@@ -543,8 +1281,6 @@ class ModusFlowTextEditor:
                                             if f_ch == "{": sub_d += 1
                                             elif f_ch == "}": sub_d -= 1
                                             elif sub_d == 0:
-                                                if f_ch == "|":
-                                                    break
                                                 if cases_part[f_idx:f_idx+2] == "=>":
                                                     has_arrow_ahead = True
                                                     break
@@ -637,20 +1373,22 @@ class ModusFlowTextEditor:
                         q_idx = -1
                         d = 0
                         for idx, c in enumerate(inner):
-                            if c == "{": d += 1
-                            elif c == "}": d -= 1
+                            if c in ("{", "("): d += 1
+                            elif c in ("}", ")"): d -= 1
                             elif c == "?" and d == 0:
+                                if inner[idx:idx+2] == "??" or (idx > 0 and inner[idx-1] == "?"):
+                                    continue
                                 q_idx = idx
                                 break
 
-                        if q_idx != -1:
+                        if q_idx != -1 and not has_arrow:
                             cond_part = inner[:q_idx].strip()
                             rest = inner[q_idx+1:]
                             colon_idx = -1
                             d = 0
                             for idx, c in enumerate(rest):
-                                if c == "{": d += 1
-                                elif c == "}": d -= 1
+                                if c in ("{", "("): d += 1
+                                elif c in ("}", ")"): d -= 1
                                 elif c == ":" and d == 0:
                                     colon_idx = idx
                                     break
@@ -662,17 +1400,11 @@ class ModusFlowTextEditor:
                                 true_b = rest.strip()
                                 false_b = ""
 
-                            m = re.match(r"^[$]?([a-zA-Z0-9_]+)(?:\s*(==|!=|>=|<=|>|<|not\s+in|in)\s*(.*))?$", cond_part, re.IGNORECASE)
-                            if m:
-                                var_name = m.group(1)
-                                op = m.group(2)
-                                target = (m.group(3) or "").strip()
-                                var_val = variables.get(var_name, "")
-                                is_true = eval_condition(var_val, op, target)
-                                chosen = true_b if is_true else false_b
-                                out.append(chosen)
-                                has_match = True
-                                continue
+                            is_true = eval_compound_condition(cond_part)
+                            chosen = true_b if is_true else false_b
+                            out.append(chosen)
+                            has_match = True
+                            continue
                     out.append(input_text[start:i])
                 else:
                     out.append(input_text[i])
@@ -684,8 +1416,19 @@ class ModusFlowTextEditor:
             if not matched:
                 break
 
+        text = resolve_property_access(text, variables)
+
+        # Known filter names for piped variable transformations
+        KNOWN_FILTERS = {
+            "upper", "lower", "title", "capitalize", "trim",
+            "weight", "wrap", "default", "plural",
+            "strip_weights", "strip_weight", "noweight", "join",
+            "count", "length", "keys", "values", "first", "last", "reverse", "sort"
+        }
+
         # Substitute defined variables with optional filters ($varname | filter)
-        def apply_filter(val: str, filter_expr: str) -> str:
+        def apply_filter(val: str, filter_expr: str, raw_var = None) -> str:
+            val_str = str(val).strip().strip("'\"")
             filter_expr = filter_expr.strip()
             f_name = filter_expr.lower()
             arg = None
@@ -694,42 +1437,171 @@ class ModusFlowTextEditor:
                 f_name = m_call.group(1).lower()
                 arg = m_call.group(2).strip().strip("'\"")
 
-            if f_name == "upper":
-                return val.upper()
+            if f_name not in KNOWN_FILTERS:
+                return None
+
+            if f_name in ("count", "length"):
+                if isinstance(raw_var, (list, dict)):
+                    return str(len(raw_var))
+                items = [x for x in str(val).split(",") if x.strip()]
+                return str(len(items))
+            elif f_name == "keys":
+                if isinstance(raw_var, dict):
+                    return ", ".join(str(k) for k in raw_var.keys())
+                return ""
+            elif f_name == "values":
+                if isinstance(raw_var, dict):
+                    return ", ".join(str(v) for v in raw_var.values())
+                return val_str
+            elif f_name == "first":
+                if isinstance(raw_var, list) and raw_var:
+                    return str(raw_var[0])
+                items = [x.strip() for x in str(val).split(",") if x.strip()]
+                return items[0] if items else ""
+            elif f_name == "last":
+                if isinstance(raw_var, list) and raw_var:
+                    return str(raw_var[-1])
+                items = [x.strip() for x in str(val).split(",") if x.strip()]
+                return items[-1] if items else ""
+            elif f_name == "reverse":
+                if isinstance(raw_var, list):
+                    return ", ".join(reversed([str(x) for x in raw_var]))
+                items = [x.strip() for x in str(val).split(",") if x.strip()]
+                return ", ".join(reversed(items))
+            elif f_name == "sort":
+                if isinstance(raw_var, list):
+                    return ", ".join(sorted([str(x) for x in raw_var]))
+                items = [x.strip() for x in str(val).split(",") if x.strip()]
+                return ", ".join(sorted(items))
+            elif f_name == "upper":
+                return val_str.upper()
             elif f_name == "lower":
-                return val.lower()
+                return val_str.lower()
             elif f_name == "title":
-                return val.title()
+                return val_str.title()
             elif f_name == "capitalize":
-                return val.capitalize()
+                return val_str.capitalize()
             elif f_name == "trim":
-                return val.strip()
+                return val_str.strip()
             elif f_name == "weight":
                 w = arg if arg else "1.2"
-                return f"({val}:{w})"
+                return f"({val_str}:{w})"
             elif f_name == "wrap":
                 parts = [p.strip().strip("'\"") for p in (arg or "").split(",") if p.strip()]
                 prefix = parts[0] if len(parts) > 0 else "("
                 suffix = parts[1] if len(parts) > 1 else ")"
-                return f"{prefix}{val}{suffix}"
+                return f"{prefix}{val_str}{suffix}"
             elif f_name == "default":
-                return val if val.strip() else (arg or "")
-            return val
+                return val_str if val_str.strip() else (arg or "")
+            elif f_name == "plural":
+                w = val_str.strip()
+                if not w:
+                    return val_str
+                lw = w.lower()
+                if lw.endswith(('s', 'sh', 'ch', 'x', 'z')):
+                    return w + ("es" if w[-1].islower() else "ES")
+                elif lw.endswith('y') and len(lw) > 1 and lw[-2] not in "aeiou":
+                    return w[:-1] + ("ies" if w[-1].islower() else "IES")
+                elif lw.endswith('fe') and len(lw) > 2:
+                    return w[:-2] + ("ves" if w[-2:] == 'fe' else "VES")
+                elif lw.endswith('f') and not lw.endswith(('ff', 'oof', 'ief', 'eef')):
+                    return w[:-1] + ("ves" if w[-1].islower() else "VES")
+                else:
+                    return w + ("s" if w[-1].islower() else "S")
+            elif f_name in ("strip_weights", "strip_weight", "noweight"):
+                res = re.sub(r'\(([^:()]+):[0-9.]+\)', r'\1', val_str)
+                res = re.sub(r'[\(\)\[\]]', '', res)
+                return res.strip()
+            elif f_name == "join":
+                sep = arg if arg is not None else ", "
+                if isinstance(raw_var, list):
+                    return sep.join(str(x) for x in raw_var)
+                items = [x.strip() for x in re.split(r'[,\n]+', val_str) if x.strip()]
+                return sep.join(items)
+            return val_str
 
-        # 1. Match piped variable calls: $var | filter1 | filter2
+        # 1. Null-Coalescing: $var ?? "fallback" or {$var ?? "fallback"}
+        null_coalesce_pattern = r'(\{)?\$([a-zA-Z0-9_]+)\s*\?\?\s*("(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|\$[a-zA-Z0-9_]+|[a-zA-Z0-9_\-\.]+)(\})?'
+        def replace_null_coalesce(match):
+            v_name = match.group(2)
+            fallback = match.group(3).strip()
+
+            if fallback.startswith(('"', "'")) and fallback.endswith(('"', "'")) and len(fallback) >= 2:
+                fallback_val = fallback[1:-1]
+            elif fallback.startswith("$") and fallback[1:] in variables:
+                fallback_val = str(variables[fallback[1:]])
+            else:
+                fallback_val = fallback
+
+            val_clean = str(variables.get(v_name, "")).strip().strip("'\"")
+            if v_name in variables and val_clean:
+                return str(variables[v_name])
+            return fallback_val
+
+        text = re.sub(null_coalesce_pattern, replace_null_coalesce, text)
+
+        # 2. Inline Arithmetic: {$var + 5}, {$a * $b}, {10 - 2}
+        arith_pattern = r'\{([$a-zA-Z0-9_.]+)\s*([\+\-\*\/])\s*([$a-zA-Z0-9_.]+)\}'
+        def replace_arithmetic(match):
+            op1_raw = match.group(1).strip()
+            op = match.group(2).strip()
+            op2_raw = match.group(3).strip()
+
+            def resolve_num(val_str):
+                v = val_str
+                if v.startswith("$") and v[1:] in variables:
+                    v = str(variables[v[1:]]).strip()
+                elif v in variables:
+                    v = str(variables[v]).strip()
+                try:
+                    if '.' in v:
+                        return float(v)
+                    return int(v)
+                except ValueError:
+                    return None
+
+            n1 = resolve_num(op1_raw)
+            n2 = resolve_num(op2_raw)
+            if n1 is None or n2 is None:
+                return match.group(0)
+
+            try:
+                if op == '+': res = n1 + n2
+                elif op == '-': res = n1 - n2
+                elif op == '*': res = n1 * n2
+                elif op == '/':
+                    if n2 == 0: return match.group(0)
+                    res = n1 / n2
+                else: return match.group(0)
+
+                if isinstance(res, (int, float)) and (isinstance(res, int) or res.is_integer()):
+                    return str(int(res))
+                else:
+                    return f"{res:.4f}".rstrip('0').rstrip('.')
+            except Exception:
+                return match.group(0)
+
+        text = re.sub(arith_pattern, replace_arithmetic, text)
+
+        # 3. Match piped variable calls: $var | filter1 | filter2 or {$var | filter1 | filter2}
         for var_name, var_val in variables.items():
-            pipe_pattern = rf'\${var_name}\s*\|\s*([a-zA-Z0-9_]+(?:\([^)]*\))?(?:\s*\|\s*[a-zA-Z0-9_]+(?:\([^)]*\))?)*)'
+            pipe_pattern = rf'(?:\{{)?\${var_name}\s*\|\s*([a-zA-Z0-9_]+(?:\([^)]*\))?(?:\s*\|\s*[a-zA-Z0-9_]+(?:\([^)]*\))?)*)(?:\}})?'
             def replace_piped(m):
-                res = var_val
+                res = str(var_val)
                 filters = m.group(1).split('|')
+                all_valid = True
                 for f in filters:
-                    res = apply_filter(res, f)
-                return res
+                    filtered = apply_filter(res, f, raw_var=var_val)
+                    if filtered is None:
+                        all_valid = False
+                        break
+                    res = filtered
+                return res if all_valid else m.group(0)
             text = re.sub(pipe_pattern, replace_piped, text)
 
-        # 2. Match standard $varname substitutions
+        # 4. Match standard $varname substitutions (not followed by dot or bracket property access)
         for var_name, var_val in variables.items():
-            text = re.sub(rf'\${var_name}\b', var_val, text)
+            text = re.sub(rf'\${var_name}\b(?![.\[])', str(var_val), text)
 
         # 3. Resolve {shuffle: a, b, c}
         def replace_shuffle(match):
@@ -845,6 +1717,14 @@ class ModusFlowTextEditor:
                 prompts_dir = settings.get('prompts_save_directory', '').strip()
                 if not prompts_dir:
                     prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
+            except Exception:
+                try:
+                    from config import settings, BASE_DIR
+                    prompts_dir = settings.get('prompts_save_directory', '').strip()
+                    if not prompts_dir:
+                        prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
+                except Exception:
+                    prompts_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'saved_prompts')
 
                 candidates = [
                     os.path.join(prompts_dir, 'wildcards', f"{wc_name}.txt"),
@@ -863,17 +1743,35 @@ class ModusFlowTextEditor:
                 pass
             return match.group(0)
 
-        # 3 & 4. Iteratively resolve choices and wildcards (up to 10 passes)
+        # 3 & 4. Iteratively resolve percentage chances, choices, and wildcards (up to 10 passes)
         # This guarantees:
+        # - Percentage chances {40%: text} evaluate cleanly
         # - Wildcard list rows can contain choices like `wearing {red|blue} sneakers`
         # - Dynamic choices can select between wildcards like `{__hats__|__helmets__}`
         # - Nested choices `{a|{b|c}}` resolve from inside out
         # - Recursive wildcards resolve cleanly
+        pct_pattern = r'\{([0-9]+(?:\.[0-9]+)?)\s*%\s*:\s*([^{}]+)\}'
         choice_pattern = r'\{([^{}]+)\}'
         wc_pattern = r'__(?:([0-9]+(?:-[0-9]+)?)\$\$)?([a-zA-Z0-9_\-]+)__'
 
+        def replace_pct_chance(match):
+            pct_str = match.group(1)
+            content = match.group(2)
+            try:
+                pct = float(pct_str)
+                if rng.random() * 100.0 < pct:
+                    return content
+                return ""
+            except Exception:
+                return match.group(0)
+
         for _ in range(10):
             changed = False
+            if re.search(pct_pattern, text):
+                new_text = re.sub(pct_pattern, replace_pct_chance, text)
+                if new_text != text:
+                    text = new_text
+                    changed = True
             if re.search(wc_pattern, text):
                 new_text = re.sub(wc_pattern, replace_wildcard, text)
                 if new_text != text:

@@ -390,12 +390,201 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
     1. **Master Block Variable**: Group all related character and scene descriptors into the branch text of a single master variable.
     2. **Discrete Targeted Variables**: Define separate CASE variables per trait (e.g. `$lighting = {case $time: morning => soft dawn | night => neon};`).
     3. **Synced Choice Tuples**: Use `[$var1, $var2] = { [v1, v2] | [v3, v4] };` for lockstep coordinated sets.
-- **Ternary If/Else Conditionals (`{$var==val?true:false}`)**: Dynamically branch prompt output based on variable values (using `==` for comparisons so as not to confuse with variable assignment `=`):
-  - **Equality (`==`)**: `{$color==red?crimson cloak:azure robe}` or `{$color==red?man:woman}`
-  - **Inequality (`!=`)**: `{$weather!=rainy?clear sunny sky:stormy clouds}`
-  - **Truthiness Check**: `{$wearing_hat?black fedora:messy windblown hair}` (evaluates true if `$var` is defined and not `false`, `0`, `none`, or empty)
-  - **Optional False Branch**: `{$color==red?ruby gem}` (resolves to empty string if condition is not met)
-  - **Dynamic Nesting**: Branches can contain nested choices and wildcards, e.g. `{$color==red?{crimson|ruby}:blue}`
+- **Ternary If/Else Conditionals with Compound Boolean Logic (`{$cond ? true : false}`)**: Dynamically branch prompt output based on variable values, boolean flags, and compound logic:
+  - **Compound Boolean Operators (`&&`, `||`, `!`)**: Combine conditions with short-circuit evaluation:
+    - `{$is_night && $weather == "rain" ? stormy night : clear day}`
+    - `{!$is_night || $weather == "snow" ? winter noon : midnight rain}`
+    - `{($level >= 50 || $role in {paladin|hero}) && $is_night ? veteran night patrol : rookie}`
+  - **Relational Comparisons**: `==`, `!=`, `<`, `>`, `<=`, `>=`, `in`, `not in` (e.g. `{$age >= 21 ? vintage wine : fruit juice}`).
+  - **Choice Set Matching**: `{$class in {knight|paladin} ? heavy plate armor : leather tunic}`.
+  - **Truthiness & Negation (`!`, `not`)**: `{$wearing_hat ? black fedora : messy hair}` or `{!$injured ? battle stance : recovering}`.
+  - **Optional False Branch**: `{$color == "red" ? ruby gem}` (resolves to empty string if condition is not met).
+  - **Nested Dynamic Choices**: Branches fully support choices and wildcards: `{$color == "red" ? {crimson|ruby} : blue}`.
+
+- **Modular File Imports (`@import "path/file"`)**: Import and compose external prompt files modularly into your master workflow:
+  - **Root & Subfolder Resolution**: Looks relative to your configured `saved_prompts` directory (and subfolders such as `lib/`, `presets/`, `styles/`, etc.):
+    ```text
+    @import "styles/cyberpunk"
+    1girl, solo, in futuristic jacket,
+    @import "lighting/dramatic_rim.txt"
+    ```
+  - **Format Support (.txt and .json)**:
+    - `.txt`: Injects the raw prompt text directly.
+    - `.json`: Automatically parses saved prompt JSON files and injects the `positive` prompt content!
+  - **Optional Extension**: Omitting the extension will automatically test `path`, `path.txt`, and `path.json`.
+  - **Recursive Imports**: Imported files can themselves contain `@import` statements (with built-in recursion guard up to 5 levels).
+
+- **Reusable Macro Functions (`fn name($arg1, $arg2) = { ... };` and `@name(...)`)**: Define reusable, parameterized prompt template functions directly in your prompt text or imported libraries:
+  - **Definition Syntax**:
+    ```text
+    fn portrait($char, $style) = {
+        masterpiece 8k portrait of $char, in $style aesthetic, cinematic lighting, sharp focus
+    };
+
+    fn glowing_weapon($weapon, $color) = legendary $weapon wreathed in vibrant $color flames;
+    ```
+  - **Invocation Syntax**:
+    ```text
+    $protagonist = "valkyrie";
+    $theme = "norse mythology";
+
+    @portrait($protagonist, $theme), carrying a @glowing_weapon("spear", "azure")
+    ```
+  - **Parameter Substitution**: Function arguments map directly to `$param` variables inside the template body. Arguments can be literals (`"spear"`), variable references (`$protagonist`), or unquoted tokens (`azure`).
+- **Loops & Repetition (`repeat(count)` and `for ... in ...`)**: Generate structured tag sequences, ensemble character rosters, and repeated scene elements programmatically:
+  - **Numerical Repeater (`repeat(count) { body }`)**:
+    - Repeats the body template $N$ times (clamped between 1 and 20 to preserve CLIP token budgets):
+      ```text
+      repeat(3) {
+          detailed floating lantern #$index,
+      }
+      ```
+      Resolves to: `detailed floating lantern #1, detailed floating lantern #2, detailed floating lantern #3,`
+    - **Independent Choice Evaluation**: When dynamic choices `{a|b}` appear inside a `repeat` block, each iteration re-rolls independently:
+      ```text
+      repeat(4) {
+          {glowing|hovering} {crimson|azure} crystal,
+      }
+      ```
+    - **Iteration Variables**: Built-in `$index` (1-based: 1, 2, 3...) and `$i` (0-based: 0, 1, 2...), or explicit alias `repeat(3 as $step)`.
+  - **First-Class Arrays, Lists & Dictionaries**:
+    - **Array / List Declarations**:
+      ```text
+      $elements = [fire, frost, lightning];
+      $weights = [1.1, 1.25, 1.4];
+      ```
+      - Direct Indexing: `$elements[0]` $\rightarrow$ `fire`, `$elements[-1]` $\rightarrow$ `lightning`.
+      - Count / Length: `$elements.length` or `$elements | count` $\rightarrow$ `3`.
+      - Direct expansion: `$elements` $\rightarrow$ `fire, frost, lightning`.
+    - **Dictionary / Key-Value Map Declarations**:
+      ```text
+      $hero = {
+          name: "Valkyrie",
+          hair: "long braided silver hair",
+          eyes: "piercing azure eyes",
+          weapon: "runic lightning spear",
+          role: "tank"
+      };
+      ```
+      - Dot Property Access: `$hero.name`, `$hero.weapon`, `$hero.role`.
+      - Bracket Key Access: `$hero["hair"]`, `$hero['eyes']`.
+      - Direct expansion: `$hero` $\rightarrow$ `name: Valkyrie, hair: long braided silver hair, ...`.
+    - **Array of Dictionaries (Squad Rosters & Scene Entities)**:
+      ```text
+      $party = [
+          { name: "Valkyrie", role: "tank", weapon: "tower shield" },
+          { name: "Lyra", role: "mage", weapon: "crystal staff" }
+      ];
+      ```
+      - Indexed Property Access: `$party[0].name` $\rightarrow$ `Valkyrie`, `$party[1].weapon` $\rightarrow$ `crystal staff`.
+  - **List & Array Iteration (`for $item in $list { body }`)**:
+    - Iterates across variable lists, comma-delimited tokens, or inline brackets `[a, b, c]`:
+      ```text
+      $elements = [fire, lightning, frost];
+      for $elem in $elements {
+          (wreathed in $elem:1.25),
+      }
+      ```
+      Resolves to: `(wreathed in fire:1.25), (wreathed in lightning:1.25), (wreathed in frost:1.25),`
+  - **Indexed List Iteration (`for $idx, $item in $list`)**:
+    - Access both the 0-based index and the item value:
+      ```text
+      for $idx, $color in [magenta, cyan, gold] {
+          spotlight {$idx + 1}: $color rim lighting,
+      }
+      ```
+  - **Dictionary Looping (`for $key, $val in $dict` or `for $val in $dict`)**:
+    - Iterate across key-value pairs or values directly:
+      ```text
+      $traits = { hair: "silver", eyes: "blue", outfit: "tactical suit" };
+      for $attr, $val in $traits {
+          $attr: $val,
+      }
+      // ➜ hair: silver, eyes: blue, outfit: tactical suit,
+      ```
+    - Key enumeration: `for $k in $traits.keys() { trait: $k, }`
+  - **Looping Arrays of Dictionaries (Multi-Character Scenes)**:
+    - Directly reference entity properties inside the loop body:
+      ```text
+      for $m in $party {
+          1girl $m.name as $m.role wielding $m.weapon,
+      }
+      // ➜ 1girl Valkyrie as tank wielding tower shield, 1girl Lyra as mage wielding crystal staff,
+      ```
+  - **Tuple Unpacking (`for [$a, $b] in $tuples`)**:
+    - Iterate across multi-attribute rosters in lockstep:
+      ```text
+      $squad = [
+          [valkyrie, winged helmet, runic spear],
+          [paladin, polished silver plate, holy broadsword],
+          [rogue, shadowed leather tunic, dual daggers]
+      ];
+
+      for [$class, $armor, $weapon] in $squad {
+          1 $class wearing $armor and wielding $weapon,
+      }
+      ```
+  - **Numerical Range Loops (`1..N` and `range(...)`)**:
+    - `for $i in 1..4 { layer $i background, }`
+    - `for $i in range(1, 5) { tier $i armor, }`
+  - **Smart Delimiter Insertion**: If the body does not end with a comma, semicolon, or newline, iterations are automatically joined with `, `.
+  - **Conditionals on Object Properties**: Test properties directly: `{$hero.role == "tank" ? heavy plate armor : cloth tunic}`.
+  - **Variable Assignment**: Loops can be embedded inside variable definitions (`$crystals = { for $c in [ruby, emerald] { glowing $c crystal, } };`).
+
+- **Percentage-Based Chance Modifiers (`{40%: text}`)**: Dynamically include scene elements, weather effects, or detail tags based on a random percentage probability:
+  - **Syntax**: `{percentage%: text to include}`
+    - `{40%: dramatic volumetric dust, }` (40% probability of being included; resolves to empty string if random roll is $\ge 40\%$)
+    - `{25.5%: cybernetic arm enhancement}` (supports floating-point probabilities)
+    - `{50%: wearing {red|blue} coat}` (nestable with dynamic choices)
+  - **Clean Output**: If the chance roll fails, the tag resolves to empty string and any dangling double commas are automatically cleaned up.
+
+- **Null-Coalescing Operator (`$var ?? "fallback"`, `{$var ?? "fallback"}`)**: Provide clean fallback values for optional or empty variables:
+  - **Syntax**:
+    - `$theme ?? "fantasy world"`
+    - `$unset_var ?? "neon alley"`
+    - `{$missing_var ?? "medieval castle"}`
+  - **Behavior**: If `$var` is defined and non-empty (even if assigned an empty quoted string `""` or `''`), its value is used; otherwise, it resolves to the specified fallback token, quoted string, or secondary variable (`$var ?? $fallback_var`).
+
+- **Inline Arithmetic Expressions (`{$var + 10}`, `(tag:{$weight + 0.2})`)**: Perform real-time mathematical operations directly inside your prompts:
+  - **Supported Operators**: `+` (addition), `-` (subtraction), `*` (multiplication), `/` (division).
+  - **Dynamic Attention Weight Stepping**:
+    ```text
+    $base_weight = 1.1;
+    (masterpiece:{$base_weight + 0.2}), (cinematic lighting:{$base_weight + 0.05})
+    ```
+    Resolves to: `(masterpiece:1.3), (cinematic lighting:1.15)`
+  - **Numerical Variables**:
+    ```text
+    $level = 20;
+    character level: {$level + 5}, double power: {$level * 2}
+    ```
+    Resolves to: `character level: 25, double power: 40`
+  - **Clean Formatting**: Integer calculations remain clean integers; floating-point results format up to 4 decimal places without floating-point rounding artifacts or trailing zeroes.
+
+- **Expanded Piped Variable Filters (`$var | filter` and `{$var | filter}`)**: Transform variable strings on-the-fly with Unix / Jinja-style piping:
+  - **String Case Transformations**:
+    - `$hero | title`: Capitalizes each word (`"cyberpunk samurai"` $\rightarrow$ `"Cyberpunk Samurai"`).
+    - `$hero | upper`: Converts to uppercase (`"valkyrie"` $\rightarrow$ `"VALKYRIE"`).
+    - `$hero | lower` / `$hero | capitalize` / `$hero | trim`.
+  - **Smart Grammar & Formatting**:
+    - `$creature | plural`: Context-aware English pluralization (`"wolf"` $\rightarrow$ `"wolves"`, `"cherry"` $\rightarrow$ `"cherries"`, `"fox"` $\rightarrow$ `"foxes"`, `"cat"` $\rightarrow$ `"cats"`).
+    - `$tags | strip_weights`: Strips attention weights and parentheses into clean plain tags (`"(masterpiece:1.3), ((ultra-detailed))"` $\rightarrow$ `"masterpiece, ultra-detailed"`).
+    - `$colors | join(" + ")`: Splits comma-separated items and rejoins them with a custom delimiter (`"crimson, gold, emerald"` $\rightarrow$ `"crimson + gold + emerald"`).
+  - **List & Dictionary Operations**:
+    - `$list | count` / `$list | length`: Counts elements or dictionary keys (`$elements | count` $\rightarrow$ `3`).
+    - `$dict | keys`: Extracts keys as a comma-separated list (`$hero | keys` $\rightarrow$ `name, hair, weapon`).
+    - `$dict | values`: Extracts values as a comma-separated list (`$hero | values` $\rightarrow$ `Valkyrie, silver, spear`).
+    - `$list | first`: First element (`$elements | first` $\rightarrow$ `fire`).
+    - `$list | last`: Last element (`$elements | last` $\rightarrow$ `lightning`).
+    - `$list | reverse`: Reverses elements (`$elements | reverse` $\rightarrow$ `lightning, frost, fire`).
+    - `$list | sort`: Sorts elements alphabetically (`$elements | sort` $\rightarrow$ `fire, frost, lightning`).
+  - **Weighting & Wrapping**:
+    - `$tag | weight(1.35)`: Wraps the value in attention weight syntax: `(tag:1.35)`.
+    - `$tag | wrap('prefix', 'suffix')`: Wraps value in custom delimiters.
+    - `$var | default('fallback')`: Uses fallback if the variable resolves empty.
+  - **Chaining Filters**: Pipe multiple transformations in sequence: `$creature | plural | upper` $\rightarrow$ `"WOLVES"`.
+  - **Non-Conflicting Choice Isolation**: Filters only trigger on registered filter names. Expressions like `{$fruit | apple}` are safely recognized as dynamic choices between `$fruit` and `"apple"`, while `{$fruit | upper}` transforms the variable!
+
 - **Inline Negative Injections (`{!neg: tags}`)**: Embed negative constraints directly inside positive prompt text without jumping to the negative box.
   - Example: `portrait of an android geisha {!neg: cartoon, 3d render, extra limbs}, holding porcelain cup {!neg: bad hands, broken fingers}`
   - **Smart Concept Deduplication**: When merged into the negative prompt, tags are deduplicated by base semantic concept (e.g. `(bad anatomy:1.4)` vs `bad anatomy` or identical duplicate tags are automatically consolidated to prevent negative prompt pollution).
@@ -438,12 +627,6 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
         85mm portrait prime lens,
         shallow depth of field;
     ```
-- **Piped Variable Filters (`$var | filter`)**: Transform variable strings on-the-fly:
-  - `$hero | title`: Capitalizes each word (`"cyberpunk samurai"` $\rightarrow$ `"Cyberpunk Samurai"`).
-  - `$hero | upper` / `$hero | lower` / `$hero | capitalize` / `$hero | trim`.
-  - `$tag | weight(1.35)`: Wraps the value in attention weight syntax: `(tag:1.35)`.
-  - `$tag | wrap('prefix', 'suffix')`: Wraps value in custom delimiters.
-  - `$var | default('fallback')`: Uses fallback if the variable resolves empty.
 - **Workflow & Environment Macros (`%macro%`)**: Automatically expands runtime parameters:
   - System timestamps: `%seed%`, `%date%` (`YYYY-MM-DD`), `%time%` (`HH:MM:SS`), `%timestamp%`, `%year%`, `%month%`, `%day%`.
   - Workflow parameters (inspected from active nodes): `%sampler%`, `%scheduler%`, `%steps%`, `%cfg%`, `%width%`, `%height%`.

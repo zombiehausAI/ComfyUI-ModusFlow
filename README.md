@@ -79,11 +79,18 @@ The **ModusFlow Text Editor** turns ComfyUI prompt crafting into a full-featured
                       │   ModusFlow Text Editor & Prompt Studio      │
                       ├──────────────────────────────────────────────┤
                       │ • Live Syntax Highlighting & Dark Themes     │
-                      │ • Pop-Out Dual-Panel Studio (Pos & Neg)      │
-                      │ • Autocomplete: __lists__, $vars, <loras>    │
+                      │ • Modular File Imports: @import "lib/file"   │
+                      │ • Reusable Macro Functions: @func($arg)      │
                       │ • Dynamic CASE & Switch Branching            │
-                      │ • Tag Weight Stepping (Ctrl+Up/Down)         │
+                      │ • Compound Boolean Ternaries (&&, ||, !)     │
+                      │ • Percentage Chance Modifiers: {40%: tags}   │
+                      │ • Inline Arithmetic: {$weight + 0.2}         │
+                      │ • Null-Coalescing Operator: $var ?? fallback │
+                      │ • Filter Pipes: $tag | plural | upper        │
+                      │ • Arrays, Lists & Dicts: $obj.prop, $arr[0]  │
+                      │ • Loops & Repetition: repeat(3), for $c in L │
                       │ • Seamless Dynamic LoRA Prompt Tagging       │
+                      │ • Tag Weight Stepping (Ctrl+Up/Down)         │
                       │ • Cross-Model Linguistic Weight Translation  │
                       └──────────────────────┬───────────────────────┘
                                              │
@@ -99,10 +106,17 @@ The **ModusFlow Text Editor** turns ComfyUI prompt crafting into a full-featured
 
 | Feature | Description |
 |---|---|
-| **🖥️ Pop-Out Studio Modal** | Double-click or click **Pop Out** to expand into a floating studio with side-by-side Positive and Negative editors, 6 custom dark themes (*Modus Neon, Midnight Purple, Monokai, Cyberpunk, Obsidian, Solarized*), font scaling, and viewport-safe boundary clamping. |
-| **🔀 CASE / Switch Statements** | Multi-branch conditionals that map variables to distinct character traits, outfits, or LoRAs: `{case $person: man => sharp suit \| woman => red dress \| * => casual outfit}`. Supports comma grouping (`man, boy => ...`) and choice sets (`{man\|boy} => ...`). |
+| **📁 Modular File Imports** | Import and compose external prompt files with `@import "styles/cyberpunk"` or `@import "lighting.txt"`. Works seamlessly with `.txt` (raw text) and `.json` (pulls positive prompt) relative to `saved_prompts` root or subfolders with 5-level recursion guards. |
+| **⚡ Reusable Macro Functions** | Define parameterized prompt functions: `fn hero($name, $weapon) = { masterpiece portrait of $name holding a glowing $weapon };` and invoke them anywhere with `@hero("valkyrie", "sword")`. Supports variable passing, multi-line bodies, and clean definition stripping. |
+| **📦 Arrays, Lists & Dictionaries** | First-class data structures: declare lists `$elements = [fire, frost, lightning];` and maps `$hero = { name: "Valkyrie", weapon: "spear", role: "tank" };`. Access items with dot notation (`$hero.name`), bracket indexing (`$elements[0]`, `$hero["weapon"]`), or array lengths (`$elements.length`). Works with dedicated filters (`\| keys`, `\| values`, `\| first`, `\| last`, `\| reverse`, `\| sort`). |
+| **🔁 Loops & Repetition** | Parametric generation loops: `repeat(count) { ... }` with auto `$index` (1-based) / `$i` (0-based) and re-rolling dynamic choices per iteration; `for $item in $list { ... }`, `for $idx, $item in $list { ... }`, dictionary key-value loops `for $k, $v in $dict { ... }`, multi-character squad loops `for $m in $party { $m.name as $m.role }`, and numerical ranges `for $i in 1..4 { ... }`. Bounded safely to 20 iterations max. |
+| **🔀 CASE / Switch Statements** | Multi-branch conditionals that map variables to distinct character traits, outfits, or LoRAs: `{case $person: man => sharp suit \| woman => red dress \| * => casual outfit}`. Supports single-line with `\|` or multi-line with newlines, comma grouping (`man, boy => ...`), and choice sets (`{man\|boy} => ...`). |
+| **❓ Compound Boolean Ternaries** | Full boolean logic branching with `&&`, `\|\|`, and `!`: `{$is_night && $weather == "rain" ? stormy night : clear day}` or `{($level >= 50 \|\| $role in {paladin\|hero}) && $is_night ? veteran : rookie}`. |
+| **🎲 Percentage Chance Modifiers** | Probabilistic tag inclusion: `{40%: dramatic volumetric dust, }` or `{25.5%: cybernetic arm}` rolls a random percentage probability per generation, cleanly resolving to empty string if the chance fails. |
+| **🧮 Inline Arithmetic Expressions** | Real-time mathematical operations directly inside prompts or attention weights: `(masterpiece:{$base_weight + 0.2})` $\rightarrow$ `(masterpiece:1.3)`, `{$level * 2}`, `{$age + 10}`. |
+| **🛡️ Null-Coalescing Operator** | Safe fallback resolution for unset or empty variables: `$theme ?? "cyberpunk"` or `{$missing_var ?? "high tech"}`. |
+| **🧪 Unix / Jinja Filter Pipes** | Transform variables with piped filters: `$creature \| plural \| upper` $\rightarrow$ `WOLVES`, `$tags \| strip_weights` (cleans tags to unweighted plain text), `$colors \| join(" + ")`, `$hero \| title`, and `$tag \| weight(1.3)`. Safely isolated to never collide with dynamic choices! |
 | **🔮 Seamless LoRA Prompt Tagging** | Tag `<lora:name:strength>` directly inside your prompt or CASE branches. The Text Editor completely strips the tag from the text (no prompt pollution or metadata leaking) and invisibly transmits the LoRA payload to the **ModusFlow LoRA Loader** via the existing conditioning connection. |
-| **❓ Ternary Conditionals** | Fast inline conditional branching: `{$weather == sunny ? golden sunlight, lens flare : overcast rain}`. Supports `==`, `!=`, `<`, `<=`, `>`, `>=`, and truthiness checks. |
 | **🎲 Dynamic Choices & Pick-N** | Standard choices `{day\|night}`, Pick-N sets `{2$$neon\|retro\|cyberpunk}`, and weighted probabilities `{80::sunny\|20::rainy}`. |
 | **🔄 Deterministic Sequencing** | Step through options sequentially per queue or batch: `{seq: dawn \| midday \| golden hour \| midnight}` loops systematically with each generation. |
 | **🔗 Synced Choice Tuples** | Roll multi-variable attribute sets in lockstep: `[$theme, $hair, $eyes] = {[fire, crimson, amber] \| [ice, silver, blue]};`. |
