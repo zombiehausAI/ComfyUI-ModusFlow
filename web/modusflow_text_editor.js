@@ -49,6 +49,8 @@ const DEFAULT_THEMES = {
         weight: "#34d399",
         curator: "#4ade80",
         lora: "#f87171",
+        keyword: "#e879f9",
+        function: "#818cf8",
         plain_text: "#e2e8f0",
         caret_color: "#ffffff",
         bg_color: "#181825"
@@ -62,6 +64,8 @@ const DEFAULT_THEMES = {
         weight: "#99cc99",
         curator: "#6699cc",
         lora: "#f2777a",
+        keyword: "#cc99cc",
+        function: "#6699cc",
         plain_text: "#cccccc",
         caret_color: "#cccccc",
         bg_color: "#2d2d2d"
@@ -75,6 +79,8 @@ const DEFAULT_THEMES = {
         weight: "#22c55e",
         curator: "#39ff14",
         lora: "#ff0055",
+        keyword: "#ff007f",
+        function: "#ffe600",
         plain_text: "#f3f4f6",
         caret_color: "#00f0ff",
         bg_color: "#0d0e15"
@@ -88,6 +94,8 @@ const DEFAULT_THEMES = {
         weight: "#a9dc76",
         curator: "#ab9df2",
         lora: "#ff6188",
+        keyword: "#ff6188",
+        function: "#a9dc76",
         plain_text: "#fcfcfa",
         caret_color: "#ffd866",
         bg_color: "#221f22"
@@ -101,6 +109,8 @@ const DEFAULT_THEMES = {
         weight: "#50fa7b",
         curator: "#50fa7b",
         lora: "#ff5555",
+        keyword: "#ff79c6",
+        function: "#50fa7b",
         plain_text: "#f8f8f2",
         caret_color: "#f8f8f2",
         bg_color: "#1e1f29"
@@ -114,6 +124,8 @@ const DEFAULT_THEMES = {
         weight: "#a3be8c",
         curator: "#8fbcbb",
         lora: "#bf616a",
+        keyword: "#81a1c1",
+        function: "#8fbcbb",
         plain_text: "#eceff4",
         caret_color: "#88c0d0",
         bg_color: "#242933"
@@ -127,6 +139,8 @@ const DEFAULT_THEMES = {
         weight: "#859900",
         curator: "#268bd2",
         lora: "#cb4b16",
+        keyword: "#859900",
+        function: "#268bd2",
         plain_text: "#93a1a1",
         caret_color: "#268bd2",
         bg_color: "#001e26"
@@ -140,6 +154,8 @@ const DEFAULT_THEMES = {
         weight: "#10b981",
         curator: "#22c55e",
         lora: "#ef4444",
+        keyword: "#f43f5e",
+        function: "#eab308",
         plain_text: "#ffffff",
         caret_color: "#ffffff",
         bg_color: "#09090b"
@@ -1301,42 +1317,54 @@ function tokenizeAndHighlight(text, theme) {
     addMatches(/\{!neg:[^}]+\}/gi, "inline_neg");
     // 4.8 Environment & Workflow Macros: %seed%, %date%, %sampler%, %steps%, etc.
     addMatches(/%[a-zA-Z0-9_]+%/g, "macro");
+
+    // 4.9 Function & Macro Definitions: fn name(...) or def name(...)
+    const addFuncDefMatches = () => {
+        const re = /\b(fn|def)\s+([a-zA-Z0-9_]+)/g;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+            const kwStart = m.index;
+            const kwEnd = kwStart + m[1].length;
+            const fnStart = m.index + m[0].indexOf(m[2]);
+            const fnEnd = fnStart + m[2].length;
+            if (!intervals.some(iv => kwStart < iv.end && kwEnd > iv.start)) {
+                intervals.push({ start: kwStart, end: kwEnd, type: "keyword" });
+            }
+            if (!intervals.some(iv => fnStart < iv.end && fnEnd > iv.start)) {
+                intervals.push({ start: fnStart, end: fnEnd, type: "function" });
+            }
+        }
+    };
+    addFuncDefMatches();
+
+    // 4.10 Imports: @import and as
+    addMatches(/@import\b/g, "keyword");
+
+    // 4.11 Macro Invocations: @functionName(...) or @macroName
+    addMatches(/@[a-zA-Z0-9_]+/g, "function");
+
+    // 4.12 Loops & Flow Keywords
+    addMatches(/\brepeat\b(?=\s*\()/g, "keyword");
+    addMatches(/\bfor\b(?=\s+(?:\[[^\]]+\]|\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)?)\s+in\b)/g, "keyword");
+    addMatches(/(?<=\bfor\s+(?:\[[^\]]+\]|\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)?)\s+)in\b/g, "keyword");
+    addMatches(/\bas\b(?=\s+\$[a-zA-Z0-9_]+)/g, "keyword");
+    addMatches(/\b(switch|return)\b(?=[\s(:])/g, "keyword");
+    addMatches(/\bcase\b(?=[\s:$])/g, "keyword");
+
+    // 4.13 Built-in Functions: range(...), rand(...)
+    addMatches(/\b(range|rand)\b(?=\s*\()/g, "function");
+
     // 5. Prompt Variables: Synced Tuples, Multiline Blocks ({...}, """..."""), Piped Filters, or $name = value
     addMatches(/\[\s*\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)*\s*\]\s*=\s*\{[^{}]+\};?/g, "variable");
     addMatches(/\$[a-zA-Z0-9_]+\s*=\s*(?:"""[\s\S]*?"""|'''[\s\S]*?''')[;\s]*/g, "variable");
-    const addBracedVarMatches = () => {
-        let vi = 0;
-        const vn = text.length;
-        while (vi < vn) {
-            const m = text.slice(vi).match(/^\s*\$([a-zA-Z0-9_]+)\s*=\s*\{/);
-            if (m) {
-                const vStart = vi + m[0].indexOf("$");
-                const bStart = vi + m[0].length - 1;
-                let depth = 1;
-                let bPos = bStart + 1;
-                while (bPos < vn && depth > 0) {
-                    const ch = text[bPos];
-                    if (ch === "{") depth++;
-                    else if (ch === "}") depth--;
-                    bPos++;
-                }
-                if (depth === 0) {
-                    if (text[bPos] === ";") bPos++;
-                    const collides = intervals.some(iv => (vStart < iv.end && bPos > iv.start));
-                    if (!collides) {
-                        intervals.push({ start: vStart, end: bPos, type: "variable" });
-                    }
-                    vi = bPos;
-                    continue;
-                }
-            }
-            vi++;
-        }
-    };
-    addBracedVarMatches();
-    addMatches(/\$[a-zA-Z0-9_]+\s*=\s*[^;]+;/g, "variable");
-    addMatches(/\$[a-zA-Z0-9_]+(?:\s*\|\s*[a-zA-Z0-9_]+(?:\([^)]*\))?)+/g, "variable");
-    addMatches(/\$[a-zA-Z0-9_-]+(?:\s*=\s*[^;\r\n]+;?)?/g, "variable");
+    // Standard variables, indexed items, and property accesses: $var, $var[0], $var.prop
+    addMatches(/\$[a-zA-Z0-9_]+(?:\[\d+\])*(?:\.[a-zA-Z0-9_]+\b(?!\s*\())*/g, "variable");
+
+    // 5.1 Methods & Properties on objects/lists: .keys(), .values(), .items(), .length, .size()
+    addMatches(/(?<=\.)(?:[a-zA-Z0-9_]+\b(?=\s*\()|length\b)/g, "function");
+
+    // 5.2 Pipe Filters: | upper, | lower, | title, etc.
+    addMatches(/(?<=(?:\$[a-zA-Z0-9_.]+(?:\([^)]*\))?|\)|\])\s*\|\s*)([a-zA-Z0-9_]+)\b/g, "function");
     // 6. Curator placeholders: {curator}, {curator2}, etc.
     addMatches(/\{curator\d*\}/gi, "curator");
     // 7. Shuffle & Sequential syntax: {shuffle:...}, {seq:...}, {cycle:...}
@@ -1433,11 +1461,26 @@ function tokenizeAndHighlight(text, theme) {
             }
             html += `<span class="modusflow-weight-token" data-weight="${w}" style="color: ${baseColor}; ${extraStyle}" title="${title}">${tokenText}</span>`;
         } else if (iv.type === "case_statement") {
-            const color = theme.choice || theme.variable || "#cba6f7";
-            html += `<span style="color: ${color}; font-weight: 600;" title="CASE Statement: ${tokenText}">${tokenText}</span>`;
+            const keywordColor = theme.keyword || theme.choice || "#cba6f7";
+            const varColor = theme.variable || "#38bdf8";
+            let innerHtml = tokenText;
+            innerHtml = innerHtml.replace(/^(\{)(case\b)/i, (m, b, kw) => `${b}<span style="color: ${keywordColor}; font-weight: bold;">${kw}</span>`);
+            innerHtml = innerHtml.replace(/(\$[a-zA-Z0-9_]+)/g, `<span style="color: ${varColor}; font-weight: 600;">$1</span>`);
+            innerHtml = innerHtml.replace(/(=&gt;|=>)/g, `<span style="color: ${keywordColor}; font-weight: bold;">$1</span>`);
+            html += `<span style="color: ${theme.choice || '#c084fc'}; font-weight: 500;" title="CASE Statement: ${tokenText}">${innerHtml}</span>`;
         } else if (iv.type === "ternary") {
-            const color = theme.choice || theme.variable || "#cba6f7";
-            html += `<span style="color: ${color}; font-weight: 600;" title="Ternary Conditional: ${tokenText}">${tokenText}</span>`;
+            const keywordColor = theme.keyword || theme.choice || "#cba6f7";
+            const varColor = theme.variable || "#38bdf8";
+            let innerHtml = tokenText;
+            innerHtml = innerHtml.replace(/(\$[a-zA-Z0-9_]+)/g, `<span style="color: ${varColor}; font-weight: 600;">$1</span>`);
+            innerHtml = innerHtml.replace(/(\bin\b)/g, `<span style="color: ${keywordColor}; font-weight: bold;">$1</span>`);
+            html += `<span style="color: ${theme.choice || '#c084fc'}; font-weight: 500;" title="Ternary Conditional: ${tokenText}">${innerHtml}</span>`;
+        } else if (iv.type === "keyword") {
+            const color = theme.keyword || theme.choice || "#cba6f7";
+            html += `<span style="color: ${color}; font-weight: bold;" title="Keyword: ${tokenText}">${tokenText}</span>`;
+        } else if (iv.type === "function") {
+            const color = theme.function || theme.variable || "#89b4fa";
+            html += `<span style="color: ${color}; font-weight: 600;" title="Function/Macro: ${tokenText}">${tokenText}</span>`;
         } else if (iv.type === "inline_neg") {
             html += `<span style="color: #f87171; background: rgba(239, 68, 68, 0.15); border: 1px dashed rgba(248, 113, 113, 0.4); border-radius: 4px; padding: 0 4px; font-weight: 500;" title="Inline Negative Injection (Automatically extracted & deduplicated into Negative Prompt)">${tokenText}</span>`;
         } else if (iv.type === "macro") {
