@@ -76,6 +76,10 @@
           "name": "Wildcards & Lists"
         },
         {
+          "id": "modusflow.lorasView",
+          "name": "Installed LoRAs"
+        },
+        {
           "id": "modusflow.activeNodeView",
           "name": "Connected Canvas Node"
         }
@@ -157,6 +161,24 @@
         "title": "Refresh Songs Library",
         "category": "ModusFlow",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "modusflow.refreshLoras",
+        "title": "Refresh LoRAs",
+        "category": "ModusFlow",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "modusflow.insertLoraSnippet",
+        "title": "Insert LoRA into Prompt...",
+        "category": "ModusFlow",
+        "icon": "$(layers)"
+      },
+      {
+        "command": "modusflow.insertWildcardSnippet",
+        "title": "Insert Wildcard / List into Prompt...",
+        "category": "ModusFlow",
+        "icon": "$(list-unordered)"
       },
       {
         "command": "modusflow.openSongwriterStudio",
@@ -342,6 +364,26 @@
         {
           "command": "modusflow.openSongwriterStudio",
           "when": "view == modusflow.songsView",
+          "group": "navigation"
+        },
+        {
+          "command": "modusflow.refreshLoras",
+          "when": "view == modusflow.lorasView",
+          "group": "navigation"
+        },
+        {
+          "command": "modusflow.insertLoraSnippet",
+          "when": "view == modusflow.lorasView",
+          "group": "navigation"
+        },
+        {
+          "command": "modusflow.refreshPrompts",
+          "when": "view == modusflow.wildcardsView",
+          "group": "navigation"
+        },
+        {
+          "command": "modusflow.insertWildcardSnippet",
+          "when": "view == modusflow.wildcardsView",
           "group": "navigation"
         }
       ],

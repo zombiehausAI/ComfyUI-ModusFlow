@@ -175,6 +175,34 @@ export class ModusFlowStudioPanel {
                     await this._handleQueue();
                     break;
 
+                case "fetchLoras": {
+                    const loras = await this._client.listLoras();
+                    this._panel.webview.postMessage({
+                        type: "lorasList",
+                        loras
+                    });
+                    break;
+                }
+
+                case "fetchWildcards": {
+                    const wildcards = await this._client.listWildcards();
+                    this._panel.webview.postMessage({
+                        type: "wildcardsList",
+                        wildcards
+                    });
+                    break;
+                }
+
+                case "getLoraMetadata": {
+                    const metadata = await this._client.getLoraMetadata(msg.name);
+                    this._panel.webview.postMessage({
+                        type: "loraMetadata",
+                        name: msg.name,
+                        metadata
+                    });
+                    break;
+                }
+
                 case "enhanceOllama":
                     await this._handleEnhanceOllama();
                     break;
@@ -727,17 +755,84 @@ export class ModusFlowStudioPanel {
             display: flex;
             gap: 6px;
             flex-wrap: wrap;
+            min-height: 24px;
+            align-items: center;
         }
-        .lora-tag {
-            background: rgba(203, 166, 247, 0.18);
+        .lora-chip {
+            background: rgba(203, 166, 247, 0.12);
             border: 1px solid var(--accent-purple);
-            color: #cba6f7;
-            padding: 2px 8px;
             border-radius: 4px;
+            padding: 2px 6px;
             font-size: 11px;
             display: inline-flex;
             align-items: center;
-            gap: 4px;
+            gap: 6px;
+            color: #cba6f7;
+        }
+        .lora-chip-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--text-main);
+            border-radius: 3px;
+            padding: 0 4px;
+            font-size: 10px;
+            cursor: pointer;
+            line-height: 16px;
+        }
+        .lora-chip-btn:hover {
+            background: var(--accent-purple);
+            color: #000;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-dialog {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            width: 520px;
+            max-width: 90vw;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+        }
+        .modal-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .modal-body {
+            padding: 8px 12px;
+            overflow-y: auto;
+            flex: 1;
+            max-height: 55vh;
+        }
+        .picker-list-item {
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            transition: background 0.15s ease;
+        }
+        .picker-list-item:hover {
+            background: rgba(203, 166, 247, 0.15);
+            color: var(--accent-purple);
         }
     </style>
 </head>
@@ -825,7 +920,11 @@ export class ModusFlowStudioPanel {
         <div class="editor-pane">
             <div class="pane-header">
                 <span class="pane-title positive">✦ POSITIVE PROMPT</span>
-                <span id="posStats" style="font-size: 11px; color: var(--text-muted);">0w · 0 tok</span>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <button class="btn" id="insertLoraBtn" style="padding: 1px 7px; font-size: 11px; height: 22px;" title="Insert installed LoRA from ComfyUI">+ LoRA</button>
+                    <button class="btn" id="insertWildcardBtn" style="padding: 1px 7px; font-size: 11px; height: 22px;" title="Insert wildcard or list from ComfyUI">+ Wildcard/List</button>
+                    <span id="posStats" style="font-size: 11px; color: var(--text-muted);">0w · 0 tok</span>
+                </div>
             </div>
             <div class="syntax-wrapper">
                 <div class="syntax-backdrop" id="posBackdrop"></div>
@@ -1019,58 +1118,68 @@ export class ModusFlowStudioPanel {
         // Syntax Themes
         const SYNTAX_THEMES = {
             "Modus Neon (Default)": {
-                comment: "#6c7086",
-                lora: "#f38ba8",
-                variable: "#89b4fa",
-                curator: "#a6e3a1",
-                shuffle: "#fab387",
-                choice: "#cba6f7",
-                wildcard: "#f9e2af",
-                weight: "#f9e2af",
+                comment: "#6b7280",
+                choice: "#c084fc",
+                shuffle: "#f472b6",
+                wildcard: "#fbbf24",
+                variable: "#38bdf8",
+                weight: "#34d399",
+                curator: "#4ade80",
+                lora: "#f87171",
+                keyword: "#e879f9",
+                function: "#818cf8",
                 plain_text: "#cdd6f4"
             },
             "Cyberpunk 2077": {
-                comment: "#005577",
-                lora: "#ff007f",
+                comment: "#71717a",
+                choice: "#e879f9",
+                shuffle: "#ff007f",
+                wildcard: "#facc15",
                 variable: "#00f0ff",
-                curator: "#ffe600",
-                shuffle: "#ff7700",
-                choice: "#a600ff",
-                wildcard: "#00ff66",
-                weight: "#ffe600",
+                weight: "#22c55e",
+                curator: "#39ff14",
+                lora: "#ff0055",
+                keyword: "#ff007f",
+                function: "#ffe600",
                 plain_text: "#d0f0ff"
             },
             "Dracula Night": {
                 comment: "#6272a4",
-                lora: "#ff79c6",
-                variable: "#8be9fd",
-                curator: "#50fa7b",
-                shuffle: "#ffb86c",
                 choice: "#bd93f9",
+                shuffle: "#ff79c6",
                 wildcard: "#f1fa8c",
-                weight: "#f1fa8c",
+                variable: "#8be9fd",
+                weight: "#50fa7b",
+                curator: "#50fa7b",
+                lora: "#ff5555",
+                keyword: "#ff79c6",
+                function: "#50fa7b",
                 plain_text: "#f8f8f2"
             },
             "Monokai Pro": {
                 comment: "#727072",
-                lora: "#ff6188",
+                choice: "#ffd866",
+                shuffle: "#ff6188",
+                wildcard: "#fc9867",
                 variable: "#78dce8",
-                curator: "#a9dc76",
-                shuffle: "#fc9867",
-                choice: "#ab9df2",
-                wildcard: "#ffd866",
-                weight: "#ffd866",
+                weight: "#a9dc76",
+                curator: "#ab9df2",
+                lora: "#ff6188",
+                keyword: "#ff6188",
+                function: "#a9dc76",
                 plain_text: "#fcfcfa"
             },
             "Nord Frost": {
-                comment: "#4c566a",
-                lora: "#bf616a",
-                variable: "#88c0d0",
-                curator: "#a3be8c",
-                shuffle: "#d08770",
+                comment: "#616e88",
                 choice: "#b48ead",
+                shuffle: "#d08770",
                 wildcard: "#ebcb8b",
-                weight: "#ebcb8b",
+                variable: "#88c0d0",
+                weight: "#a3be8c",
+                curator: "#8fbcbb",
+                lora: "#bf616a",
+                keyword: "#81a1c1",
+                function: "#8fbcbb",
                 plain_text: "#eceff4"
             }
         };
@@ -1117,11 +1226,140 @@ export class ModusFlowStudioPanel {
                 addMatches(/(?:\\/\\/|#)[^\\r\\n]*/g, "comment");
                 // LoRAs
                 addMatches(/<lora:[^>\\r\\n]+>/gi, "lora");
-                // Variables
-                addMatches(/\\$[a-zA-Z0-9_-]+(?:\\s*=\\s*[^;\\r\\n]+;?)?/g, "variable");
+
+                // CASE Statements
+                const addCaseMatches = () => {
+                    let ci = 0;
+                    const cn = text.length;
+                    while (ci < cn) {
+                        const isCasePrefix = text.slice(ci, ci + 6).toLowerCase() === "{case ";
+                        const isVarPrefix = text.slice(ci, ci + 2) === "{$";
+                        if (isCasePrefix || isVarPrefix) {
+                            const cStart = ci;
+                            ci += isCasePrefix ? 6 : 2;
+                            let cDepth = 1;
+                            while (ci < cn && cDepth > 0) {
+                                const ch = text[ci];
+                                if (ch === "{") cDepth++;
+                                else if (ch === "}") cDepth--;
+                                ci++;
+                            }
+                            if (cDepth === 0) {
+                                const block = text.slice(cStart, ci);
+                                const inner = block.slice(1, -1);
+                                if (inner.includes(":") && inner.includes("=>")) {
+                                    const collides = intervals.some(iv => (cStart < iv.end && ci > iv.start));
+                                    if (!collides) {
+                                        intervals.push({ start: cStart, end: ci, type: "case_statement" });
+                                    }
+                                }
+                            }
+                        } else {
+                            ci++;
+                        }
+                    }
+                };
+                addCaseMatches();
+
+                // Ternary Conditionals
+                const addTernaryMatches = () => {
+                    let ti = 0;
+                    const tn = text.length;
+                    while (ti < tn) {
+                        if (text.slice(ti, ti + 2) === "{$") {
+                            const tStart = ti;
+                            ti += 2;
+                            let tDepth = 1;
+                            while (ti < tn && tDepth > 0) {
+                                const ch = text[ti];
+                                if (ch === "{") tDepth++;
+                                else if (ch === "}") tDepth--;
+                                ti++;
+                            }
+                            if (tDepth === 0) {
+                                const block = text.slice(tStart, ti);
+                                const inner = block.slice(1, -1);
+                                let hasQ = false;
+                                let id = 0;
+                                for (let idx = 0; idx < inner.length; idx++) {
+                                    const c = inner[idx];
+                                    if (c === "{") id++;
+                                    else if (c === "}") id--;
+                                    else if (c === "?" && id === 0) {
+                                        hasQ = true;
+                                        break;
+                                    }
+                                }
+                                if (hasQ && !inner.includes("=>")) {
+                                    const collides = intervals.some(iv => (tStart < iv.end && ti > iv.start));
+                                    if (!collides) {
+                                        intervals.push({ start: tStart, end: ti, type: "ternary" });
+                                    }
+                                }
+                            }
+                        } else {
+                            ti++;
+                        }
+                    }
+                };
+                addTernaryMatches();
+
+                // Inline Negatives
+                addMatches(/\\{!neg:[^}]+\\}/gi, "inline_neg");
+                // Workflow Macros
+                addMatches(/%[a-zA-Z0-9_]+%/g, "macro");
+
+                // Function Definition Declarations: fn name(...) or def name(...)
+                const addFuncDefMatches = () => {
+                    const re = /\\b(fn|def)\\s+([a-zA-Z0-9_]+)/g;
+                    let m;
+                    while ((m = re.exec(text)) !== null) {
+                        const kwStart = m.index;
+                        const kwEnd = kwStart + m[1].length;
+                        const fnStart = m.index + m[0].indexOf(m[2]);
+                        const fnEnd = fnStart + m[2].length;
+                        if (!intervals.some(iv => kwStart < iv.end && kwEnd > iv.start)) {
+                            intervals.push({ start: kwStart, end: kwEnd, type: "keyword" });
+                        }
+                        if (!intervals.some(iv => fnStart < iv.end && fnEnd > iv.start)) {
+                            intervals.push({ start: fnStart, end: fnEnd, type: "function" });
+                        }
+                    }
+                };
+                addFuncDefMatches();
+
+                // Imports: @import and as
+                addMatches(/@import\\b/g, "keyword");
+
+                // Macro Invocations: @functionName(...) or @macroName
+                addMatches(/@[a-zA-Z0-9_]+/g, "function");
+
+                // Loops & Flow Keywords
+                addMatches(/\\brepeat\\b(?=\\s*\\()/g, "keyword");
+                addMatches(/\\bfor\\b(?=\\s+(?:\\[[^\\]]+\\]|\\$[a-zA-Z0-9_]+(?:\\s*,\\s*\\$[a-zA-Z0-9_]+)?)\\s+in\\b)/g, "keyword");
+                addMatches(/(?<=\\bfor\\s+(?:\\[[^\\]]+\\]|\\$[a-zA-Z0-9_]+(?:\\s*,\\s*\\$[a-zA-Z0-9_]+)?)\\s+)in\\b/g, "keyword");
+                addMatches(/\\bas\\b(?=\\s+\\$[a-zA-Z0-9_]+)/g, "keyword");
+                addMatches(/\\b(switch|return)\\b(?=[\\s(:])/g, "keyword");
+                addMatches(/\\bcase\\b(?=[\\s:$])/g, "keyword");
+
+                // Built-in Functions: range(...), rand(...)
+                addMatches(/\\b(range|rand)\\b(?=\\s*\\()/g, "function");
+
+                // Variables: Synced Tuples, Multiline Blocks
+                addMatches(/\\[\\s*\\$[a-zA-Z0-9_]+(?:\\s*,\\s*\\$[a-zA-Z0-9_]+)*\\s*\\]\\s*=\\s*\\{[^{}]+\\};?/g, "variable");
+                addMatches(/\\$[a-zA-Z0-9_]+\\s*=\\s*(?:"""[\\s\\S]*?"""|'''[\\s\\S]*?''')[;\\s]*/g, "variable");
+                addMatches(/\\$[a-zA-Z0-9_]+(?:\\[\\d+\\])*(?:\\.[a-zA-Z0-9_]+\\b(?!\\s*\\())*/g, "variable");
+
+                // Methods & Properties: .keys(), .values(), .items(), .length, .size()
+                addMatches(/(?<=\\.)(?:[a-zA-Z0-9_]+\\b(?=\\s*\\()|length\\b)/g, "function");
+
+                // Pipe Filters: | upper, | lower, | title, etc.
+                addMatches(/(?<=(?:\\$[a-zA-Z0-9_.]+(?:\\([^)]*\\))?|\\)|\\])\\s*\\|\\s*)([a-zA-Z0-9_]+)\\b/g, "function");
+
                 // Curator & dynamic choices
                 addMatches(/\\{curator\\d*\\}/gi, "curator");
-                addMatches(/\\{shuffle:[^}]+}/gi, "shuffle");
+                addMatches(/\\{(?:shuffle|seq|cycle):[^}]+\}/gi, "shuffle");
+                addMatches(/\\{(?:range|rand):[^}]+\}/gi, "choice");
                 addMatches(/\\{\\s*\\d+(?:-\\d+)?\\$\\$[^}]+}/g, "choice");
                 addMatches(/\\{\\s*\\d+::[^}]+}/g, "choice");
                 addMatches(/\\{[^{}]*\\|[^{}]*\\}/g, "choice");
@@ -1148,6 +1386,33 @@ export class ModusFlowStudioPanel {
 
                     if (iv.type === "section_header") {
                         html += '<span style="color: #cba6f7; font-weight: bold; background: rgba(203, 166, 247, 0.16); border-radius: 3px; padding: 1px 4px;">' + tokenText + '</span>';
+                    } else if (iv.type === "case_statement") {
+                        const kwCol = theme.keyword || theme.choice || "#e879f9";
+                        const vCol = theme.variable || "#38bdf8";
+                        let inner = tokenText
+                            .replace(/^(\{)(case\b)/i, function(m, b, kw) {
+                                return b + '<span style="color: ' + kwCol + '; font-weight: bold;">' + kw + '</span>';
+                            })
+                            .replace(/(\$[a-zA-Z0-9_]+)/g, '<span style="color: ' + vCol + '; font-weight: 600;">$1</span>')
+                            .replace(/(=&gt;|=>)/g, '<span style="color: ' + kwCol + '; font-weight: bold;">$1</span>');
+                        html += '<span style="color: ' + (theme.choice || "#c084fc") + '; font-weight: 500;" title="CASE Statement">' + inner + '</span>';
+                    } else if (iv.type === "ternary") {
+                        const kwCol = theme.keyword || theme.choice || "#e879f9";
+                        const vCol = theme.variable || "#38bdf8";
+                        let inner = tokenText
+                            .replace(/(\$[a-zA-Z0-9_]+)/g, '<span style="color: ' + vCol + '; font-weight: 600;">$1</span>')
+                            .replace(/(\bin\b)/g, '<span style="color: ' + kwCol + '; font-weight: bold;">$1</span>');
+                        html += '<span style="color: ' + (theme.choice || "#c084fc") + '; font-weight: 500;" title="Ternary Conditional">' + inner + '</span>';
+                    } else if (iv.type === "keyword") {
+                        const color = theme.keyword || theme.choice || "#e879f9";
+                        html += '<span style="color: ' + color + '; font-weight: bold;" title="Keyword: ' + tokenText + '">' + tokenText + '</span>';
+                    } else if (iv.type === "function") {
+                        const color = theme.function || theme.variable || "#818cf8";
+                        html += '<span style="color: ' + color + '; font-weight: 600;" title="Function/Macro: ' + tokenText + '">' + tokenText + '</span>';
+                    } else if (iv.type === "inline_neg") {
+                        html += '<span style="color: #f87171; background: rgba(239, 68, 68, 0.15); font-weight: 500;">' + tokenText + '</span>';
+                    } else if (iv.type === "macro") {
+                        html += '<span style="color: ' + (theme.wildcard || "#fbbf24") + '; font-weight: bold;">' + tokenText + '</span>';
                     } else if (iv.type === "lyric_cue") {
                         html += '<span style="color: #a6e3a1; font-style: italic;">' + tokenText + '</span>';
                     } else if (iv.type === "hex_color") {
@@ -1304,6 +1569,7 @@ export class ModusFlowStudioPanel {
                                        (pedal.expressions && nText.includes(pedal.expressions));
                         btn.classList.toggle("active", !!active);
                     });
+                    renderLoraDeck();
                 }
             } catch (err) {
                 console.error("updateUI error:", err);
@@ -1481,9 +1747,198 @@ export class ModusFlowStudioPanel {
             updateUI();
         });
 
+        function renderLoraDeck() {
+            loraDeck.innerHTML = "";
+            const text = posArea.value;
+            const loraRegex = /<lora:([a-zA-Z0-9_.-]+)(?::([+-]?[0-9]*\.?[0-9]+))?>/g;
+            let m;
+            const matches = [];
+            while ((m = loraRegex.exec(text)) !== null) {
+                matches.push({
+                    full: m[0],
+                    name: m[1],
+                    weight: m[2] ? parseFloat(m[2]) : 1.0
+                });
+            }
+
+            matches.forEach(item => {
+                const chip = document.createElement("div");
+                chip.className = "lora-chip";
+
+                const label = document.createElement("span");
+                label.textContent = item.name;
+                label.style.fontWeight = "600";
+                chip.appendChild(label);
+
+                const weightControls = document.createElement("span");
+                weightControls.style.display = "inline-flex";
+                weightControls.style.alignItems = "center";
+                weightControls.style.gap = "2px";
+
+                const minusBtn = document.createElement("button");
+                minusBtn.className = "lora-chip-btn";
+                minusBtn.textContent = "-";
+                minusBtn.title = "Decrease weight by 0.05";
+                minusBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    stepLoraWeight(item.name, -0.05);
+                };
+
+                const weightVal = document.createElement("span");
+                weightVal.textContent = item.weight.toFixed(2);
+                weightVal.style.fontSize = "10px";
+                weightVal.style.color = "var(--text-muted)";
+
+                const plusBtn = document.createElement("button");
+                plusBtn.className = "lora-chip-btn";
+                plusBtn.textContent = "+";
+                plusBtn.title = "Increase weight by 0.05";
+                plusBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    stepLoraWeight(item.name, 0.05);
+                };
+
+                weightControls.appendChild(minusBtn);
+                weightControls.appendChild(weightVal);
+                weightControls.appendChild(plusBtn);
+                chip.appendChild(weightControls);
+
+                const triggerBtn = document.createElement("button");
+                triggerBtn.className = "lora-chip-btn";
+                triggerBtn.textContent = "Trigger";
+                triggerBtn.title = "Fetch & insert trained trigger words from ComfyUI";
+                triggerBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    vscode.postMessage({ command: "getLoraMetadata", name: item.name });
+                };
+                chip.appendChild(triggerBtn);
+
+                const removeBtn = document.createElement("button");
+                removeBtn.className = "lora-chip-btn";
+                removeBtn.textContent = "×";
+                removeBtn.title = "Remove LoRA";
+                removeBtn.style.color = "#f87171";
+                removeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    removeLora(item.name);
+                };
+                chip.appendChild(removeBtn);
+
+                loraDeck.appendChild(chip);
+            });
+        }
+
+        function stepLoraWeight(name, delta) {
+            pushHistory();
+            const re = /<lora:([^:>]+)(?::([+-]?[0-9]*\.?[0-9]+))?>/g;
+            posArea.value = posArea.value.replace(re, function(match, loraName, oldW) {
+                if (loraName === name) {
+                    const current = oldW ? parseFloat(oldW) : 1.0;
+                    const next = Math.max(0, Math.min(2.5, Math.round((current + delta) * 100) / 100));
+                    return "<lora:" + name + ":" + next.toFixed(2) + ">";
+                }
+                return match;
+            });
+            pushHistory();
+            notifyContent();
+            updateUI();
+        }
+
+        function removeLora(name) {
+            pushHistory();
+            const re = /<lora:([^:>]+)(?::[+-]?[0-9]*\.?[0-9]+)?>/g;
+            posArea.value = posArea.value.replace(re, function(match, loraName) {
+                return loraName === name ? "" : match;
+            }).replace(/,\s*,/g, ",").replace(/^\s*,\s*/, "").replace(/\s*,\s*$/, "").trim();
+            pushHistory();
+            notifyContent();
+            updateUI();
+        }
+
+        // LoRA & Wildcard Picker Modal Logic
+        let activePickerType = null;
+        let pickerItems = [];
+        const pickerModal = document.getElementById("pickerModal");
+        const pickerTitle = document.getElementById("pickerTitle");
+        const pickerSearchInput = document.getElementById("pickerSearchInput");
+        const pickerList = document.getElementById("pickerList");
+        const pickerCloseBtn = document.getElementById("pickerCloseBtn");
+
+        pickerCloseBtn.onclick = () => { pickerModal.style.display = "none"; };
+        pickerModal.onclick = (e) => { if (e.target === pickerModal) pickerModal.style.display = "none"; };
+
+        document.getElementById("insertLoraBtn").onclick = () => {
+            activePickerType = "lora";
+            pickerTitle.textContent = "Insert Installed LoRA (from ComfyUI)";
+            pickerSearchInput.value = "";
+            pickerList.innerHTML = "<div style='color: var(--text-muted); font-size: 12px; padding: 10px;'>Loading LoRAs from ComfyUI...</div>";
+            pickerModal.style.display = "flex";
+            pickerSearchInput.focus();
+            vscode.postMessage({ command: "fetchLoras" });
+        };
+
+        document.getElementById("insertWildcardBtn").onclick = () => {
+            activePickerType = "wildcard";
+            pickerTitle.textContent = "Insert Wildcard / List (from ComfyUI)";
+            pickerSearchInput.value = "";
+            pickerList.innerHTML = "<div style='color: var(--text-muted); font-size: 12px; padding: 10px;'>Loading wildcards from ComfyUI...</div>";
+            pickerModal.style.display = "flex";
+            pickerSearchInput.focus();
+            vscode.postMessage({ command: "fetchWildcards" });
+        };
+
+        pickerSearchInput.oninput = () => {
+            renderPickerList(pickerSearchInput.value.trim().toLowerCase());
+        };
+
+        function renderPickerList(filter) {
+            pickerList.innerHTML = "";
+            const filtered = filter ? pickerItems.filter(x => x.toLowerCase().includes(filter)) : pickerItems;
+            if (filtered.length === 0) {
+                pickerList.innerHTML = "<div style='color: var(--text-muted); font-size: 12px; padding: 10px;'>No matching items found.</div>";
+                return;
+            }
+            filtered.forEach(name => {
+                const row = document.createElement("div");
+                row.className = "picker-list-item";
+                row.innerHTML = "<span>" + escapeHtml(name) + "</span><span style='color: var(--accent-purple); font-size: 11px;'>+ Insert</span>";
+                row.onclick = () => {
+                    pickerModal.style.display = "none";
+                    pushHistory();
+                    if (activePickerType === "lora") {
+                        const snippet = "<lora:" + name + ":0.8>";
+                        posArea.value = posArea.value.trim() ? posArea.value.trim() + " " + snippet : snippet;
+                    } else if (activePickerType === "wildcard") {
+                        const snippet = "__" + name + "__";
+                        posArea.value = posArea.value.trim() ? posArea.value.trim() + ", " + snippet : snippet;
+                    }
+                    pushHistory();
+                    notifyContent();
+                    updateUI();
+                };
+                pickerList.appendChild(row);
+            });
+        }
+
         window.addEventListener("message", event => {
             const msg = event.data;
-            if (msg.type === "syncContent") {
+            if (msg.type === "lorasList") {
+                pickerItems = msg.loras || [];
+                renderPickerList(pickerSearchInput.value.trim().toLowerCase());
+            } else if (msg.type === "wildcardsList") {
+                pickerItems = msg.wildcards || [];
+                renderPickerList(pickerSearchInput.value.trim().toLowerCase());
+            } else if (msg.type === "loraMetadata") {
+                const meta = msg.metadata;
+                if (meta && meta.trainedWords && meta.trainedWords.length > 0) {
+                    const words = meta.trainedWords.slice(0, 5).join(", ");
+                    pushHistory();
+                    posArea.value = posArea.value.trim() ? posArea.value.trim() + ", " + words : words;
+                    pushHistory();
+                    notifyContent();
+                    updateUI();
+                }
+            } else if (msg.type === "syncContent") {
                 if (msg.studioMode) setStudioMode(msg.studioMode);
                 if (msg.filename) filenameInput.value = msg.filename;
                 if (msg.category) categoryInput.value = msg.category;
@@ -1513,6 +1968,20 @@ export class ModusFlowStudioPanel {
         updateUI();
         pushHistory();
     </script>
+
+    <!-- Picker Modal for LoRAs & Wildcards -->
+    <div id="pickerModal" class="modal-overlay" style="display: none;">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <span id="pickerTitle">Select Item</span>
+                <button id="pickerCloseBtn" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px;">×</button>
+            </div>
+            <div style="padding: 8px 14px; border-bottom: 1px solid var(--border-color);">
+                <input type="text" id="pickerSearchInput" placeholder="Filter items..." style="width: 100%; box-sizing: border-box; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; outline: none;" />
+            </div>
+            <div class="modal-body" id="pickerList"></div>
+        </div>
+    </div>
 </body>
 </html>`;
     }

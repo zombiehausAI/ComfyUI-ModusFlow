@@ -3,7 +3,7 @@ import { ComfyClient } from "./comfyClient";
 import { ModusFlowColorProvider } from "./colorProvider";
 import { ModusFlowHoverProvider } from "./hoverProvider";
 import { ModusFlowCompletionProvider } from "./completionProvider";
-import { PromptsTreeProvider, WildcardsTreeProvider, ConnectedCanvasNodeProvider, SongsTreeProvider, PromptTreeItem } from "./treeViews";
+import { PromptsTreeProvider, WildcardsTreeProvider, ConnectedCanvasNodeProvider, SongsTreeProvider, LorasTreeProvider, PromptTreeItem } from "./treeViews";
 import { runOllamaRefinerAction } from "./ollamaRefiner";
 import { ModusFlowStudioPanel } from "./studioWebview";
 import { TokenCounterStatusBar } from "./tokenCounter";
@@ -225,6 +225,9 @@ export function activate(context: vscode.ExtensionContext) {
     const songsProvider = new SongsTreeProvider(client);
     vscode.window.registerTreeDataProvider("modusflow.songsView", songsProvider);
 
+    const lorasProvider = new LorasTreeProvider(client);
+    vscode.window.registerTreeDataProvider("modusflow.lorasView", lorasProvider);
+
     const activeNodeProvider = new ConnectedCanvasNodeProvider(client);
     vscode.window.registerTreeDataProvider("modusflow.activeNodeView", activeNodeProvider);
 
@@ -247,7 +250,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.languages.registerColorProvider(docSelector, colorProvider),
         vscode.languages.registerHoverProvider(docSelector, colorProvider),
         vscode.languages.registerHoverProvider(docSelector, new ModusFlowHoverProvider(client)),
-        vscode.languages.registerCompletionItemProvider(docSelector, new ModusFlowCompletionProvider(client), "_", "<", "{", "!")
+        vscode.languages.registerCompletionItemProvider(docSelector, new ModusFlowCompletionProvider(client), "_", "<", "{", "!", "@", "$", "|")
     );
 
     // ── Commands ──────────────────────────────────────────────────────────────
@@ -262,6 +265,7 @@ export function activate(context: vscode.ExtensionContext) {
             updateConnectionStatus();
             promptsProvider.refresh();
             wildcardsProvider.refresh();
+            lorasProvider.refresh();
             songsProvider.refresh();
             activeNodeProvider.refresh();
         }),
@@ -270,9 +274,85 @@ export function activate(context: vscode.ExtensionContext) {
             fsProvider.clearCache();
             promptsProvider.refresh();
             wildcardsProvider.refresh();
+            lorasProvider.refresh();
             songsProvider.refresh();
             activeNodeProvider.refresh();
             vscode.window.showInformationMessage("🔄 ModusFlow library & canvas node refreshed");
+        }),
+
+        vscode.commands.registerCommand("modusflow.refreshLoras", () => {
+            lorasProvider.refresh();
+            vscode.window.showInformationMessage("🔄 ModusFlow LoRA library refreshed");
+        }),
+
+        vscode.commands.registerCommand("modusflow.insertLoraSnippet", async (loraName?: string) => {
+            if (!loraName) {
+                const list = await client.listLoras();
+                if (!list || list.length === 0) {
+                    vscode.window.showInformationMessage("No LoRAs found in ComfyUI.");
+                    return;
+                }
+                const picked = await vscode.window.showQuickPick(list, { placeHolder: "Select a LoRA to insert" });
+                if (!picked) return;
+                loraName = picked;
+            }
+
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showWarningMessage("Open a document to insert the LoRA into.");
+                return;
+            }
+
+            const meta = await client.getLoraMetadata(loraName);
+            const tag = `<lora:${loraName}:0.8>`;
+
+            if (meta && meta.trainedWords && meta.trainedWords.length > 0) {
+                const triggers = meta.trainedWords.slice(0, 5).join(", ");
+                const choice = await vscode.window.showQuickPick([
+                    { label: `Insert LoRA Tag`, detail: tag, action: "tag" },
+                    { label: `Insert LoRA + Trigger Words`, detail: `${tag}, ${triggers}`, action: "both" },
+                    { label: `Insert Trigger Words Only`, detail: triggers, action: "triggers" }
+                ], { placeHolder: `LoRA "${loraName}" has trained trigger words:` });
+
+                if (!choice) return;
+
+                let insertText = tag;
+                if (choice.action === "both") {
+                    insertText = `${tag}, ${triggers}`;
+                } else if (choice.action === "triggers") {
+                    insertText = triggers;
+                }
+
+                editor.edit(eb => {
+                    eb.insert(editor.selection.active, insertText);
+                });
+            } else {
+                editor.edit(eb => {
+                    eb.insert(editor.selection.active, tag);
+                });
+            }
+        }),
+
+        vscode.commands.registerCommand("modusflow.insertWildcardSnippet", async (wcName?: string) => {
+            if (!wcName) {
+                const list = await client.listWildcards();
+                if (!list || list.length === 0) {
+                    vscode.window.showInformationMessage("No wildcards / lists found in ComfyUI.");
+                    return;
+                }
+                const picked = await vscode.window.showQuickPick(list, { placeHolder: "Select a wildcard / list to insert" });
+                if (!picked) return;
+                wcName = picked;
+            }
+
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showWarningMessage("Open a document to insert the wildcard into.");
+                return;
+            }
+            editor.edit(eb => {
+                eb.insert(editor.selection.active, `__${wcName}__`);
+            });
         }),
 
         vscode.commands.registerCommand("modusflow.refreshSongs", () => {

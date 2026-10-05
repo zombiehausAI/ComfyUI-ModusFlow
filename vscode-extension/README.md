@@ -6,7 +6,7 @@ A specialized IDE companion extension for [ComfyUI-ModusFlow](https://github.com
 
 ## Features
 
-- **🎨 Full ModusFlow Syntax Highlighting**: Rich TextMate grammar for dynamic choices (`{a|b|c}`), weighted odds (`{80::day|20::night}`), wildcards (`__lighting__`), variables (`$var`), attention weights (`(tag:1.2)`), and LoRA tags (`<lora:name:weight>`).
+- **🎨 Full ModusFlow Syntax Highlighting**: Rich TextMate grammar and webview highlighter for dynamic choices (`{a|b|c}`), weighted odds (`{80::day|20::night}`), wildcards (`__lighting__`), variables (`$var`), CASE pattern-matching (`{case $style => "anime": 1 | default: 2}`), inline ternary conditionals (`{$style == "anime" ? vibrant : realistic}`), repeat loops (`{repeat 3 => detail, }`), for loops (`{for $item in $list => $item}`), keywords (`fn`, `def`, `repeat`, `for`, `in`, `as`, `case`, `@import`), filters (`| upper`, `| lower`), functions (`range`, `rand`, `.keys()`), attention weights (`(tag:1.2)`), and LoRA tags (`<lora:name:weight>`).
 - **🌈 Document Color Provider & Natural Color Resolver**:
   - Live color decorators on `#hex` codes (`#e63946`) with built-in VS Code color picker.
   - Hover inspector displaying nearest diffusion-friendly natural color name (e.g. *"vibrant crimson red"*).
@@ -20,8 +20,12 @@ A specialized IDE companion extension for [ComfyUI-ModusFlow](https://github.com
     - `✍️ Prosify (Flux/SD3 Prose)`
     - `🏷️ Tagify (SDXL/Pony Tags)`
 - **💡 Rich IntelliSense & Autocomplete**:
-  - **Wildcards**: Type `__` to autocomplete from your ComfyUI wildcards library.
-  - **LoRAs**: Type `<lora:` to autocomplete from your installed LoRAs.
+  - **Control Flow**: Type `{` to autocomplete CASE statements, for-loops, repeat loops, and dynamic choices.
+  - **Imports & Macros**: Type `@` to autocomplete `@import(...)` files or macro calls.
+  - **Pipes & Filters**: Type `|` to autocomplete text transformation filters (`upper`, `lower`, `title`, `trim`).
+  - **Built-in Functions**: Autocomplete `range(start, end)` and `rand(min, max)`.
+  - **Wildcards & Lists**: Type `__` to autocomplete from your ComfyUI wildcards library.
+  - **LoRAs**: Type `<lora:` to autocomplete from your installed LoRAs with parameter placeholders.
   - **Macros**: Type `!cine`, `!photo`, `!anime`, or `!neg` and press `Tab` to expand prompt stacks.
 - **🖼️ Hover Cards**:
   - Hover over `<lora:...>` tags to view Civitai thumbnail previews, creators, and trained trigger tags.
@@ -29,9 +33,10 @@ A specialized IDE companion extension for [ComfyUI-ModusFlow](https://github.com
 - **⛶ Pop-Out Studio Cockpit Webview**:
   - Click the **`⛶`** icon in the editor title bar or run `ModusFlow: ⛶ Pop Out Studio Cockpit` to open a dual-pane studio tab matching the ComfyUI Pop-Out Text Editor.
   - Side-by-side **Positive** and **Negative** prompt editing areas.
+  - **Interactive LoRA Deck**: Live chips for all `<lora:name:weight>` with `+`/`-` weight steppers, one-click trained trigger words insertion fetched live from ComfyUI, and instant removal.
+  - **LoRA & Wildcard Search Modal**: Click `+ LoRA` or `+ Wildcard` in the toolbar to search and insert installed LoRAs and lists directly into your prompt.
   - **Negative Pedalboard Guard Rack**: One-click toggles for `✦ Quality`, `🚫 Anatomy`, `🎨 3D Guard`, and `💧 Watermark` that illuminate when active.
   - **Visual Aesthetic Ribbon**: 1-click drop-downs to inject curated Film Stocks (Kodak Portra, Cinestill), Optics & Lenses (85mm f/1.2, Anamorphic), Lighting Rigs, and Camera Systems.
-  - **LoRA Deck**: Real-time list of all `<lora:name:weight>` in your prompt.
   - **Prompt Style Switcher**: Toggle between `Tags (SDXL / Pony)` and `Expressions (Flux / SD3)` with live automatic conversion.
   - Direct **Save**, **Enhance with Ollama**, **Prettify / Dedupe**, and **🚀 Queue ComfyUI** buttons.
 - **⚡ Native Prompt Tools & Keybindings**:
@@ -43,8 +48,10 @@ A specialized IDE companion extension for [ComfyUI-ModusFlow](https://github.com
   - Real-time status bar counter tracking word count, estimated CLIP tokens, and 75-token chunk boundaries (`42w · 58 tok (58/75 Ch.1)`).
   - Immediate alert badge warning when unbalanced or unclosed parentheses are detected (`⚠️ unclosed ( )`).
 - **📁 Activity Bar Studio Explorer**:
-  - Browse saved prompts categorized by folder (`Portraits`, `Landscapes`, `Songs`, etc.).
-  - Browse and edit wildcard lists side-by-side.
+  - **Saved Prompts**: Browse saved prompts categorized by folder (`Portraits`, `Landscapes`, `Songs`, etc.).
+  - **Installed LoRAs**: Browse all installed LoRAs from ComfyUI, view trigger words, and insert `<lora:name:0.8>` or triggers into the active editor with one click.
+  - **Wildcards & Lists**: Browse, insert, and edit wildcard lists side-by-side.
+  - **Connected Canvas Node**: Push and pull prompts directly to/from the active canvas node in ComfyUI.
   - Full virtual filesystem support (`modusflow:` scheme) with tab names and direct `Ctrl + S` saving back to ComfyUI.
 - **🚀 One-Key Generation Queue**:
   - Press `Ctrl + Alt + Enter` (`Cmd + Alt + Enter` on macOS) to queue generation straight into ComfyUI.
