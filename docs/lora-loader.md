@@ -34,6 +34,8 @@ The ModusFlow LoRA Loader manages a JSON-based stack of LoRAs through an interac
 - **random_pick_count** (INT, default: 1): How many LoRAs to randomly pick from the `🎲 Random Pool`
 - **lora_filter** (STRING): Text filter for the LoRA list in the UI panel; persists automatically across browser sessions via `localStorage` and within saved workflows
 - **civitai_api_key** (STRING, hidden): Civitai API key stored in the workflow; overrides `config.json` key
+- **auto_keyword_discovery** (BOOLEAN, default: True): Automatically extract trained trigger words / keywords from active LoRAs to emit via `trigger_words`; toggle off to disable keyword discovery
+- **keyword_blacklist** (STRING, default: ""): Comma-separated list of keywords/tags to ignore and exclude from `trigger_words` (can also be configured globally via `lora_keyword_blacklist` in `config.json`)
 
 ## Outputs
 

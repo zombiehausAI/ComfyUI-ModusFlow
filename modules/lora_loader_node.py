@@ -67,16 +67,19 @@ class ModusFlowLoraLoader:
                 # This widget holds the API key, making it part of the workflow.
                 "civitai_api_key": ("STRING", {"default": "", "multiline": False, "hidden": True}),
                 "random_pick_count": ("INT", {"default": 1, "min": 1, "max": 10, "step": 1}),
+                "auto_keyword_discovery": ("BOOLEAN", {"default": True}),
+                "keyword_blacklist": ("STRING", {"default": "", "multiline": False}),
             }
         }
 
     @staticmethod
-    def extract_lora_trigger_words(lora_file_path: str) -> list[str]:
+    def extract_lora_trigger_words(lora_file_path: str, blacklist: set[str] | None = None) -> list[str]:
         """Extracts trained trigger words from sidecar json/civitai.info or safetensors header."""
         if not lora_file_path or not os.path.isfile(lora_file_path):
             return []
 
         base_no_ext, _ = os.path.splitext(lora_file_path)
+        blacklist_set = {b.lower().strip() for b in blacklist if b and b.strip()} if blacklist else set()
 
         # 1. Check sidecar files: .civitai.info or .json
         for ext in ('.civitai.info', '.json', '.info'):
@@ -87,7 +90,10 @@ class ModusFlowLoraLoader:
                         meta = json.load(f)
                         tw = meta.get("trainedWords")
                         if isinstance(tw, list) and tw:
-                            return [str(w).strip() for w in tw if str(w).strip()]
+                            words = [str(w).strip() for w in tw if str(w).strip()]
+                            if blacklist_set:
+                                words = [w for w in words if w.lower() not in blacklist_set]
+                            return words
                 except Exception:
                     pass
 
@@ -106,7 +112,10 @@ class ModusFlowLoraLoader:
                             # Direct trained words or modelspec tags
                             tw = meta.get("trained_words") or meta.get("modelspec.tags")
                             if isinstance(tw, str) and tw:
-                                return [t.strip() for t in tw.split(",") if t.strip()]
+                                words = [t.strip() for t in tw.split(",") if t.strip()]
+                                if blacklist_set:
+                                    words = [w for w in words if w.lower() not in blacklist_set]
+                                return words
 
                             # Dataset tag frequency: extract top tags
                             tag_freq = meta.get("ss_tag_frequency")
@@ -124,6 +133,8 @@ class ModusFlowLoraLoader:
                                                 all_tags[t] = all_tags.get(t, 0) + (cnt if isinstance(cnt, (int, float)) else 1)
                                     if all_tags:
                                         sorted_tags = sorted(all_tags.keys(), key=lambda x: all_tags[x], reverse=True)
+                                        if blacklist_set:
+                                            sorted_tags = [t for t in sorted_tags if t.strip().lower() not in blacklist_set]
                                         return sorted_tags[:8]
             except Exception:
                 pass
@@ -149,7 +160,7 @@ class ModusFlowLoraLoader:
             pass
         return False
 
-    def load_loras(self, lora_stack, base_model_name, pipe=None, model=None, clip=None, positive=None, negative=None, lora_filter="", seed=0, civitai_api_key="", random_pick_count=1):
+    def load_loras(self, lora_stack, base_model_name, pipe=None, model=None, clip=None, positive=None, negative=None, lora_filter="", seed=0, civitai_api_key="", random_pick_count=1, auto_keyword_discovery=True, keyword_blacklist="", **kwargs):
         # Extract from pipe if provided (individual inputs override pipe)
         if pipe is not None:
             # Pipe format: (model, clip, vae, positive, negative)
@@ -203,6 +214,20 @@ class ModusFlowLoraLoader:
             k = min(random_pick_count, len(random_pool))
             chosen_random = rng.sample(random_pool, k)
 
+        # Build blacklist set from input and config
+        if not keyword_blacklist and "key_blacklist" in kwargs:
+            keyword_blacklist = kwargs["key_blacklist"]
+
+        blacklist_set = set()
+        config_bl = settings.get("lora_keyword_blacklist", [])
+        if isinstance(config_bl, list):
+            blacklist_set.update(k.strip().lower() for k in config_bl if isinstance(k, str) and k.strip())
+        elif isinstance(config_bl, str) and config_bl.strip():
+            blacklist_set.update(k.strip().lower() for k in config_bl.split(",") if k.strip())
+
+        if keyword_blacklist and isinstance(keyword_blacklist, str):
+            blacklist_set.update(k.strip().strip("\"'").lower() for k in keyword_blacklist.split(",") if k.strip())
+
         active_loras = [(item, "Fixed") for item in fixed_loras] + [(item, "Random") for item in chosen_random]
         loaded_summaries = []
         all_trigger_words = []
@@ -214,12 +239,13 @@ class ModusFlowLoraLoader:
 
             lora_file = self.find_lora_path(lora_name, lora_paths)
             if lora_file:
-                full_lora_path = folder_paths.get_full_path("loras", lora_file)
-                if full_lora_path:
-                    triggers = self.extract_lora_trigger_words(full_lora_path)
-                    for t in triggers:
-                        if t not in all_trigger_words:
-                            all_trigger_words.append(t)
+                if auto_keyword_discovery:
+                    full_lora_path = folder_paths.get_full_path("loras", lora_file)
+                    if full_lora_path:
+                        triggers = self.extract_lora_trigger_words(full_lora_path, blacklist=blacklist_set)
+                        for t in triggers:
+                            if (not blacklist_set or t.strip().lower() not in blacklist_set) and t not in all_trigger_words:
+                                all_trigger_words.append(t)
 
                 strength = item.get("strength", 1.0)
                 if strength == 0:
