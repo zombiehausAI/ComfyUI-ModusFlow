@@ -113,6 +113,34 @@ portrait of an elven archer with $color eyes, wearing a matching $color hooded c
 ```
 ModusFlow evaluates `$color` once and replaces it everywhere it appears in the prompt.
 
+#### Multiline Variable Blocks
+Organize complex descriptions, character designs, or environment settings into clean, reusable blocks:
+* **Braced Blocks (`$var = { ... };`)**: Indentation is automatically trimmed, comments inside are filtered out, and nested choices/wildcards are fully resolved:
+  ```text
+  $outfit = {
+      intricate cybernetic titanium armor,
+      flowing midnight blue velvet cape,
+      dragon etched pauldrons,
+      glowing neon accents
+  };
+  portrait of a warrior wearing $outfit, sharp focus
+  ```
+* **Triple-Quoted Strings (`$var = """ ... """;`)**:
+  ```text
+  $setting = """
+      ancient moss-covered stone temple,
+      bioluminescent blue mushrooms,
+      soft atmospheric dust motes
+  """;
+  ```
+* **Semicolon-Terminated (`$var = ... ;`)**:
+  ```text
+  $camera =
+      shot on Hasselblad H6D-100c,
+      85mm portrait lens,
+      shallow depth of field;
+  ```
+
 ### Ternary If/Else Conditionals (`{$var==val?true:false}`)
 Dynamically branch your prompt output based on evaluated variables or conditions:
 ```text
@@ -144,6 +172,63 @@ portrait of an adventurer in a {$season:
 * **Fallback / Wildcard (`*`)**: Uses `*`, `default`, `_`, or `else` to catch unhandled values. If omitted, unmatched values evaluate to an empty string.
 * **Nested Choices**: Individual branch outputs can contain choice blocks or wildcards (e.g. `spring => {cherry|peach} blossoms`).
 * **Prefix Flexibility**: Both `{$var: ...}` and `{case $var: ...}` syntax forms are supported.
+
+### Synced Choice Tuples (`[$var1, $var2] = { [a1, b1] | [a2, b2] };`)
+When generating complex characters or coordinated themes, you often want multiple variables to roll together as an indivisible unit:
+```text
+[$element, $hair, $eyes] = {
+    [fire, crimson braided hair, amber eyes] |
+    [water, azure wavy hair, sapphire eyes] |
+    [nature, emerald locks, hazel eyes]
+};
+an elven archer of $element with $hair and $eyes
+```
+ModusFlow selects one tuple randomly on each generation and binds every variable simultaneously.
+
+### String Modifiers & Piped Filters (`$var | filter`)
+Format and wrap variables on-the-fly without hardcoding tags:
+* `$hero | title`: Formats in Title Case (`"cyberpunk samurai"` $\rightarrow$ `"Cyberpunk Samurai"`).
+* `$hero | upper` / `$hero | lower` / `$hero | capitalize` / `$hero | trim`: Case and whitespace normalization.
+* `$tag | weight(1.3)`: Wraps the term in attention weights: `(glowing runes:1.3)`.
+* `$tag | wrap('[', ']')`: Encloses the term in custom delimiters.
+* `$var | default('fallback')`: Supplies a fallback string if the variable resolves empty.
+* **Chained Filters**: Combine multiple filters in a single pipeline: `$hero | title | weight(1.2)`.
+
+### Inline Negative Injections (`{!neg: tags}`)
+Keep your negative tags co-located with positive subjects so you never have to jump between text boxes:
+```text
+masterpiece portrait of an android geisha {!neg: cartoon, 3d render, extra limbs},
+holding an antique tea cup {!neg: bad hands, broken fingers},
+shot on Hasselblad 80mm
+```
+* **Automatic Extraction**: The engine strips `{!neg: ...}` from the positive prompt and moves the tags into the negative prompt.
+* **Smart Concept Deduplication**: Prevents negative prompt pollution by checking base semantic concepts (e.g., if the negative prompt already has `(bad hands:1.4)`, incoming `bad hands` is recognized as duplicate and omitted).
+
+### Sequential & Cycling Choices (`{seq: a | b | c}` or `{cycle: a | b | c}`)
+Step through options deterministically on each queue run (ideal for batching, grids, and multi-prompt sequences):
+```text
+heroine standing in a courtyard at {seq: dawn | midday | golden hour | midnight rain}
+```
+* Queue 1 $\rightarrow$ `dawn`
+* Queue 2 $\rightarrow$ `midday`
+* Queue 3 $\rightarrow$ `golden hour`
+* Queue 4 $\rightarrow$ `midnight rain`
+* Queue 5 $\rightarrow$ loops back to `dawn`
+
+### Numerical Ranges (`{range: min..max[:step]}` or `{rand: ...}`)
+Generate random integers or floats without writing long lists of numbers:
+* Integer: `{range: 18..35}` (random int between 18 and 35).
+* Stepped Integer: `{range: 35..85:10}mm lens` (steps of 10: 35, 45, 55, 65, 75, 85).
+* Float Range: `{range: 0.8..1.4:0.05}` or `f/{range: 1.4..2.8:float}` (formatted to two decimals).
+
+### Workflow & Environment Macros (`%macro%`)
+Embed real-time workflow parameters and timestamps directly into your prompt or output filenames:
+* `%seed%`: Active generation seed.
+* `%date%` / `%time%` / `%timestamp%`: Formatted timestamps (`YYYY-MM-DD`, `HH:MM:SS`, `YYYYMMDD_HHMMSS`).
+* `%year%` / `%month%` / `%day%`: Granular date components.
+* `%sampler%` / `%scheduler%`: Active KSampler settings (e.g. `euler_ancestral`, `karras`).
+* `%steps%` / `%cfg%`: Active step count and CFG scale.
+* `%width%` / `%height%`: Active latent dimensions.
 
 
 ### Multi-Pick Wildcards (`__2$$wildcard__`)

@@ -82,6 +82,7 @@ class ModusFlowTextEditor:
     FUNCTION = "process_text"
     OUTPUT_NODE = False
     CATEGORY = "ModusFlow/Utilities"
+    _cycle_counters = {}
 
     @classmethod
     def IS_CHANGED(cls, seed=0, seed_action="fixed", **kwargs):
@@ -130,10 +131,48 @@ class ModusFlowTextEditor:
         return re.sub(r'<lora:[^>]+>', '', text)
 
     @staticmethod
-    def resolve_dynamic_prompts(text: str, seed: int = None) -> str:
+    def merge_and_deduplicate_negative(existing_negative: str, incoming_negative: str) -> str:
+        """
+        Merge incoming negative prompt tags into existing negative prompt,
+        strictly deduplicating based on normalized base tag concepts (ignoring parentheses & weights).
+        """
+        if not incoming_negative or not incoming_negative.strip():
+            return existing_negative
+
+        def extract_base_tag(tag: str) -> str:
+            t = tag.strip().lower()
+            t = re.sub(r'^[(\[]+', '', t)
+            t = re.sub(r'[)\]]+$', '', t)
+            t = re.sub(r':-?[0-9.]+$', '', t).strip()
+            return t
+
+        existing_tags = [t.strip() for t in existing_negative.split(',') if t.strip()]
+        seen_bases = {extract_base_tag(t) for t in existing_tags if extract_base_tag(t)}
+
+        incoming_tags = [t.strip() for t in incoming_negative.split(',') if t.strip()]
+        added_tags = []
+        for it in incoming_tags:
+            base = extract_base_tag(it)
+            if base and base not in seen_bases:
+                seen_bases.add(base)
+                added_tags.append(it)
+
+        if not added_tags:
+            return existing_negative
+
+        if existing_tags:
+            return f"{existing_negative.strip(', ')}, {', '.join(added_tags)}"
+        return ", ".join(added_tags)
+
+    @staticmethod
+    def resolve_dynamic_prompts(text: str, seed: int = None, cycle_index: int = 0) -> str:
         """
         Resolve:
-        - Variables ($color = {red|blue}; ... $color)
+        - Synced Tuples ([$hero, $color] = { [knight, silver] | [mage, violet] };)
+        - Variables ($color = {red|blue}; ... $color | filter)
+        - Sequential & Cycling choices ({seq: a|b|c}, {cycle: a|b|c})
+        - Random Numerical Ranges ({range: 18..35}, {range: 0.8..1.4:0.05})
+        - Conditionals (CASE statements and Ternaries)
         - Pick-N & Range choices ({2$$a|b|c}, {1-3$$a|b|c})
         - Weighted choices ({80::blue | 20::red})
         - Shuffles ({shuffle: a, b, c})
@@ -183,17 +222,100 @@ class ModusFlowTextEditor:
                 pool.remove(chosen)
             return picked
 
-        # 1. Resolve Variables: $varname = expression; or $varname = expression\n
-        var_pattern = r'^\s*\$([a-zA-Z0-9_]+)\s*=\s*([^;\n]+)[;\n]?'
+        # 1. Resolve Synced Tuples: [$var1, $var2, ...] = { [val1, val2, ...] | [val1, val2, ...] };
         variables = {}
+        tuple_def_regex = re.compile(
+            r'\[\s*(\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)+)\s*\]\s*=\s*\{\s*(\[[^\]]+\](?:\s*\|\s*\[[^\]]+\])*)\s*\}[;\s]*',
+            re.DOTALL
+        )
+        for match in tuple_def_regex.finditer(text):
+            var_names = [v.strip().lstrip('$') for v in match.group(1).split(',')]
+            options_block = match.group(2)
+            raw_tuples = re.findall(r'\[([^\]]+)\]', options_block)
+            if raw_tuples:
+                chosen_tuple_str = rng.choice(raw_tuples)
+                tuple_vals = [tv.strip() for tv in chosen_tuple_str.split(',')]
+                for idx, v_name in enumerate(var_names):
+                    val = tuple_vals[idx] if idx < len(tuple_vals) else ""
+                    variables[v_name] = ModusFlowTextEditor.resolve_dynamic_prompts(val, seed=seed, cycle_index=cycle_index)
+        text = tuple_def_regex.sub('', text)
+
+        # 2. Resolve Triple-Quoted Multiline Variables: $varname = """ ... """ or ''' ... '''
+        triple_quote_regex = re.compile(
+            r'(?:^|\n)\s*\$([a-zA-Z0-9_]+)\s*=\s*(?:"""([\s\S]*?)"""|\'\'\'([\s\S]*?)\'\'\')[;\s]*',
+            re.MULTILINE
+        )
+        for m in triple_quote_regex.finditer(text):
+            v_name = m.group(1).strip()
+            raw_content = m.group(2) if m.group(2) is not None else m.group(3)
+            raw_content = ModusFlowTextEditor.filter_comments(raw_content)
+            lines = [l.strip() for l in raw_content.splitlines() if l.strip()]
+            clean_val = "\n".join(lines)
+            eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index)
+            variables[v_name] = eval_val
+        text = triple_quote_regex.sub('\n', text)
+
+        # 3. Resolve Braced Multiline Variables: $varname = { ... };
+        # Balanced brace tracking allows nested dynamic choices, shuffles, or wildcards inside the block
+        out_chars = []
+        ti = 0
+        tn = len(text)
+        while ti < tn:
+            m_braced = re.match(r'(?:^|\n)\s*\$([a-zA-Z0-9_]+)\s*=\s*\{', text[ti:])
+            if m_braced:
+                v_name = m_braced.group(1)
+                brace_start = ti + m_braced.end() - 1
+                b_depth = 1
+                b_pos = brace_start + 1
+                while b_pos < tn and b_depth > 0:
+                    ch = text[b_pos]
+                    if ch == "{":
+                        b_depth += 1
+                    elif ch == "}":
+                        b_depth -= 1
+                    b_pos += 1
+
+                if b_depth == 0:
+                    inner_content = text[brace_start + 1 : b_pos - 1]
+                    trailing_semi = re.match(r'^\s*;', text[b_pos:])
+                    if trailing_semi:
+                        b_pos += trailing_semi.end()
+
+                    inner_content = ModusFlowTextEditor.filter_comments(inner_content)
+                    lines = [l.strip() for l in inner_content.splitlines() if l.strip()]
+                    clean_val = "\n".join(lines)
+                    eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index)
+                    variables[v_name] = eval_val
+                    ti = b_pos
+                    continue
+            out_chars.append(text[ti])
+            ti += 1
+        text = "".join(out_chars)
+
+        # 4. Resolve Semicolon-Terminated Variables (Single or Multiline): $varname = ... ;
+        semi_var_regex = re.compile(
+            r'(?:^|\n)\s*\$([a-zA-Z0-9_]+)\s*=\s*([^;]+);',
+            re.MULTILINE
+        )
+        for m in semi_var_regex.finditer(text):
+            v_name = m.group(1).strip()
+            raw_content = m.group(2)
+            raw_content = ModusFlowTextEditor.filter_comments(raw_content)
+            lines = [l.strip() for l in raw_content.splitlines() if l.strip()]
+            clean_val = "\n".join(lines)
+            eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index)
+            variables[v_name] = eval_val
+        text = semi_var_regex.sub('\n', text)
+
+        # 5. Resolve Simple Single-Line Variables without semicolon: $varname = value\n
+        var_pattern = r'^\s*\$([a-zA-Z0-9_]+)\s*=\s*([^\n;]+)$'
         cleaned_lines = []
         for line in text.splitlines():
             m = re.match(var_pattern, line)
             if m:
                 var_name = m.group(1).strip()
                 var_expr = m.group(2).strip()
-                # Evaluate expression if it contains choices or wildcards
-                eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(var_expr, seed=seed)
+                eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(var_expr, seed=seed, cycle_index=cycle_index)
                 variables[var_name] = eval_val
             else:
                 cleaned_lines.append(line)
@@ -412,11 +534,54 @@ class ModusFlowTextEditor:
             if not matched:
                 break
 
-        # Substitute defined variables everywhere ($varname)
+        # Substitute defined variables with optional filters ($varname | filter)
+        def apply_filter(val: str, filter_expr: str) -> str:
+            filter_expr = filter_expr.strip()
+            f_name = filter_expr.lower()
+            arg = None
+            m_call = re.match(r'^([a-zA-Z0-9_]+)\((.*)\)$', filter_expr)
+            if m_call:
+                f_name = m_call.group(1).lower()
+                arg = m_call.group(2).strip().strip("'\"")
+
+            if f_name == "upper":
+                return val.upper()
+            elif f_name == "lower":
+                return val.lower()
+            elif f_name == "title":
+                return val.title()
+            elif f_name == "capitalize":
+                return val.capitalize()
+            elif f_name == "trim":
+                return val.strip()
+            elif f_name == "weight":
+                w = arg if arg else "1.2"
+                return f"({val}:{w})"
+            elif f_name == "wrap":
+                parts = [p.strip().strip("'\"") for p in (arg or "").split(",") if p.strip()]
+                prefix = parts[0] if len(parts) > 0 else "("
+                suffix = parts[1] if len(parts) > 1 else ")"
+                return f"{prefix}{val}{suffix}"
+            elif f_name == "default":
+                return val if val.strip() else (arg or "")
+            return val
+
+        # 1. Match piped variable calls: $var | filter1 | filter2
+        for var_name, var_val in variables.items():
+            pipe_pattern = rf'\${var_name}\s*\|\s*([a-zA-Z0-9_]+(?:\([^)]*\))?(?:\s*\|\s*[a-zA-Z0-9_]+(?:\([^)]*\))?)*)'
+            def replace_piped(m):
+                res = var_val
+                filters = m.group(1).split('|')
+                for f in filters:
+                    res = apply_filter(res, f)
+                return res
+            text = re.sub(pipe_pattern, replace_piped, text)
+
+        # 2. Match standard $varname substitutions
         for var_name, var_val in variables.items():
             text = re.sub(rf'\${var_name}\b', var_val, text)
 
-        # 2. Resolve {shuffle: a, b, c}
+        # 3. Resolve {shuffle: a, b, c}
         def replace_shuffle(match):
             items = [x.strip() for x in match.group(1).split(',') if x.strip()]
             rng.shuffle(items)
@@ -424,10 +589,67 @@ class ModusFlowTextEditor:
 
         text = re.sub(r'\{shuffle:\s*([^{}]+)\}', replace_shuffle, text, flags=re.IGNORECASE)
 
+        # 4. Resolve {seq: a | b | c} or {cycle: a | b | c} (deterministic stepping)
+        def replace_seq(match):
+            items = [x.strip() for x in match.group(1).split('|') if x.strip()]
+            if not items:
+                return ""
+            idx = int(cycle_index) % len(items)
+            return items[idx]
+
+        text = re.sub(r'\{(?:seq|cycle):\s*([^{}]+)\}', replace_seq, text, flags=re.IGNORECASE)
+
+        # 5. Resolve {range: min..max[:step]} and {rand: min..max[:step]}
+        def replace_range(match):
+            content = match.group(1).strip()
+            step = None
+            if ':' in content:
+                parts = content.split(':', 1)
+                content = parts[0].strip()
+                step = parts[1].strip()
+
+            if '..' in content:
+                r_parts = content.split('..', 1)
+            elif '-' in content and not content.startswith('-'):
+                r_parts = content.split('-', 1)
+            else:
+                return match.group(0)
+
+            min_str = r_parts[0].strip()
+            max_str = r_parts[1].strip()
+
+            is_float = ('.' in min_str or '.' in max_str or (step and '.' in step) or (step and 'float' in step.lower()))
+            try:
+                if is_float:
+                    min_val = float(min_str)
+                    max_val = float(max_str)
+                    if step and step.lower() not in ("float", "f"):
+                        step_val = float(step)
+                        dec_places = len(step.split('.')[1]) if '.' in step else 2
+                        steps_count = int(round((max_val - min_val) / step_val))
+                        chosen_step = rng.randint(0, max(0, steps_count))
+                        val = min_val + (chosen_step * step_val)
+                        return f"{val:.{dec_places}f}"
+                    else:
+                        val = rng.uniform(min_val, max_val)
+                        return f"{val:.2f}"
+                else:
+                    min_val = int(min_str)
+                    max_val = int(max_str)
+                    step_val = int(step) if step and step.isdigit() else 1
+                    val = rng.randrange(min_val, max_val + 1, step_val)
+                    return str(val)
+            except Exception:
+                return match.group(0)
+
+        text = re.sub(r'\{(?:range|rand):\s*([^{}]+)\}', replace_range, text, flags=re.IGNORECASE)
+
         # 3. Resolve Pick-N, Weighted, and standard choices:
         # e.g. {2$$a|b|c}, {1-3$$a|b|c}, {80::blue|20::red}, {a|b|c}
         def replace_choice(match):
             content = match.group(1).strip()
+            if content.lower().startswith('!neg:'):
+                return match.group(0)
             count_spec = None
             if '$$' in content:
                 parts = content.split('$$', 1)
@@ -636,13 +858,75 @@ class ModusFlowTextEditor:
             else:
                 clean_negative = f"{clean_negative}, {cn_str}".strip(", ")
 
+        # Determine cycle index for {seq:...} / {cycle:...}
+        node_key = str(unique_id) if unique_id is not None else "default"
+        current_cycle = ModusFlowTextEditor._cycle_counters.get(node_key, 0)
+        ModusFlowTextEditor._cycle_counters[node_key] = current_cycle + 1
+        effective_cycle = actual_seed if seed_action == "increment" else current_cycle
+
+        # Environment & Workflow Macros (%seed%, %date%, %time%, %sampler%, etc.)
+        now = time.localtime()
+        macros = {
+            "%seed%": str(actual_seed),
+            "%date%": time.strftime("%Y-%m-%d", now),
+            "%time%": time.strftime("%H:%M:%S", now),
+            "%timestamp%": time.strftime("%Y%m%d_%H%M%S", now),
+            "%year%": time.strftime("%Y", now),
+            "%month%": time.strftime("%m", now),
+            "%day%": time.strftime("%d", now),
+        }
+
+        # Inspect workflow metadata for sampler/latent parameters if available
+        if extra_pnginfo and isinstance(extra_pnginfo, dict) and "workflow" in extra_pnginfo:
+            nodes_list = extra_pnginfo["workflow"].get("nodes", [])
+            for n in nodes_list:
+                ntype = n.get("type", "")
+                wvals = n.get("widgets_values", [])
+                if "KSampler" in ntype and isinstance(wvals, list):
+                    for v in wvals:
+                        if isinstance(v, str) and v in ("euler", "euler_ancestral", "dpmpp_2m", "dpmpp_sde", "ddim", "uni_pc"):
+                            macros["%sampler%"] = v
+                        elif isinstance(v, str) and v in ("normal", "karras", "exponential", "sgm_uniform"):
+                            macros["%scheduler%"] = v
+                    for v in wvals:
+                        if isinstance(v, int) and 1 <= v <= 200 and "%steps%" not in macros:
+                            macros["%steps%"] = str(v)
+                        elif isinstance(v, float) and 0.5 <= v <= 30.0 and "%cfg%" not in macros:
+                            macros["%cfg%"] = str(v)
+                elif ("Latent" in ntype or "EmptyLatent" in ntype) and isinstance(wvals, list):
+                    for v in wvals:
+                        if isinstance(v, int) and v in (512, 768, 832, 1024, 1152, 1280, 1344, 1536, 1920):
+                            if "%width%" not in macros:
+                                macros["%width%"] = str(v)
+                            elif "%height%" not in macros:
+                                macros["%height%"] = str(v)
+
+        for m_key, m_val in macros.items():
+            clean_positive = clean_positive.replace(m_key, m_val)
+            clean_negative = clean_negative.replace(m_key, m_val)
+
         # 4. Filter out comments
         no_comments_positive = self.filter_comments(clean_positive)
         no_comments_negative = self.filter_comments(clean_negative)
 
         # 5. Resolve dynamic wildcards, choices, and tag shuffles (seed-driven)
-        resolved_positive = self.resolve_dynamic_prompts(no_comments_positive, seed=actual_seed)
-        resolved_negative = self.resolve_dynamic_prompts(no_comments_negative, seed=actual_seed)
+        resolved_positive = self.resolve_dynamic_prompts(no_comments_positive, seed=actual_seed, cycle_index=effective_cycle)
+        resolved_negative = self.resolve_dynamic_prompts(no_comments_negative, seed=actual_seed, cycle_index=effective_cycle)
+
+        # 5.5 Extract inline negative {!neg: ...} from positive prompt and merge with deduplication
+        inline_negs = []
+        def extract_neg(match):
+            inline_negs.append(match.group(1).strip())
+            return ""
+
+        resolved_positive = re.sub(r'\{!neg:\s*([^{}]+)\}', extract_neg, resolved_positive, flags=re.IGNORECASE)
+        resolved_positive = re.sub(r'\s*,\s*,+', ', ', resolved_positive)
+        resolved_positive = re.sub(r'\s+,', ',', resolved_positive)
+        resolved_positive = re.sub(r'^[,\s]+|[,\s]+$', '', resolved_positive)
+
+        if inline_negs:
+            combined_inline_neg = ", ".join(inline_negs)
+            resolved_negative = self.merge_and_deduplicate_negative(resolved_negative, combined_inline_neg)
 
         # 6. Apply weight translation / front-loading
         output_positive = self.translate_weights(resolved_positive, weight_mode)

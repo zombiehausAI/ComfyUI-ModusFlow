@@ -1133,12 +1133,52 @@ function tokenizeAndHighlight(text, theme) {
     addCaseMatches();
     // 4.6 Ternary Conditionals: {$var==val?true:false}, {$var!=val?...}, or {$var?true:false}
     addMatches(/\{\s*\$[a-zA-Z0-9_]+(?:\s*(?:==|!=|>=|<=|>|<)\s*[^}?]+)?\s*\?[^}]*\}/gi, "ternary");
-    // 5. Prompt Variables: $name = value; or $name
+    // 4.7 Inline Negative Injections: {!neg: ...}
+    addMatches(/\{!neg:[^}]+\}/gi, "inline_neg");
+    // 4.8 Environment & Workflow Macros: %seed%, %date%, %sampler%, %steps%, etc.
+    addMatches(/%[a-zA-Z0-9_]+%/g, "macro");
+    // 5. Prompt Variables: Synced Tuples, Multiline Blocks ({...}, """..."""), Piped Filters, or $name = value
+    addMatches(/\[\s*\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)*\s*\]\s*=\s*\{[^{}]+\};?/g, "variable");
+    addMatches(/\$[a-zA-Z0-9_]+\s*=\s*(?:"""[\s\S]*?"""|'''[\s\S]*?''')[;\s]*/g, "variable");
+    const addBracedVarMatches = () => {
+        let vi = 0;
+        const vn = text.length;
+        while (vi < vn) {
+            const m = text.slice(vi).match(/^\s*\$([a-zA-Z0-9_]+)\s*=\s*\{/);
+            if (m) {
+                const vStart = vi + m[0].indexOf("$");
+                const bStart = vi + m[0].length - 1;
+                let depth = 1;
+                let bPos = bStart + 1;
+                while (bPos < vn && depth > 0) {
+                    const ch = text[bPos];
+                    if (ch === "{") depth++;
+                    else if (ch === "}") depth--;
+                    bPos++;
+                }
+                if (depth === 0) {
+                    if (text[bPos] === ";") bPos++;
+                    const collides = intervals.some(iv => (vStart < iv.end && bPos > iv.start));
+                    if (!collides) {
+                        intervals.push({ start: vStart, end: bPos, type: "variable" });
+                    }
+                    vi = bPos;
+                    continue;
+                }
+            }
+            vi++;
+        }
+    };
+    addBracedVarMatches();
+    addMatches(/\$[a-zA-Z0-9_]+\s*=\s*[^;]+;/g, "variable");
+    addMatches(/\$[a-zA-Z0-9_]+(?:\s*\|\s*[a-zA-Z0-9_]+(?:\([^)]*\))?)+/g, "variable");
     addMatches(/\$[a-zA-Z0-9_-]+(?:\s*=\s*[^;\r\n]+;?)?/g, "variable");
     // 6. Curator placeholders: {curator}, {curator2}, etc.
     addMatches(/\{curator\d*\}/gi, "curator");
-    // 7. Shuffle syntax: {shuffle:...}
-    addMatches(/\{shuffle:[^}]+\}/gi, "shuffle");
+    // 7. Shuffle & Sequential syntax: {shuffle:...}, {seq:...}, {cycle:...}
+    addMatches(/\{(?:shuffle|seq|cycle):[^}]+\}/gi, "shuffle");
+    // 7.5 Numerical Ranges: {range:...}, {rand:...}
+    addMatches(/\{(?:range|rand):[^}]+\}/gi, "choice");
     // 8. Pick-N & Ranges: {2$$...}, {1-3$$...}
     addMatches(/\{\s*\d+(?:-\d+)?\$\$[^}]+\}/g, "choice");
     // 9. Weighted Odds: {80::a|20::b}
@@ -1234,6 +1274,11 @@ function tokenizeAndHighlight(text, theme) {
         } else if (iv.type === "ternary") {
             const color = theme.choice || theme.variable || "#cba6f7";
             html += `<span style="color: ${color}; font-weight: 600;" title="Ternary Conditional: ${tokenText}">${tokenText}</span>`;
+        } else if (iv.type === "inline_neg") {
+            html += `<span style="color: #f87171; background: rgba(239, 68, 68, 0.15); border: 1px dashed rgba(248, 113, 113, 0.4); border-radius: 4px; padding: 0 4px; font-weight: 500;" title="Inline Negative Injection (Automatically extracted & deduplicated into Negative Prompt)">${tokenText}</span>`;
+        } else if (iv.type === "macro") {
+            const color = theme.wildcard || theme.variable || "#38bdf8";
+            html += `<span style="color: ${color}; font-weight: bold; background: rgba(56, 189, 248, 0.12); border-radius: 3px; padding: 0 2px;" title="Workflow & Environment Macro: ${tokenText}">${tokenText}</span>`;
         } else {
             const color = theme[iv.type] || theme.plain_text || "#e2e8f0";
             html += `<span style="color: ${color};">${tokenText}</span>`;

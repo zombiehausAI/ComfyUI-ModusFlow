@@ -144,7 +144,13 @@ The Text Editor includes a real-time, zero-latency syntax highlighting engine re
 |---|---|---|
 | **Comments** | `/* notes */`, `# comment`, `// idea` | Dimmed/subtle color indicating exclusion from generation |
 | **Hex Colors** | `#ff5733`, `#00ffff`, `#e63946` | Rendered in the exact hex color with glowing pill badge and interactive hover inspector |
-| **Variables** | `$lighting = neon ambient;`, `$lighting` | Distinct accent color for prompt variable definitions and references |
+| **Variables & Multiline Blocks** | `$lighting = { ... };`, `$desc = """..."""`, `$var` | Single-line and multiline variable block definitions and references |
+| **Synced Tuples** | `[$hero, $color] = {[knight, silver] \| [mage, violet]};` | Coordinated multi-variable assignment from synchronized choice sets |
+| **Piped Variable Filters** | `$hero \| title`, `$tag \| weight(1.35)` | Text transformations (`title`, `upper`, `lower`, `capitalize`, `trim`) and weight wrappers |
+| **Inline Negative** | `masterpiece {!neg: bad hands, blurry}` | Automatically extracted and merged into Negative Prompt with concept deduplication |
+| **Sequential Cycling** | `{seq: dawn \| noon \| dusk}`, `{cycle: ...}` | Deterministically steps to the next item on each queue run |
+| **Numerical Ranges** | `{range: 18..35}`, `{range: 0.8..1.4:0.05}` | Inline random integer or float generator with optional step precision |
+| **Workflow Macros** | `%seed%`, `%date%`, `%sampler%`, `%steps%` | Runtime workflow and environment tokens injected from active generation |
 | **CASE Statements** | `{$season: spring => cherry blossoms \| * => meadow}` | Multi-branch pattern matching on variable values with relational operators and default fallback |
 | **Ternary Conditionals** | `{$color==red?man:woman}`, `{$hat?fedora:hair}` | Conditional prompt expansion based on variable equality (`==`), inequality (`!=`), or truthiness |
 | **Dynamic Choices** | `{red \| blue \| green}` | Bracketed options highlighted for easy scanning |
@@ -335,7 +341,58 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
   - **Truthiness Check**: `{$wearing_hat?black fedora:messy windblown hair}` (evaluates true if `$var` is defined and not `false`, `0`, `none`, or empty)
   - **Optional False Branch**: `{$color==red?ruby gem}` (resolves to empty string if condition is not met)
   - **Dynamic Nesting**: Branches can contain nested choices and wildcards, e.g. `{$color==red?{crimson|ruby}:blue}`
-- **Iterative Engine**: Backend expands dynamic choices and conditionals iteratively to prevent infinite loops while allowing deep prompt composition.
+- **Inline Negative Injections (`{!neg: tags}`)**: Embed negative constraints directly inside positive prompt text without jumping to the negative box.
+  - Example: `portrait of an android geisha {!neg: cartoon, 3d render, extra limbs}, holding porcelain cup {!neg: bad hands, broken fingers}`
+  - **Smart Concept Deduplication**: When merged into the negative prompt, tags are deduplicated by base semantic concept (e.g. `(bad anatomy:1.4)` vs `bad anatomy` or identical duplicate tags are automatically consolidated to prevent negative prompt pollution).
+- **Sequential Cycling (`{seq: a | b | c}` or `{cycle: a | b | c}`)**: Cycles deterministically through options on each queue execution instead of picking randomly:
+  - Example: `courtyard at {seq: dawn | midday | golden hour | midnight rain}`
+  - Run #1: `dawn` $\rightarrow$ Run #2: `midday` $\rightarrow$ Run #3: `golden hour` $\rightarrow$ Run #4: `midnight rain` $\rightarrow$ Run #5: `dawn` (loops cleanly).
+- **Numerical Ranges (`{range: min..max[:step]}` or `{rand: ...}`)**: Inline integer and floating-point random number generators:
+  - Integer range: `{range: 18..35}` (random int between 18 and 35) or `{range: 35..85:10}` (stepping by 10).
+  - Float range: `{range: 0.8..1.4:0.05}` (stepping by 0.05) or `{range: 1.4..2.8:float}` (generates random float formatted to two decimals).
+- **Synced Choice Tuples (`[$a, $b, ...] = { [a1, b1] | [a2, b2] };`)**: Synchronize multiple variables to roll together as a coordinated set:
+  ```text
+  [$element, $hair, $eyes] = {
+      [fire, crimson hair, amber eyes] |
+      [water, azure waves hair, sapphire eyes] |
+      [nature, emerald braided hair, hazel eyes]
+  };
+  an elven archer aligned with $element, featuring $hair and $eyes
+  ```
+- **Multiline Variable Blocks**: Wrap multi-line prompt paragraphs, trait collections, or complex descriptions cleanly into a single variable:
+  - **Braced Blocks (`$var = { ... };`)**: Ideal for multi-tag character or environment stacks with indentation and inline comments stripped cleanly:
+    ```text
+    $character = {
+        masterpiece portrait, 1girl, solo,
+        intricate cybernetic porcelain armor,
+        flowing silver ponytail, mechanical eyepiece
+    };
+    ```
+  - **Triple Quotes (`$var = """ ... """;`)**: Python-style multiline blocks:
+    ```text
+    $setting = """
+        ancient mossy stone ruins,
+        bioluminescent blue mushrooms,
+        soft drifting volumetric dust
+    """;
+    ```
+  - **Semicolon-Terminated (`$var = ... ;`)**: Natural multiline declaration spanning lines until the closing `;`:
+    ```text
+    $camera =
+        shot on Hasselblad H6D-100c,
+        85mm portrait prime lens,
+        shallow depth of field;
+    ```
+- **Piped Variable Filters (`$var | filter`)**: Transform variable strings on-the-fly:
+  - `$hero | title`: Capitalizes each word (`"cyberpunk samurai"` $\rightarrow$ `"Cyberpunk Samurai"`).
+  - `$hero | upper` / `$hero | lower` / `$hero | capitalize` / `$hero | trim`.
+  - `$tag | weight(1.35)`: Wraps the value in attention weight syntax: `(tag:1.35)`.
+  - `$tag | wrap('prefix', 'suffix')`: Wraps value in custom delimiters.
+  - `$var | default('fallback')`: Uses fallback if the variable resolves empty.
+- **Workflow & Environment Macros (`%macro%`)**: Automatically expands runtime parameters:
+  - System timestamps: `%seed%`, `%date%` (`YYYY-MM-DD`), `%time%` (`HH:MM:SS`), `%timestamp%`, `%year%`, `%month%`, `%day%`.
+  - Workflow parameters (inspected from active nodes): `%sampler%`, `%scheduler%`, `%steps%`, `%cfg%`, `%width%`, `%height%`.
+- **Iterative Engine**: Backend expands dynamic choices, ranges, tuples, filters, and conditionals iteratively to prevent infinite loops while allowing deep prompt composition.
 
 ### 15. Pop-Out Studio Workstation (Floating / Fullscreen Immersion)
 - **One-Click Pop Out (`⛶ Pop Out Studio`)**: Detaches the editor from the crowded canvas into a dedicated, floating prompt engineering studio window overlaid above ComfyUI.
