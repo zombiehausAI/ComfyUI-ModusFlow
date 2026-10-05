@@ -352,9 +352,33 @@ class ModusFlowTextEditor:
             if not op:
                 return bool(var_val) and var_val.lower() not in ("false", "0", "none", "off", "no")
 
-            if op == "==":
+            op = op.lower().strip()
+
+            # Check if target is a choice block {a|b} or set: {futanari|woman}
+            m_set = re.match(r"^\{([^}]+)\}$", target)
+            if m_set:
+                opts = [o.strip().strip("'\"").lower() for o in m_set.group(1).split("|") if o.strip()]
+                if op in ("==", "in"):
+                    return var_val.lower() in opts
+                elif op in ("!=", "not in"):
+                    return var_val.lower() not in opts
+
+            # Check if target is a pipe-separated or comma-separated list of values: a|b or a, b
+            if ("|" in target or "," in target) and op in ("==", "in", "!=", "not in"):
+                delims = "|" if "|" in target else ","
+                opts = [o.strip().strip("'\"").lower() for o in target.split(delims) if o.strip()]
+                if op in ("==", "in"):
+                    return var_val.lower() in opts
+                elif op in ("!=", "not in"):
+                    return var_val.lower() not in opts
+
+            # Target variable lookup: $var
+            if target.startswith("$") and target[1:] in variables:
+                target = str(variables[target[1:]]).strip().strip("'\"")
+
+            if op in ("==", "in"):
                 return var_val.lower() == target.lower()
-            elif op == "!=":
+            elif op in ("!=", "not in"):
                 return var_val.lower() != target.lower()
             elif op in (">", ">=", "<", "<="):
                 try:
@@ -583,7 +607,7 @@ class ModusFlowTextEditor:
                                 true_b = rest.strip()
                                 false_b = ""
 
-                            m = re.match(r"^[$]?([a-zA-Z0-9_]+)(?:\s*(==|!=|>=|<=|>|<)\s*(.*))?$", cond_part)
+                            m = re.match(r"^[$]?([a-zA-Z0-9_]+)(?:\s*(==|!=|>=|<=|>|<|not\s+in|in)\s*(.*))?$", cond_part, re.IGNORECASE)
                             if m:
                                 var_name = m.group(1)
                                 op = m.group(2)
