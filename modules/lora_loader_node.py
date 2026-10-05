@@ -352,8 +352,8 @@ class ModusFlowLoraLoader:
             else:
                 loaded_summaries.append(f"[Prompt] {lora_name} (NOT FOUND on disk)")
 
-        # If positive conditioning was not provided and clean_prompt is available, encode with modified clip
-        if (positive is None or len(positive) == 0) and clean_prompt and clip is not None:
+        # If prompt LoRAs were applied, or if positive conditioning was not provided, encode clean_prompt with modified clip
+        if (bool(prompt_loras) or positive is None or len(positive) == 0) and clean_prompt and clip is not None:
             try:
                 from nodes import CLIPTextEncode
                 encoder = CLIPTextEncode()

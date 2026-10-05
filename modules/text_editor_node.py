@@ -428,6 +428,7 @@ class ModusFlowTextEditor:
 
                         # Check if this is a CASE statement: contains '=>' at depth 0
                         has_arrow = False
+                        first_arrow_idx = -1
                         d = 0
                         for idx in range(len(inner) - 1):
                             c = inner[idx]
@@ -435,21 +436,39 @@ class ModusFlowTextEditor:
                             elif c == "}": d -= 1
                             elif inner[idx:idx+2] == "=>" and d == 0:
                                 has_arrow = True
+                                first_arrow_idx = idx
                                 break
 
                         if has_arrow:
                             colon_idx = -1
                             d = 0
-                            for idx, c in enumerate(inner):
+                            for idx in range(first_arrow_idx):
+                                c = inner[idx]
                                 if c == "{": d += 1
                                 elif c == "}": d -= 1
                                 elif c == ":" and d == 0:
                                     colon_idx = idx
                                     break
 
+                            var_part = None
+                            cases_part = None
                             if colon_idx != -1:
                                 var_part = inner[:colon_idx].strip()
                                 cases_part = inner[colon_idx+1:]
+                            else:
+                                before_arrow = inner[:first_arrow_idx]
+                                m_v = re.match(r'^\s*(?:case\s+|switch\s+)?(\$[a-zA-Z0-9_]+|[a-zA-Z0-9_]+|\{[^{}]+\})\s*', before_arrow, re.IGNORECASE)
+                                if m_v:
+                                    var_part = m_v.group(1).strip()
+                                    cases_part = inner[m_v.end():]
+                                elif '\n' in before_arrow:
+                                    lines = before_arrow.split('\n', 1)
+                                    var_part = lines[0].strip()
+                                    cases_part = inner[len(lines[0])+1:]
+
+                            if var_part is not None and cases_part is not None:
+                                var_part = var_part.strip()
+                                cases_part = cases_part
 
                                 if var_part.lower().startswith(("case ", "switch ")):
                                     var_part = var_part[5:].strip()
