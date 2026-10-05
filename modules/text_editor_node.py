@@ -236,6 +236,33 @@ class ModusFlowTextEditor:
         import random
         rng = random.Random(seed) if seed is not None and seed != 0 else random.Random()
 
+        def get_prompts_dirs():
+            dirs = []
+            try:
+                from ..config import settings, BASE_DIR
+                p_dir = settings.get('prompts_save_directory', '').strip()
+                if p_dir:
+                    dirs.append(p_dir)
+                default_dir = os.path.join(BASE_DIR, 'saved_prompts')
+                if default_dir not in dirs:
+                    dirs.append(default_dir)
+            except Exception:
+                try:
+                    from config import settings, BASE_DIR
+                    p_dir = settings.get('prompts_save_directory', '').strip()
+                    if p_dir:
+                        dirs.append(p_dir)
+                    default_dir = os.path.join(BASE_DIR, 'saved_prompts')
+                    if default_dir not in dirs:
+                        dirs.append(default_dir)
+                except Exception:
+                    dirs.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'saved_prompts'))
+            return dirs
+
+        def get_prompts_dir():
+            dirs = get_prompts_dirs()
+            return dirs[0] if dirs else ""
+
         # 0. Resolve Modular File Imports: @import "path/to/file" (.txt or .json)
         def resolve_imports(raw_text: str, max_depth: int = 5, seen_files: set = None) -> str:
             if seen_files is None:
@@ -243,32 +270,24 @@ class ModusFlowTextEditor:
             if max_depth <= 0 or not raw_text or "@import" not in raw_text:
                 return raw_text
 
-            try:
-                from ..config import settings, BASE_DIR
-                prompts_dir = settings.get('prompts_save_directory', '').strip()
-                if not prompts_dir:
-                    prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
-            except Exception:
-                try:
-                    from config import settings, BASE_DIR
-                    prompts_dir = settings.get('prompts_save_directory', '').strip()
-                    if not prompts_dir:
-                        prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
-                except Exception:
-                    prompts_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'saved_prompts')
-
-            import_pattern = r'@import\s+["\']([^"\']+)["\'][ \t]*(?:;)?'
+            search_dirs = get_prompts_dirs()
+            # Standalone line imports can strip the trailing semicolon; inline imports preserve the semicolon
+            import_pattern = r'(?m)^[ \t]*@import\s+["\']([^"\']+)["\'][ \t]*(?:;)?\r?$|@import\s+["\']([^"\']+)["\']'
 
             def replace_import(m):
-                rel_path = m.group(1).strip()
-                candidates = [
-                    os.path.join(prompts_dir, rel_path),
-                    os.path.join(prompts_dir, f"{rel_path}.txt"),
-                    os.path.join(prompts_dir, f"{rel_path}.json"),
-                    os.path.join(prompts_dir, "prompts", rel_path),
-                    os.path.join(prompts_dir, "prompts", f"{rel_path}.txt"),
-                    os.path.join(prompts_dir, "prompts", f"{rel_path}.json"),
-                ]
+                rel_path = (m.group(1) or m.group(2)).strip()
+                candidates = []
+                if os.path.isabs(rel_path):
+                    candidates.append(rel_path)
+                for p_dir in search_dirs:
+                    candidates.extend([
+                        os.path.join(p_dir, rel_path),
+                        os.path.join(p_dir, f"{rel_path}.txt"),
+                        os.path.join(p_dir, f"{rel_path}.json"),
+                        os.path.join(p_dir, "prompts", rel_path),
+                        os.path.join(p_dir, "prompts", f"{rel_path}.txt"),
+                        os.path.join(p_dir, "prompts", f"{rel_path}.json"),
+                    ])
                 if os.path.isabs(rel_path):
                     candidates.insert(0, rel_path)
 
@@ -282,10 +301,28 @@ class ModusFlowTextEditor:
                             if cand_norm.endswith('.json'):
                                 with open(cand_norm, 'r', encoding='utf-8') as f:
                                     data = json.load(f)
-                                content = data.get("positive", data.get("prompt", data.get("text", "")))
+                                if isinstance(data, dict) and any(k in data for k in ("positive", "prompt", "text")) and not any(k in data for k in ("name", "role", "weapon", "class", "hp", "armor", "helm")):
+                                    content = data.get("positive", data.get("prompt", data.get("text", "")))
+                                else:
+                                    content = json.dumps(data)
                             else:
                                 with open(cand_norm, 'r', encoding='utf-8') as f:
                                     content = f.read()
+
+                                raw_lines = [l.strip() for l in content.splitlines()]
+                                lines = [l for l in raw_lines if l and not l.startswith(('#', '//'))]
+                                # Check if pure YAML dictionary (every line has key: value, and not starting with $ or fn or { or [)
+                                if lines and not lines[0].startswith(("{", "[", "$", "@")) and not any(l.startswith(("fn ", "def ")) for l in lines):
+                                    is_yaml = True
+                                    for l in lines:
+                                        if ":" not in l:
+                                            is_yaml = False
+                                            break
+                                    if is_yaml:
+                                        content = "{\n" + "\n".join(lines) + "\n}"
+                                elif len(lines) > 1 and all(l.startswith("{") and l.endswith("}") for l in lines):
+                                    content = "[\n" + ",\n".join(lines) + "\n]"
+
                             return resolve_imports(content, max_depth - 1, seen_files)
                         except Exception as e:
                             return f"/* error importing {rel_path}: {e} */"
@@ -452,12 +489,108 @@ class ModusFlowTextEditor:
                     parts.append(s_item)
             return parts
 
+        # Helper: load wildcard file as a data structure or line selection
+        def load_wildcard_resource(wc_spec: str, default_all: bool = False, local_vars: dict = None):
+            m = re.match(r'^__(?:([0-9]+(?:-[0-9]+)?|all|\*)\$\$)?([a-zA-Z0-9_\-/]+)__$', wc_spec.strip())
+            if not m:
+                return None
+            count_spec = m.group(1)
+            wc_name = m.group(2).strip()
+            search_dirs = get_prompts_dirs()
+            candidates = []
+            for d in search_dirs:
+                candidates.extend([
+                    os.path.join(d, 'wildcards', f"{wc_name}.json"),
+                    os.path.join(d, 'wildcards', f"{wc_name}.txt"),
+                    os.path.join(d, 'wildcards', wc_name),
+                    os.path.join(d, f"{wc_name}.json"),
+                    os.path.join(d, f"{wc_name}.txt"),
+                ])
+            target_file = None
+            for c in candidates:
+                if os.path.isfile(c):
+                    target_file = c
+                    break
+
+            if not target_file:
+                return None
+
+            if target_file.endswith(".json"):
+                try:
+                    with open(target_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    if isinstance(data, dict):
+                        return PromptDict({k: parse_complex_value(json.dumps(v) if isinstance(v, (dict, list)) else str(v), local_vars) for k, v in data.items()})
+                    elif isinstance(data, list):
+                        parsed_list = PromptList([parse_complex_value(json.dumps(x) if isinstance(x, (dict, list)) else str(x), local_vars) for x in data])
+                        if count_spec in ("all", "*") or default_all:
+                            return parsed_list
+                        k = int(count_spec) if count_spec and count_spec.isdigit() else 1
+                        if k == 1 and parsed_list:
+                            return rng.choice(parsed_list)
+                        return PromptList(sample_items([(x, 1.0) for x in parsed_list], k))
+                except Exception:
+                    return None
+
+            # Text file
+            try:
+                with open(target_file, "r", encoding="utf-8") as f:
+                    content = f.read()
+            except Exception:
+                return None
+
+            raw_lines = [l.strip() for l in content.splitlines()]
+            lines = [l for l in raw_lines if l and not l.startswith(('#', '//'))]
+            if not lines:
+                return ""
+
+            # Check if whole file is a single YAML-style dictionary
+            is_yaml_dict = len(lines) > 0 and not lines[0].startswith(("{", "["))
+            if is_yaml_dict:
+                for l in lines:
+                    if ":" not in l:
+                        is_yaml_dict = False
+                        break
+            if is_yaml_dict:
+                parsed_full = parse_complex_value("\n".join(lines), local_vars)
+                if isinstance(parsed_full, PromptDict):
+                    return parsed_full
+
+            # Multiple entries
+            parsed_lines = [parse_complex_value(line, local_vars) for line in lines]
+            if count_spec in ("all", "*") or default_all:
+                return PromptList(parsed_lines)
+
+            k = parse_count(count_spec, len(parsed_lines)) if count_spec else 1
+            if k == 1:
+                return rng.choice(parsed_lines)
+            return PromptList(sample_items([(x, 1.0) for x in parsed_lines], k))
+
         def parse_complex_value(raw: str, current_vars: dict = None):
             s = raw.strip()
             if not s:
                 return s
 
+            if s.startswith("__") and s.endswith("__"):
+                wc_val = load_wildcard_resource(s, default_all=False, local_vars=current_vars)
+                if wc_val is not None:
+                    return wc_val
+
+            is_single_bracketed = False
             if s.startswith('[') and s.endswith(']'):
+                d_c = 0
+                single_b = True
+                for ch in s[:-1]:
+                    if ch == '[': d_c += 1
+                    elif ch == ']':
+                        d_c -= 1
+                        if d_c == 0:
+                            single_b = False
+                            break
+                if single_b:
+                    is_single_bracketed = True
+
+            if is_single_bracketed:
                 inner = s[1:-1].strip()
                 if not inner:
                     return PromptList()
@@ -465,66 +598,80 @@ class ModusFlowTextEditor:
                 parsed_items = [parse_complex_value(it, current_vars) for it in items]
                 return PromptList(parsed_items)
 
+            is_single_braced = False
             if s.startswith('{') and s.endswith('}'):
-                inner = s[1:-1].strip()
-                d_b = d_br = d_p = 0
-                in_q = None
-                has_pipe_depth0 = False
-                for c in inner:
-                    if in_q:
-                        if c == in_q: in_q = None
-                    elif c in ('"', "'"): in_q = c
-                    elif c == '{': d_b += 1
-                    elif c == '}': d_b -= 1
-                    elif c == '[': d_br += 1
-                    elif c == ']': d_br -= 1
-                    elif c == '(': d_p += 1
-                    elif c == ')': d_p -= 1
-                    elif c == '|' and d_b == 0 and d_br == 0 and d_p == 0:
-                        has_pipe_depth0 = True
-                        break
+                d_c = 0
+                single_b = True
+                for ch in s[:-1]:
+                    if ch == '{': d_c += 1
+                    elif ch == '}':
+                        d_c -= 1
+                        if d_c == 0:
+                            single_b = False
+                            break
+                if single_b:
+                    is_single_braced = True
 
-                if not has_pipe_depth0:
-                    entries = split_top_level(inner, delims=(',', '\n', ';'))
-                    dict_candidates = []
-                    is_dict = bool(entries)
-                    for entry in entries:
-                        col_idx = -1
-                        d_b = d_br = d_p = 0
-                        in_q = None
-                        for idx, c in enumerate(entry):
-                            if in_q:
-                                if c == in_q: in_q = None
-                            elif c in ('"', "'"): in_q = c
-                            elif c == '{': d_b += 1
-                            elif c == '}': d_b -= 1
-                            elif c == '[': d_br += 1
-                            elif c == ']': d_br -= 1
-                            elif c == '(': d_p += 1
-                            elif c == ')': d_p -= 1
-                            elif c == ':' and d_b == 0 and d_br == 0 and d_p == 0:
-                                if idx + 1 < len(entry) and entry[idx+1] == ':': continue
-                                if idx > 0 and entry[idx-1] == ':': continue
-                                col_idx = idx
-                                break
+            inner = s[1:-1].strip() if is_single_braced else s
 
-                        if col_idx != -1:
-                            k = entry[:col_idx].strip().strip("'\"")
-                            v = entry[col_idx+1:].strip()
-                            if re.match(r'^[a-zA-Z0-9_]+$', k):
-                                dict_candidates.append((k, v))
-                            else:
-                                is_dict = False
-                                break
+            d_b = d_br = d_p = 0
+            in_q = None
+            has_pipe_depth0 = False
+            for c in inner:
+                if in_q:
+                    if c == in_q: in_q = None
+                elif c in ('"', "'"): in_q = c
+                elif c == '{': d_b += 1
+                elif c == '}': d_b -= 1
+                elif c == '[': d_br += 1
+                elif c == ']': d_br -= 1
+                elif c == '(': d_p += 1
+                elif c == ')': d_p -= 1
+                elif c == '|' and d_b == 0 and d_br == 0 and d_p == 0:
+                    has_pipe_depth0 = True
+                    break
+
+            if not has_pipe_depth0:
+                entries = split_top_level(inner, delims=(',', '\n', ';'))
+                dict_candidates = []
+                is_dict = bool(entries) and (is_single_braced or ('\n' in s and ':' in s) or len(entries) > 1 or ':' in s)
+                for entry in entries:
+                    col_idx = -1
+                    d_b = d_br = d_p = 0
+                    in_q = None
+                    for idx, c in enumerate(entry):
+                        if in_q:
+                            if c == in_q: in_q = None
+                        elif c in ('"', "'"): in_q = c
+                        elif c == '{': d_b += 1
+                        elif c == '}': d_b -= 1
+                        elif c == '[': d_br += 1
+                        elif c == ']': d_br -= 1
+                        elif c == '(': d_p += 1
+                        elif c == ')': d_p -= 1
+                        elif c == ':' and d_b == 0 and d_br == 0 and d_p == 0:
+                            if idx + 1 < len(entry) and entry[idx+1] == ':': continue
+                            if idx > 0 and entry[idx-1] == ':': continue
+                            col_idx = idx
+                            break
+
+                    if col_idx != -1:
+                        k = entry[:col_idx].strip().strip("'\"")
+                        v = entry[col_idx+1:].strip()
+                        if re.match(r'^[a-zA-Z0-9_]+$', k):
+                            dict_candidates.append((k, v))
                         else:
                             is_dict = False
                             break
+                    else:
+                        is_dict = False
+                        break
 
-                    if is_dict and dict_candidates:
-                        res_dict = PromptDict()
-                        for k, v in dict_candidates:
-                            res_dict[k] = parse_complex_value(v, current_vars)
-                        return res_dict
+                if is_dict and dict_candidates:
+                    res_dict = PromptDict()
+                    for k, v in dict_candidates:
+                        res_dict[k] = parse_complex_value(v, current_vars)
+                    return res_dict
 
             if (s.startswith('"') and s.endswith('"') and len(s) >= 2) or (s.startswith("'") and s.endswith("'") and len(s) >= 2):
                 return s[1:-1]
@@ -750,10 +897,16 @@ class ModusFlowTextEditor:
                         lines = [l.strip() for l in raw_content.splitlines() if l.strip()]
                         clean_val = "\n".join(lines)
 
-                        # Check for list [ ... ] or dict { ... }
-                        if (clean_val.startswith("[") and clean_val.endswith("]")) or (clean_val.startswith("{") and clean_val.endswith("}")):
+                        # Check for list [ ... ], dict { ... }, or wildcard __name__
+                        if (clean_val.startswith("[") and clean_val.endswith("]")) or \
+                           (clean_val.startswith("{") and clean_val.endswith("}")) or \
+                           (clean_val.startswith("__") and clean_val.endswith("__")):
                             parsed_comp = parse_complex_value(clean_val, variables)
                             if isinstance(parsed_comp, (PromptList, PromptDict)):
+                                variables[v_name] = parsed_comp
+                                ti = val_start + m_semi.end()
+                                continue
+                            elif clean_val.startswith("__") and clean_val.endswith("__") and parsed_comp is not None:
                                 variables[v_name] = parsed_comp
                                 ti = val_start + m_semi.end()
                                 continue
@@ -772,10 +925,16 @@ class ModusFlowTextEditor:
                         raw_content = ModusFlowTextEditor.filter_comments(raw_content)
                         clean_val = raw_content.strip()
 
-                        # Check for list [ ... ] or dict { ... }
-                        if (clean_val.startswith("[") and clean_val.endswith("]")) or (clean_val.startswith("{") and clean_val.endswith("}")):
+                        # Check for list [ ... ], dict { ... }, or wildcard __name__
+                        if (clean_val.startswith("[") and clean_val.endswith("]")) or \
+                           (clean_val.startswith("{") and clean_val.endswith("}")) or \
+                           (clean_val.startswith("__") and clean_val.endswith("__")):
                             parsed_comp = parse_complex_value(clean_val, variables)
                             if isinstance(parsed_comp, (PromptList, PromptDict)):
+                                variables[v_name] = parsed_comp
+                                ti = val_start + m_line.end()
+                                continue
+                            elif clean_val.startswith("__") and clean_val.endswith("__") and parsed_comp is not None:
                                 variables[v_name] = parsed_comp
                                 ti = val_start + m_line.end()
                                 continue
@@ -814,6 +973,11 @@ class ModusFlowTextEditor:
                     if isinstance(val, (list, dict)):
                         return val
                     expr = str(val).strip()
+
+            if expr.startswith("__") and expr.endswith("__"):
+                wc_val = load_wildcard_resource(expr, default_all=True, local_vars=current_vars)
+                if wc_val is not None:
+                    return wc_val
 
             if expr.startswith("$") and expr[1:] in current_vars:
                 val = current_vars[expr[1:]]
@@ -910,24 +1074,47 @@ class ModusFlowTextEditor:
                 input_text = input_text[:start_idx] + loop_result + input_text[end_idx:]
 
             # B. for ... in ... { body }
-            for_start_pat = re.compile(
-                r'\bfor\s+(?:\[\s*(\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)+)\s*\]|(\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)?))\s+in\s+([^{]+)\s*\{',
+            for_header = re.compile(
+                r'\bfor\s+(?:\[\s*(\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)+)\s*\]|(\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)?))\s+in\s+',
                 re.IGNORECASE
             )
             while True:
-                m = for_start_pat.search(input_text)
+                m = for_header.search(input_text)
                 if not m:
+                    break
+
+                # Scan forward tracking brackets, braces, and quotes until body opening brace '{'
+                p = m.end()
+                d_b = d_br = d_p = 0
+                in_q = None
+                tn = len(input_text)
+                while p < tn:
+                    c = input_text[p]
+                    if in_q:
+                        if c == in_q: in_q = None
+                    elif c in ('"', "'"): in_q = c
+                    elif c == '{':
+                        if d_b == 0 and d_br == 0 and d_p == 0:
+                            break
+                        d_b += 1
+                    elif c == '}': d_b -= 1
+                    elif c == '[': d_br += 1
+                    elif c == ']': d_br -= 1
+                    elif c == '(': d_p += 1
+                    elif c == ')': d_p -= 1
+                    p += 1
+
+                if p >= tn or input_text[p] != '{':
                     break
 
                 tuple_vars_raw = m.group(1)
                 single_or_pair_vars_raw = m.group(2)
-                list_expr = m.group(3).strip()
+                list_expr = input_text[m.end():p].strip()
                 start_idx = m.start()
-                body_start = m.end()
+                body_start = p + 1
 
                 d = 1
                 pos = body_start
-                tn = len(input_text)
                 while pos < tn and d > 0:
                     ch = input_text[pos]
                     if ch == '{': d += 1
@@ -1710,38 +1897,11 @@ class ModusFlowTextEditor:
 
         # Helper: resolve __wildcard__ and __N$$wildcard__ file references (strictly within saved_prompts)
         def replace_wildcard(match):
-            count_spec = match.group(1)
-            wc_name = match.group(2).strip()
-            try:
-                from ..config import settings, BASE_DIR
-                prompts_dir = settings.get('prompts_save_directory', '').strip()
-                if not prompts_dir:
-                    prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
-            except Exception:
-                try:
-                    from config import settings, BASE_DIR
-                    prompts_dir = settings.get('prompts_save_directory', '').strip()
-                    if not prompts_dir:
-                        prompts_dir = os.path.join(BASE_DIR, 'saved_prompts')
-                except Exception:
-                    prompts_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'saved_prompts')
-
-                candidates = [
-                    os.path.join(prompts_dir, 'wildcards', f"{wc_name}.txt"),
-                    os.path.join(prompts_dir, f"{wc_name}.txt"),
-                ]
-                for c in candidates:
-                    if os.path.isfile(c):
-                        with open(c, 'r', encoding='utf-8') as f:
-                            lines = [l.strip() for l in f if l.strip() and not l.startswith('#')]
-                        if lines:
-                            k = parse_count(count_spec, len(lines)) if count_spec else 1
-                            lines_with_weights = [(line, 1.0) for line in lines]
-                            picked = sample_items(lines_with_weights, k)
-                            return ", ".join(picked)
-            except Exception:
-                pass
-            return match.group(0)
+            wc_spec = match.group(0)
+            res = load_wildcard_resource(wc_spec, local_vars=variables)
+            if res is not None:
+                return str(res)
+            return wc_spec
 
         # 3 & 4. Iteratively resolve percentage chances, choices, and wildcards (up to 10 passes)
         # This guarantees:
@@ -1752,7 +1912,7 @@ class ModusFlowTextEditor:
         # - Recursive wildcards resolve cleanly
         pct_pattern = r'\{([0-9]+(?:\.[0-9]+)?)\s*%\s*:\s*([^{}]+)\}'
         choice_pattern = r'\{([^{}]+)\}'
-        wc_pattern = r'__(?:([0-9]+(?:-[0-9]+)?)\$\$)?([a-zA-Z0-9_\-]+)__'
+        wc_pattern = r'__(?:([0-9]+(?:-[0-9]+)?|all|\*)\$\$)?([a-zA-Z0-9_\-/]+)__'
 
         def replace_pct_chance(match):
             pct_str = match.group(1)

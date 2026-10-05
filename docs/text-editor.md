@@ -409,8 +409,32 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
     @import "lighting/dramatic_rim.txt"
     ```
   - **Format Support (.txt and .json)**:
-    - `.txt`: Injects the raw prompt text directly.
-    - `.json`: Automatically parses saved prompt JSON files and injects the `positive` prompt content!
+    - `.txt`: Injects raw prompt text, YAML dictionaries, or multi-entry dictionary lists.
+    - `.json`: Automatically parses saved prompt JSON files (extracting the `positive` prompt) or data JSON files (parsed as dictionaries or lists).
+  - **First-Class Data Structures in Imports**:
+    Just like wildcard lists, files loaded via `@import` seamlessly support dictionary and array structures:
+    - **YAML Dictionaries (`hero.txt`)**:
+      ```text
+      $hero = @import "characters/hero.txt";
+      1girl $hero.name as $hero.role wielding $hero.weapon
+      ```
+    - **Multi-Entry Dictionary Lists (`heroes.txt`)**:
+      ```text
+      $party = @import "characters/heroes.txt";
+      Party Leader: $party[0].name (Count: $party.length)
+      ```
+    - **JSON Data Files (`gear.json`)**:
+      ```text
+      $gear = @import "items/gear.json";
+      Equipped: $gear.helm and $gear.boots
+      ```
+    - **Direct Iteration in Loops**:
+      Loop directly over an imported list of dictionaries:
+      ```text
+      for $m in @import "characters/heroes.txt" {
+          1girl $m.name as $m.role wielding $m.weapon,
+      }
+      ```
   - **Optional Extension**: Omitting the extension will automatically test `path`, `path.txt`, and `path.json`.
   - **Recursive Imports**: Imported files can themselves contain `@import` statements (with built-in recursion guard up to 5 levels).
 
@@ -477,6 +501,51 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
       ];
       ```
       - Indexed Property Access: `$party[0].name` $\rightarrow$ `Valkyrie`, `$party[1].weapon` $\rightarrow$ `crystal staff`.
+    - **Wildcard Lists as First-Class Data Structures (`$hero = __listname__`)**:
+      Wildcard list files in `saved_prompts/wildcards/` (or your configured prompts directory) are automatically recognized and parsed as first-class `PromptDict` and `PromptList` data structures:
+      - **Multi-Line YAML-Style Key-Value Files (`hero.txt`)**:
+        Place key-value pairs directly in a wildcard text file:
+        ```text
+        // saved_prompts/wildcards/hero.txt
+        name: "MyName"
+        role: "tank"
+        weapon: "aegis shield"
+        armor: "adamant plate"
+        ```
+        In the Text Editor:
+        ```text
+        $hero = __hero__;
+        1girl, solo, $hero.name as $hero.role equipped with $hero.weapon and $hero.armor
+        ```
+        Iterate over attributes:
+        ```text
+        $hero = __hero__;
+        for $attr, $val in $hero {
+            $attr: $val,
+        }
+        // ➜ name: MyName, role: tank, weapon: aegis shield, armor: adamant plate,
+        ```
+      - **Multi-Entry Dictionary Lists (`heroes.txt`)**:
+        Format wildcard list files with one dictionary per line:
+        ```text
+        // saved_prompts/wildcards/heroes.txt
+        { name: "Valkyrie", role: "tank", weapon: "spear" }
+        { name: "Lyra", role: "mage", weapon: "staff" }
+        { name: "Zephyr", role: "rogue", weapon: "daggers" }
+        ```
+        - **Random Single Entity Roll**: `$hero = __heroes__;` rolls a single random dictionary with dot access `$hero.name`, `$hero.role`, `$hero.weapon`.
+        - **Complete Roster Import**: `$party = __all$$heroes__;` imports all entries into a `PromptList`. Access via `$party[0].name`, `$party.length`, or iterate through them.
+        - **Direct Loop over Wildcard List**:
+          ```text
+          for $member in __heroes__ {
+              1girl $member.name ($member.role wielding $member.weapon),
+          }
+          ```
+      - **JSON Files (`.json`)**: Wildcard files with `.json` extensions containing objects `{ ... }` or arrays `[ ... ]` are parsed seamlessly into dictionary or list variables.
+      - **Data Structure Filters**:
+        - `$hero | keys` $\rightarrow$ `name, role, weapon, armor`
+        - `$hero | values` $\rightarrow$ `MyName, tank, aegis shield, adamant plate`
+        - `__all$$heroes__ | count` $\rightarrow$ `3`
   - **List & Array Iteration (`for $item in $list { body }`)**:
     - Iterates across variable lists, comma-delimited tokens, or inline brackets `[a, b, c]`:
       ```text
