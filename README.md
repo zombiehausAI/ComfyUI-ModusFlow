@@ -70,6 +70,52 @@ ComfyUI-ModusFlow provides 22 custom nodes organized into six categories:
 
 ---
 
+## ✍️ ModusFlow Text Editor & Prompt Studio
+
+The **ModusFlow Text Editor** turns ComfyUI prompt crafting into a full-featured IDE. Designed for creators who build complex, dynamic, and multi-character workflows, it replaces plain text boxes with live syntax highlighting, programming-grade dynamic templating, seamless prompt-driven LoRA loading, and an expansive Pop-Out Studio.
+
+```
+                      ┌──────────────────────────────────────────────┐
+                      │   ModusFlow Text Editor & Prompt Studio      │
+                      ├──────────────────────────────────────────────┤
+                      │ • Live Syntax Highlighting & Dark Themes     │
+                      │ • Pop-Out Dual-Panel Studio (Pos & Neg)      │
+                      │ • Autocomplete: __lists__, $vars, <loras>    │
+                      │ • Dynamic CASE & Switch Branching            │
+                      │ • Tag Weight Stepping (Ctrl+Up/Down)         │
+                      │ • Seamless Dynamic LoRA Prompt Tagging       │
+                      │ • Cross-Model Linguistic Weight Translation  │
+                      └──────────────────────┬───────────────────────┘
+                                             │
+             ┌───────────────────────────────┴───────────────────────────────┐
+             ▼                                                               ▼
+   [Direct CLIP Conditioning]                                     [Clean Prompt String]
+   • Encoded with active CLIP                                     • Stripped of raw tags
+   • Injected with LoRA metadata                                  • Ready for preview & metadata
+   • Seamless LoRA Loader link                                    • Clean generation prompt
+```
+
+### ✨ Key Features at a Glance
+
+| Feature | Description |
+|---|---|
+| **🖥️ Pop-Out Studio Modal** | Double-click or click **Pop Out** to expand into a floating studio with side-by-side Positive and Negative editors, 6 custom dark themes (*Modus Neon, Midnight Purple, Monokai, Cyberpunk, Obsidian, Solarized*), font scaling, and viewport-safe boundary clamping. |
+| **🔀 CASE / Switch Statements** | Multi-branch conditionals that map variables to distinct character traits, outfits, or LoRAs: `{case $person: man => sharp suit \| woman => red dress \| * => casual outfit}`. Supports comma grouping (`man, boy => ...`) and choice sets (`{man\|boy} => ...`). |
+| **🔮 Seamless LoRA Prompt Tagging** | Tag `<lora:name:strength>` directly inside your prompt or CASE branches. The Text Editor completely strips the tag from the text (no prompt pollution or metadata leaking) and invisibly transmits the LoRA payload to the **ModusFlow LoRA Loader** via the existing conditioning connection. |
+| **❓ Ternary Conditionals** | Fast inline conditional branching: `{$weather == sunny ? golden sunlight, lens flare : overcast rain}`. Supports `==`, `!=`, `<`, `<=`, `>`, `>=`, and truthiness checks. |
+| **🎲 Dynamic Choices & Pick-N** | Standard choices `{day\|night}`, Pick-N sets `{2$$neon\|retro\|cyberpunk}`, and weighted probabilities `{80::sunny\|20::rainy}`. |
+| **🔄 Deterministic Sequencing** | Step through options sequentially per queue or batch: `{seq: dawn \| midday \| golden hour \| midnight}` loops systematically with each generation. |
+| **🔗 Synced Choice Tuples** | Roll multi-variable attribute sets in lockstep: `[$theme, $hair, $eyes] = {[fire, crimson, amber] \| [ice, silver, blue]};`. |
+| **⌨️ Intelligent Autocomplete** | Instant popup autocomplete triggered by `<l` (installed LoRAs with auto-normalized slashes), `__` (wildcard list files), `$` (variables), and `%` (workflow macros). |
+| **🎯 Tag Weight Stepping** | Highlight any tag and press `Ctrl+Up` / `Ctrl+Down` to step attention weights (`(tag:1.1)` $\leftrightarrow$ `(tag:1.2)`), or wrap words with parentheses automatically. |
+| **🌐 Linguistic Weight Translation** | Automatic real-time translation between SDXL/Pony token weights (`(word:1.3)`) and natural language emphasis for Chroma and Flux T5 (`strikingly intense word, emphasizing word`), Front-Load Priority mode, or clean weight stripping. |
+| **📦 Multiline Variable Blocks** | Define reusable multiline variables with `$character = { ... };` or triple quotes `""" ... """`, with full support for inline comments (`//`, `/* */`, `#`). |
+| **🚫 Inline Negative Injections** | Inject negative constraints right where you think of them in the positive prompt with `{!neg: blur, deformed}`—automatically deduplicated into the negative prompt. |
+
+> 📖 **Deep Dive Documentation**: Check out the comprehensive **[ModusFlow Text Editor Documentation](docs/text-editor.md)** and the **[Text Editor & Wildcard Mastery Guide](docs/guides/text-editor-mastery.md)** for advanced syntax examples, workflow integration patterns, and best practices.
+
+---
+
 ## 💾 Installation
 
 1. Navigate to ComfyUI custom_nodes directory:
