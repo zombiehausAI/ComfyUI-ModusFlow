@@ -373,6 +373,19 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
 
     1girl, solo, $character_expression, portrait
     ```
+  - **Dynamic LoRA Tagging (`<lora:name:strength>`)**: Embed dynamic LoRAs directly inside branch results so models switch conditionally based on variables:
+    ```text
+    $person = man;
+
+    {case $person:
+        man => <lora:Chroma\Don_Chroma_V1:1.0> smiling gentleman
+        | woman => <lora:Chroma\Amanda_Chroma_V4:1.0> smiling lady
+    }
+    ```
+    - **Syntax Flexibility**: Both `{case $var: ...}` (with colon) and `{case $var ...}` (without colon) are fully supported.
+    - **Automatic Tag Stripping**: All `<lora:...>` tags are parsed and completely stripped from `output_positive` before conditioning and text display. They will **never** leak into prompt text viewers, saved image metadata, or standard CLIP text encoders.
+    - **ModusFlow Ecosystem Integration**: When connected to the **ModusFlow LoRA Loader** via the existing `positive` (conditioning) or `pipe` wire, the extracted LoRA payload and clean prompt travel automatically in the conditioning metadata. The LoRA Loader dynamically applies the model and CLIP weights without requiring any extra cables or pre-declaring LoRAs in manual lists.
+    - **Behavior With Other / Third-Party LoRA Loaders**: The Text Editor continues to work 100% as expected (all variables, branches, wildcards, and clean text resolve completely normally). Standard ComfyUI or third-party loaders do not inspect conditioning metadata or support dynamic prompt tags; they will safely and **silently ignore** the LoRA instruction, while receiving the clean prompt without syntax errors or broken tags.
   - **Multi-Attribute Branching Best Practices**: CASE branches output text directly into the prompt. To coordinate multiple attributes from a single condition:
     1. **Master Block Variable**: Group all related character and scene descriptors into the branch text of a single master variable.
     2. **Discrete Targeted Variables**: Define separate CASE variables per trait (e.g. `$lighting = {case $time: morning => soft dawn | night => neon};`).
