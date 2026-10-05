@@ -199,6 +199,108 @@ class ModusFlowTextEditor:
                 cleaned_lines.append(line)
         text = "\n".join(cleaned_lines)
 
+        # 2. Resolve Ternary Conditionals: {$var==val?true:false}, {$var!=val?...}, {$var?true:false}
+        def eval_condition(var_val, op, target):
+            var_val = "" if var_val is None else str(var_val).strip()
+            target = "" if target is None else str(target).strip().strip("'\"")
+
+            if not op:
+                return bool(var_val) and var_val.lower() not in ("false", "0", "none", "off", "no")
+
+            if op == "==":
+                return var_val.lower() == target.lower()
+            elif op == "!=":
+                return var_val.lower() != target.lower()
+            elif op in (">", ">=", "<", "<="):
+                try:
+                    v_num = float(var_val)
+                    t_num = float(target)
+                    if op == ">": return v_num > t_num
+                    if op == ">=": return v_num >= t_num
+                    if op == "<": return v_num < t_num
+                    if op == "<=": return v_num <= t_num
+                except (ValueError, TypeError):
+                    if op == ">": return var_val > target
+                    if op == ">=": return var_val >= target
+                    if op == "<": return var_val < target
+                    if op == "<=": return var_val <= target
+            return False
+
+        def parse_and_resolve_ternaries(input_text):
+            out = []
+            i = 0
+            n = len(input_text)
+            has_match = False
+            while i < n:
+                if input_text[i:i+2] == "{$":
+                    start = i
+                    i += 2
+                    depth = 1
+                    inner_chars = []
+                    while i < n and depth > 0:
+                        ch = input_text[i]
+                        if ch == "{":
+                            depth += 1
+                        elif ch == "}":
+                            depth -= 1
+                            if depth == 0:
+                                i += 1
+                                break
+                        inner_chars.append(ch)
+                        i += 1
+
+                    if depth == 0:
+                        inner = "".join(inner_chars)
+                        q_idx = -1
+                        d = 0
+                        for idx, c in enumerate(inner):
+                            if c == "{": d += 1
+                            elif c == "}": d -= 1
+                            elif c == "?" and d == 0:
+                                q_idx = idx
+                                break
+
+                        if q_idx != -1:
+                            cond_part = inner[:q_idx].strip()
+                            rest = inner[q_idx+1:]
+                            colon_idx = -1
+                            d = 0
+                            for idx, c in enumerate(rest):
+                                if c == "{": d += 1
+                                elif c == "}": d -= 1
+                                elif c == ":" and d == 0:
+                                    colon_idx = idx
+                                    break
+
+                            if colon_idx != -1:
+                                true_b = rest[:colon_idx].strip()
+                                false_b = rest[colon_idx+1:].strip()
+                            else:
+                                true_b = rest.strip()
+                                false_b = ""
+
+                            m = re.match(r"^[$]?([a-zA-Z0-9_]+)(?:\s*(==|!=|>=|<=|>|<)\s*(.*))?$", cond_part)
+                            if m:
+                                var_name = m.group(1)
+                                op = m.group(2)
+                                target = (m.group(3) or "").strip()
+                                var_val = variables.get(var_name, "")
+                                is_true = eval_condition(var_val, op, target)
+                                chosen = true_b if is_true else false_b
+                                out.append(chosen)
+                                has_match = True
+                                continue
+                    out.append(input_text[start:i])
+                else:
+                    out.append(input_text[i])
+                    i += 1
+            return "".join(out), has_match
+
+        for _ in range(5):
+            text, matched = parse_and_resolve_ternaries(text)
+            if not matched:
+                break
+
         # Substitute defined variables everywhere ($varname)
         for var_name, var_val in variables.items():
             text = re.sub(rf'\${var_name}\b', var_val, text)

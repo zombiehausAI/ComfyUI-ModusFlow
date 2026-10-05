@@ -1098,6 +1098,8 @@ function tokenizeAndHighlight(text, theme) {
     addMatches(/\/\/[^\r\n]*|#[^\r\n]*/g, "comment");
     // 4. LoRA tags: <lora:...>
     addMatches(/<lora:[^>\r\n]+>/gi, "lora");
+    // 4.5 Ternary Conditionals: {$var==val?true:false}, {$var!=val?...}, or {$var?true:false}
+    addMatches(/\{\s*\$[a-zA-Z0-9_]+(?:\s*(?:==|!=|>=|<=|>|<)\s*[^}?]+)?\s*\?[^}]*\}/gi, "ternary");
     // 5. Prompt Variables: $name = value; or $name
     addMatches(/\$[a-zA-Z0-9_-]+(?:\s*=\s*[^;\r\n]+;?)?/g, "variable");
     // 6. Curator placeholders: {curator}, {curator2}, etc.
@@ -1193,6 +1195,9 @@ function tokenizeAndHighlight(text, theme) {
                 title += " (De-emphasized)";
             }
             html += `<span class="modusflow-weight-token" data-weight="${w}" style="color: ${baseColor}; ${extraStyle}" title="${title}">${tokenText}</span>`;
+        } else if (iv.type === "ternary") {
+            const color = theme.choice || theme.variable || "#cba6f7";
+            html += `<span style="color: ${color}; font-weight: 600;" title="Ternary Conditional: ${tokenText}">${tokenText}</span>`;
         } else {
             const color = theme[iv.type] || theme.plain_text || "#e2e8f0";
             html += `<span style="color: ${color};">${tokenText}</span>`;
@@ -1226,6 +1231,45 @@ function countUnclosedParens(text) {
         }
     }
     return unclosed + depth;
+}
+
+function detectPromptHealth(text) {
+    if (!text || typeof text !== "string") {
+        return { duplicates: [], heavyWeights: [] };
+    }
+    const noComments = text
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/(?:^|\n)\s*(?:#|\/\/)[^\n]*/g, "");
+
+    const rawTags = noComments
+        .split(/[,\n]/)
+        .map(t => t.trim())
+        .filter(t => t && !t.startsWith("#") && !t.startsWith("//") && !t.startsWith("/*") && !t.startsWith("$"));
+
+    const duplicates = [];
+    const seenTags = new Set();
+    for (const t of rawTags) {
+        const lower = t.toLowerCase();
+        let norm = lower.replace(/^\(+|\)+$/g, "").trim();
+        norm = norm.replace(/:\s*[0-9.]+\s*$/, "").trim();
+        const key = norm || lower;
+        if (seenTags.has(key) && !duplicates.includes(t)) {
+            duplicates.push(t);
+        }
+        seenTags.add(key);
+    }
+
+    const heavyWeights = [];
+    const weightMatches = text.matchAll(/\([^():\r\n]+:\s*([0-9.]+)\)/g);
+    for (const m of weightMatches) {
+        if (/^\(\s*\d+\s*:\s*\d+\s*\)$/.test(m[0])) continue;
+        const val = parseFloat(m[1]);
+        if (!isNaN(val) && val > 1.6) {
+            heavyWeights.push(m[0]);
+        }
+    }
+
+    return { duplicates, heavyWeights };
 }
 
 function attachSyntaxHighlighter(widget, node) {
@@ -1302,6 +1346,23 @@ function attachSyntaxHighlighter(widget, node) {
 
             backdrop.scrollTop = ta.scrollTop;
             backdrop.scrollLeft = ta.scrollLeft;
+
+            if (healthBadge) {
+                healthBadge.style.bottom = "auto";
+                healthBadge.style.top = (ta.offsetTop + ta.offsetHeight - 26) + "px";
+                healthBadge.style.left = (ta.offsetLeft + 8) + "px";
+            }
+            if (tokenBadge) {
+                tokenBadge.style.bottom = "auto";
+                tokenBadge.style.top = (ta.offsetTop + ta.offsetHeight - 26) + "px";
+                tokenBadge.style.right = Math.max(8, (parent.clientWidth - (ta.offsetLeft + ta.offsetWidth) + 8)) + "px";
+            }
+            if (waveformStrip) {
+                waveformStrip.style.bottom = "auto";
+                waveformStrip.style.top = (ta.offsetTop + ta.offsetHeight - 3) + "px";
+                waveformStrip.style.left = ta.offsetLeft + "px";
+                waveformStrip.style.width = ta.offsetWidth + "px";
+            }
         }
 
         const tokenBadge = document.createElement("div");
@@ -1350,28 +1411,9 @@ function attachSyntaxHighlighter(widget, node) {
             }
 
             // Prompt Health & Linter
-            const textVal = ta.value || "";
-            const rawTags = textVal
-                .split(/[,\n]/)
-                .map(t => t.trim().toLowerCase())
-                .filter(t => t && !t.startsWith("#") && !t.startsWith("//") && !t.startsWith("/*") && !t.startsWith("$"));
-            const duplicates = [];
-            const seenTags = new Set();
-            for (const t of rawTags) {
-                if (seenTags.has(t) && !duplicates.includes(t)) {
-                    duplicates.push(t);
-                }
-                seenTags.add(t);
-            }
-            const heavyWeights = [];
-            const weightMatches = (ta.value || "").matchAll(/\([^():\r\n]+:\s*([0-9.]+)\)/g);
-            for (const m of weightMatches) {
-                if (/^\(\s*\d+\s*:\s*\d+\s*\)$/.test(m[0])) continue;
-                const val = parseFloat(m[1]);
-                if (!isNaN(val) && val > 1.6) {
-                    heavyWeights.push(m[0]);
-                }
-            }
+            const health = detectPromptHealth(ta.value || "");
+            const duplicates = health.duplicates;
+            const heavyWeights = health.heavyWeights;
 
             // Update Waveform Strip
             const totalToks = stats.tokens || 0;
@@ -7901,6 +7943,13 @@ app.registerExtension({
                 }
                 posBox.appendChild(posWaveform);
 
+                const posHealthBadge = document.createElement("div");
+                posHealthBadge.className = "modusflow-health-badge";
+                posHealthBadge.title = "Prompt Health & Deduplication";
+                posHealthBadge.style.bottom = "8px";
+                posHealthBadge.style.left = "10px";
+                posBox.appendChild(posHealthBadge);
+
                 posPane.appendChild(posBox);
 
                 // Right Pane: Negative
@@ -7982,6 +8031,13 @@ app.registerExtension({
                     negWaveform.appendChild(chunkEl);
                 }
                 negBox.appendChild(negWaveform);
+
+                const negHealthBadge = document.createElement("div");
+                negHealthBadge.className = "modusflow-health-badge";
+                negHealthBadge.title = "Prompt Health & Deduplication";
+                negHealthBadge.style.bottom = "8px";
+                negHealthBadge.style.left = "10px";
+                negBox.appendChild(negHealthBadge);
 
                 negPane.appendChild(negBox);
 
@@ -8102,11 +8158,39 @@ app.registerExtension({
 
                     const stats = estimateTokens(posTa.value || "");
                     const unclosed = countUnclosedParens(posTa.value || "");
+                    const health = detectPromptHealth(posTa.value || "");
                     let statStr = `Pos: ${stats.words}w · ~${stats.tokens} tok (${stats.chunkProgress}/75 Ch.${stats.currentChunk})`;
                     if (unclosed > 0) statStr += ` · ⚠️ ${unclosed} unclosed`;
+                    if (health.duplicates.length > 0) statStr += ` · 🟡 ${health.duplicates.length} dup`;
                     posStatPill.textContent = statStr;
                     const sub = document.getElementById("mf-pos-popout-sub");
                     if (sub) sub.textContent = `${stats.words} words · ${stats.tokens} tokens`;
+
+                    if (health.duplicates.length > 0 || health.heavyWeights.length > 0) {
+                        posHealthBadge.style.display = "block";
+                        if (health.duplicates.length > 0) {
+                            posHealthBadge.textContent = `🟡 ${health.duplicates.length} duplicate${health.duplicates.length > 1 ? 's' : ''} [Fix]`;
+                            posHealthBadge.title = `Duplicate tags detected: ${health.duplicates.slice(0, 3).join(", ")}${health.duplicates.length > 3 ? '...' : ''} (Click to auto-dedupe)`;
+                            posHealthBadge.onclick = (e) => {
+                                e.stopPropagation();
+                                const before = posTa.value;
+                                const cleaned = prettifyPromptText(before);
+                                if (cleaned !== before) {
+                                    posTa.value = cleaned;
+                                    onPosInput();
+                                    showStudioToast(`Removed duplicate tag${health.duplicates.length > 1 ? 's' : ''}`);
+                                    pushPromptHistory(node, "Auto-deduped tags");
+                                }
+                            };
+                        } else {
+                            posHealthBadge.textContent = `⚠️ ${health.heavyWeights.length} high weight (>1.6)`;
+                            posHealthBadge.title = "High attention weights (>1.6) can distort or burn generations";
+                            posHealthBadge.onclick = null;
+                        }
+                    } else {
+                        posHealthBadge.style.display = "none";
+                        posHealthBadge.onclick = null;
+                    }
 
                     updateWaveform(posWaveform, posTa.value);
                     app.graph?.setDirtyCanvas(true, true);
@@ -8125,9 +8209,40 @@ app.registerExtension({
                     }
 
                     const stats = estimateTokens(negTa.value || "");
-                    negStatPill.textContent = `Neg: ${stats.words}w · ~${stats.tokens} tok`;
+                    const negHealth = detectPromptHealth(negTa.value || "");
+                    if (negHealth.duplicates.length > 0) {
+                        negStatPill.textContent = `Neg: ${stats.words}w · ~${stats.tokens} tok · 🟡 ${negHealth.duplicates.length} dup`;
+                    } else {
+                        negStatPill.textContent = `Neg: ${stats.words}w · ~${stats.tokens} tok`;
+                    }
                     const sub = document.getElementById("mf-neg-popout-sub");
                     if (sub) sub.textContent = `${stats.words} words · ${stats.tokens} tokens`;
+
+                    if (negHealth.duplicates.length > 0 || negHealth.heavyWeights.length > 0) {
+                        negHealthBadge.style.display = "block";
+                        if (negHealth.duplicates.length > 0) {
+                            negHealthBadge.textContent = `🟡 ${negHealth.duplicates.length} duplicate${negHealth.duplicates.length > 1 ? 's' : ''} [Fix]`;
+                            negHealthBadge.title = `Duplicate tags detected: ${negHealth.duplicates.slice(0, 3).join(", ")}${negHealth.duplicates.length > 3 ? '...' : ''} (Click to auto-dedupe)`;
+                            negHealthBadge.onclick = (e) => {
+                                e.stopPropagation();
+                                const before = negTa.value;
+                                const cleaned = prettifyPromptText(before);
+                                if (cleaned !== before) {
+                                    negTa.value = cleaned;
+                                    onNegInput();
+                                    showStudioToast(`Removed duplicate tag${negHealth.duplicates.length > 1 ? 's' : ''}`);
+                                    pushPromptHistory(node, "Auto-deduped tags");
+                                }
+                            };
+                        } else {
+                            negHealthBadge.textContent = `⚠️ ${negHealth.heavyWeights.length} high weight (>1.6)`;
+                            negHealthBadge.title = "High attention weights (>1.6) can distort or burn generations";
+                            negHealthBadge.onclick = null;
+                        }
+                    } else {
+                        negHealthBadge.style.display = "none";
+                        negHealthBadge.onclick = null;
+                    }
 
                     const val = (negTa.value || "").toLowerCase();
                     pedalBtns.forEach(({ btn, mod }) => {

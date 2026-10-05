@@ -86,6 +86,7 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **Tag Randomizer on Selection (`Alt + D`)**: Instantly resolves dynamic choices `{a|b|c}` or `{shuffle: ...}` within the selection or at cursor into a single random outcome in-place.
 - **Negative Presets**: Quick-fill dropdown for curated quality baselines (*SDXL Quality*, *Pony Score Baseline*, *Photorealistic*, *Anime / 2D Quality*, *Flux / Chroma Minimal*).
 - **Live Token & Word Counter + Unclosed Parentheses Warning**: Real-time counter badge at the bottom-right corner showing word count, estimated CLIP tokens, and 75-token chunks. Flags unmatched or unclosed parentheses with an immediate alert badge (e.g., `⚠️ 1 unclosed ( )`).
+- **Prompt Health & Deduplication Badge (`🟡 X duplicates [Fix]`)**: Real-time linter badge positioned at the bottom-left of the textarea (on both the canvas node and inside Pop Out Studio). Detects duplicate tags across lines and commas (including weighted variants), displaying a tooltip with the detected duplicates. Clicking the badge instantly deduplicates and prettifies the prompt in-place. Also alerts if attention weights exceed safe thresholds (`⚠️ X high weight (>1.6)`).
 - **Drag & Drop Image Metadata**: Drop any `.png` or `.webp` generated image onto the node (or directly into the text boxes) to instantly extract the positive prompt, negative prompt, and seed. Tailored specifically for `ModusFlowTextEditor`: when a workflow contains multiple text editor nodes, it intelligently traces the execution graph and canvas link topology to extract from **the node actively connected to downstream samplers, pipelines, and conditionings** rather than inactive or draft nodes. Also seamlessly falls back to standard ComfyUI CLIP/KSampler pairs and A1111/Forge `parameters`.
 
 ### Action Toolbar
@@ -144,6 +145,7 @@ The Text Editor includes a real-time, zero-latency syntax highlighting engine re
 | **Comments** | `/* notes */`, `# comment`, `// idea` | Dimmed/subtle color indicating exclusion from generation |
 | **Hex Colors** | `#ff5733`, `#00ffff`, `#e63946` | Rendered in the exact hex color with glowing pill badge and interactive hover inspector |
 | **Variables** | `$lighting = neon ambient;`, `$lighting` | Distinct accent color for prompt variable definitions and references |
+| **Ternary Conditionals** | `{$color==red?man:woman}`, `{$hat?fedora:hair}` | Conditional prompt expansion based on variable equality (`==`), inequality (`!=`), or truthiness |
 | **Dynamic Choices** | `{red \| blue \| green}` | Bracketed options highlighted for easy scanning |
 | **Pick-N & Ranges** | `{2$$red \| blue \| green}`, `{1-3$$tags}` | Dynamic combination generators highlighted |
 | **Weighted Odds** | `{80::day \| 20::night}` | Probability weighted choices highlighted |
@@ -319,7 +321,13 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
 
 ### 14. Nested Dynamic Choices & Recursive Resolution
 - **Nested `{this|this}` Inside Lists**: Full recursive syntax resolution supports nested choices inside choice blocks, wildcards inside lists, and variables inside choices (e.g., `{red|{blue|cyan}}`, or a list row containing `portrait with {cybernetic|organic} enhancements`).
-- **Iterative Engine**: Backend expands dynamic choices iteratively up to 10 recursion levels to prevent infinite loops while allowing deep prompt composition.
+- **Ternary If/Else Conditionals (`{$var==val?true:false}`)**: Dynamically branch prompt output based on variable values (using `==` for comparisons so as not to confuse with variable assignment `=`):
+  - **Equality (`==`)**: `{$color==red?crimson cloak:azure robe}` or `{$color==red?man:woman}`
+  - **Inequality (`!=`)**: `{$weather!=rainy?clear sunny sky:stormy clouds}`
+  - **Truthiness Check**: `{$wearing_hat?black fedora:messy windblown hair}` (evaluates true if `$var` is defined and not `false`, `0`, `none`, or empty)
+  - **Optional False Branch**: `{$color==red?ruby gem}` (resolves to empty string if condition is not met)
+  - **Dynamic Nesting**: Branches can contain nested choices and wildcards, e.g. `{$color==red?{crimson|ruby}:blue}`
+- **Iterative Engine**: Backend expands dynamic choices and conditionals iteratively to prevent infinite loops while allowing deep prompt composition.
 
 ### 15. Pop-Out Studio Workstation (Floating / Fullscreen Immersion)
 - **One-Click Pop Out (`⛶ Pop Out Studio`)**: Detaches the editor from the crowded canvas into a dedicated, floating prompt engineering studio window overlaid above ComfyUI.

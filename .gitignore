@@ -44,3 +44,4 @@ vscode-extension/out/
 *.vsix
 .vscode-test/
 *.tsbuildinfo
+working/
