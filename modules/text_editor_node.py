@@ -315,6 +315,8 @@ class ModusFlowTextEditor:
                         raw_content = ModusFlowTextEditor.filter_comments(raw_content)
                         lines = [l.strip() for l in raw_content.splitlines() if l.strip()]
                         clean_val = "\n".join(lines)
+                        if "|" in clean_val and not clean_val.startswith(("$", "{")) and "=>" not in clean_val:
+                            clean_val = "{" + clean_val + "}"
                         eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index, initial_vars=variables)
                         variables[v_name] = eval_val
                         ti = val_start + m_semi.end()
@@ -326,6 +328,8 @@ class ModusFlowTextEditor:
                         raw_content = m_line.group(1)
                         raw_content = ModusFlowTextEditor.filter_comments(raw_content)
                         clean_val = raw_content.strip()
+                        if "|" in clean_val and not clean_val.startswith(("$", "{")) and "=>" not in clean_val:
+                            clean_val = "{" + clean_val + "}"
                         eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index, initial_vars=variables)
                         variables[v_name] = eval_val
                         ti = val_start + m_line.end()
