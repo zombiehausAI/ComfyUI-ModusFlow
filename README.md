@@ -197,6 +197,7 @@ Edit `config.json` to configure:
 - 🧭 **[Workflow & Node Usage Guide](docs/workflow-guide.md)** — Step-by-step guide to connecting nodes, pipe-driven workflows, detailing passes, and upscaling.
 - 🦄 **[Pony V6: Face & Quality Mastery Guide](docs/guides/pony-v6-faces-and-quality.md)** — Secrets to generating clean, sharp, distortion-free faces, eyes, and anatomy in Pony Diffusion V6 XL.
 - 📝 **[Text Editor & Wildcard Mastery Guide](docs/guides/text-editor-mastery.md)** — Model weight translation (Chroma/Flux T5 vs. SDXL/Pony), front-loading priority, tag shuffling `{shuffle: ...}`, deterministic seeds, inline choices `{a|b}`, strict `saved_prompts` wildcards, and on-canvas list curation.
+- 🖥️ **[ModusFlow Studio Specification](docs/MODUSFLOW_STUDIO_SPEC.md)** — Architecture & technical specification for the standalone cross-platform Photino.Blazor desktop workstation.
 
 ### Node Documentation
 
