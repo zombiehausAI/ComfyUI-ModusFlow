@@ -1148,13 +1148,13 @@ class ModusFlowTextEditor:
                             iter_vars[k_name] = k
                             iter_vars[v_name] = v
                             iter_body = resolve_property_access(iter_body, iter_vars)
-                            iter_body = re.sub(rf'\${k_name}\b(?![.\[])', str(k), iter_body)
-                            iter_body = re.sub(rf'\${v_name}\b(?![.\[])', str(v), iter_body)
+                            iter_body = re.sub(rf'\${k_name}\b(?!\.[a-zA-Z_]|\[)', str(k), iter_body)
+                            iter_body = re.sub(rf'\${v_name}\b(?!\.[a-zA-Z_]|\[)', str(v), iter_body)
                         elif len(names) == 1:
                             v_name = names[0]
                             iter_vars[v_name] = v
                             iter_body = resolve_property_access(iter_body, iter_vars)
-                            iter_body = re.sub(rf'\${v_name}\b(?![.\[])', str(v), iter_body)
+                            iter_body = re.sub(rf'\${v_name}\b(?!\.[a-zA-Z_]|\[)', str(v), iter_body)
                         iter_body = re.sub(r'\$index\b', str(idx + 1), iter_body)
                         iter_body = re.sub(r'\$i\b', str(idx), iter_body)
                         parts.append(iter_body)
@@ -1186,15 +1186,15 @@ class ModusFlowTextEditor:
                             iter_body = resolve_property_access(iter_body, iter_vars)
                             for v_idx, v_name in enumerate(var_names):
                                 v_val = iter_vars[v_name]
-                                iter_body = re.sub(rf'\${v_name}\b(?![.\[])', str(v_val), iter_body)
+                                iter_body = re.sub(rf'\${v_name}\b(?!\.[a-zA-Z_]|\[)', str(v_val), iter_body)
                         else:
                             v_name = var_names[0]
                             iter_vars[v_name] = item
                             if idx_name:
                                 iter_vars[idx_name] = idx
-                                iter_body = re.sub(rf'\${idx_name}\b(?![.\[])', str(idx), iter_body)
+                                iter_body = re.sub(rf'\${idx_name}\b(?!\.[a-zA-Z_]|\[)', str(idx), iter_body)
                             iter_body = resolve_property_access(iter_body, iter_vars)
-                            iter_body = re.sub(rf'\${v_name}\b(?![.\[])', str(item), iter_body)
+                            iter_body = re.sub(rf'\${v_name}\b(?!\.[a-zA-Z_]|\[)', str(item), iter_body)
 
                         iter_body = re.sub(r'\$index\b', str(idx + 1), iter_body)
                         iter_body = re.sub(r'\$i\b', str(idx), iter_body)
@@ -1442,7 +1442,7 @@ class ModusFlowTextEditor:
                                     eval_target = var_part
                                     eval_target = resolve_property_access(eval_target, variables)
                                     for vn, vv in variables.items():
-                                        eval_target = re.sub(rf'\${vn}\b(?![.\[])', str(vv), eval_target)
+                                        eval_target = re.sub(rf'\${vn}\b(?!\.[a-zA-Z_]|\[)', str(vv), eval_target)
                                     if "{" in eval_target or "|" in eval_target:
                                         eval_target = ModusFlowTextEditor.resolve_dynamic_prompts(eval_target, seed=seed, cycle_index=cycle_index, initial_vars=variables)
                                     var_val = eval_target.strip()
@@ -1813,7 +1813,7 @@ class ModusFlowTextEditor:
 
         # 4. Match standard $varname substitutions (not followed by dot or bracket property access)
         for var_name, var_val in variables.items():
-            text = re.sub(rf'\${var_name}\b(?![.\[])', str(var_val), text)
+            text = re.sub(rf'\${var_name}\b(?!\.[a-zA-Z_]|\[)', str(var_val), text)
 
         # 3. Resolve {shuffle: a, b, c}
         def replace_shuffle(match):
