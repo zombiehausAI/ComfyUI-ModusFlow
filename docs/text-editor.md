@@ -53,10 +53,10 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 
 ## Outputs
 
-- **positive** (STRING): Processed, comment-filtered, wildcard-resolved positive prompt text
+- **positive** (STRING): Processed, comment-filtered, wildcard-resolved positive prompt text (retains resolved `<lora:name:strength>` tags for downstream nodes like **LoRA Loader** to detect and load)
 - **negative** (STRING): Processed, comment-filtered, wildcard-resolved negative prompt text
 - **seed** (INT): Seed passthrough (connects to KSampler, Save Image `%seed%`, LoRA Loader, etc.)
-- **positive_cond** (CONDITIONING): Directly encoded positive conditioning (when `clip` or `pipe` is connected)
+- **positive_cond** (CONDITIONING): Directly encoded positive conditioning (when `clip` or `pipe` is connected; automatically strips raw `<lora:...>` tags)
 - **negative_cond** (CONDITIONING): Directly encoded negative conditioning (when `clip` or `pipe` is connected)
 - **pipe** (PIPE): Updated ModusFlow pipeline containing active model, clip, vae, and newly encoded conditionings
 
@@ -75,6 +75,7 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **Duplicate Line Down (`Shift + Alt + Down`)**: Duplicates the current line or selected block directly below in one keystroke.
 - **Send to Opposite Prompt (`Ctrl + Shift + N`)**: Cuts the active selection from the positive prompt and appends it to negative (or vice versa), cleaning up commas automatically.
 - **Find & Replace (`Ctrl + F` / `Ctrl + H`)**: Opens a floating, non-intrusive Find & Replace bar with live match counter, Prev/Next buttons, Replace, Replace All, Case-Sensitive (`Aa`), and Regex (`.*`) support.
+- **4-Space Tab Indentation & Dedent (`Tab` / `Shift + Tab`)**: Pressing `Tab` indents by 4 spaces (`"    "`) rather than inserting a literal `\t` tab character or moving focus out of the editor. If multiple lines are selected, `Tab` indents each selected line by 4 spaces. Pressing `Shift + Tab` dedents (unindents) the line or selection by up to 4 spaces. Any literal `\t` tab characters pasted or entered into the editor are automatically normalized to 4 spaces.
 - **Prompt Snippets / Macros (Tab Expansion)**: Type a shortcut trigger like `!cine`, `!photo`, `!anime`, `!clean`, `!cyber`, `!portrait`, or `!neg` and press `Tab` to expand into comprehensive visual descriptor bundles.
 - **Interactive Color Hex Inspector & Natural Color Resolver**: Type any `#RRGGBB` or `#RGB` hex code (e.g. `#e63946`, `#2a9d8f`, `#3a86ff`). The editor renders the text in that exact color with a subtle glowing pill container. Clicking or placing your cursor on it opens a floating inspector showing:
   - Exact live color swatch, RGB, and HSL metrics.
@@ -86,6 +87,7 @@ The Text Editor node provides a full-featured dual text editing interface (Posit
 - **Tag Randomizer on Selection (`Alt + D`)**: Instantly resolves dynamic choices `{a|b|c}` or `{shuffle: ...}` within the selection or at cursor into a single random outcome in-place.
 - **Negative Presets**: Quick-fill dropdown for curated quality baselines (*SDXL Quality*, *Pony Score Baseline*, *Photorealistic*, *Anime / 2D Quality*, *Flux / Chroma Minimal*).
 - **Live Token & Word Counter + Unclosed Parentheses Warning**: Real-time counter badge at the bottom-right corner showing word count, estimated CLIP tokens, and 75-token chunks. Flags unmatched or unclosed parentheses with an immediate alert badge (e.g., `⚠️ 1 unclosed ( )`).
+- **Prompt Health & Deduplication Badge (`🟡 X duplicates [Fix]`)**: Real-time linter badge positioned at the bottom-left of the textarea (on both the canvas node and inside Pop Out Studio). Detects duplicate tags across lines and commas (including weighted variants), displaying a tooltip with the detected duplicates. Clicking the badge instantly deduplicates and prettifies the prompt in-place. Also alerts if attention weights exceed safe thresholds (`⚠️ X high weight (>1.6)`).
 - **Drag & Drop Image Metadata**: Drop any `.png` or `.webp` generated image onto the node (or directly into the text boxes) to instantly extract the positive prompt, negative prompt, and seed. Tailored specifically for `ModusFlowTextEditor`: when a workflow contains multiple text editor nodes, it intelligently traces the execution graph and canvas link topology to extract from **the node actively connected to downstream samplers, pipelines, and conditionings** rather than inactive or draft nodes. Also seamlessly falls back to standard ComfyUI CLIP/KSampler pairs and A1111/Forge `parameters`.
 
 ### Action Toolbar
@@ -143,7 +145,15 @@ The Text Editor includes a real-time, zero-latency syntax highlighting engine re
 |---|---|---|
 | **Comments** | `/* notes */`, `# comment`, `// idea` | Dimmed/subtle color indicating exclusion from generation |
 | **Hex Colors** | `#ff5733`, `#00ffff`, `#e63946` | Rendered in the exact hex color with glowing pill badge and interactive hover inspector |
-| **Variables** | `$lighting = neon ambient;`, `$lighting` | Distinct accent color for prompt variable definitions and references |
+| **Variables & Multiline Blocks** | `$lighting = { ... };`, `$desc = """..."""`, `$var` | Single-line and multiline variable block definitions and references |
+| **Synced Tuples** | `[$hero, $color] = {[knight, silver] \| [mage, violet]};` | Coordinated multi-variable assignment from synchronized choice sets |
+| **Piped Variable Filters** | `$hero \| title`, `$tag \| weight(1.35)` | Text transformations (`title`, `upper`, `lower`, `capitalize`, `trim`) and weight wrappers |
+| **Inline Negative** | `masterpiece {!neg: bad hands, blurry}` | Automatically extracted and merged into Negative Prompt with concept deduplication |
+| **Sequential Cycling** | `{seq: dawn \| noon \| dusk}`, `{cycle: ...}` | Deterministically steps to the next item on each queue run |
+| **Numerical Ranges** | `{range: 18..35}`, `{range: 0.8..1.4:0.05}` | Inline random integer or float generator with optional step precision |
+| **Workflow Macros** | `%seed%`, `%date%`, `%sampler%`, `%steps%` | Runtime workflow and environment tokens injected from active generation |
+| **CASE Statements** | `{$season: spring => cherry blossoms \| * => meadow}` | Multi-branch pattern matching on variable values with relational operators and default fallback |
+| **Ternary Conditionals** | `{$color==red?man:woman}`, `{$hat?fedora:hair}` | Conditional prompt expansion based on variable equality (`==`), inequality (`!=`), or truthiness |
 | **Dynamic Choices** | `{red \| blue \| green}` | Bracketed options highlighted for easy scanning |
 | **Pick-N & Ranges** | `{2$$red \| blue \| green}`, `{1-3$$tags}` | Dynamic combination generators highlighted |
 | **Weighted Odds** | `{80::day \| 20::night}` | Probability weighted choices highlighted |
@@ -319,7 +329,377 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
 
 ### 14. Nested Dynamic Choices & Recursive Resolution
 - **Nested `{this|this}` Inside Lists**: Full recursive syntax resolution supports nested choices inside choice blocks, wildcards inside lists, and variables inside choices (e.g., `{red|{blue|cyan}}`, or a list row containing `portrait with {cybernetic|organic} enhancements`).
-- **Iterative Engine**: Backend expands dynamic choices iteratively up to 10 recursion levels to prevent infinite loops while allowing deep prompt composition.
+- **CASE Statements (`{$var: pattern => result | * => default}`)**: Multi-branch switch/case statements that cleanly map variable values to prompt branches using pipe delimiters (`|`) and fat arrows (`=>`):
+  - **Exact Value Matching**: `{$season: spring => cherry blossoms | summer => sunflower field | autumn => golden leaves | winter => snowy pines | * => lush meadow}`
+  - **Multiple Matches Per Branch (Commas or Choice Sets)**: Group values either with comma-separated patterns (`futanari, man => things`) or dynamic choice sets (`{futanari|man} => things`). Both formats match if the variable equals any of the listed options.
+  - **Relational Conditions in Cases**: Supports numerical and lexicographical comparisons: `{$level: >= 50 => grandmaster warrior | >= 20 => veteran knight | * => novice adventurer}`
+  - **Default / Wildcard Fallbacks**: Any of `*`, `default`, `_`, or `else` acts as the fallback when no prior patterns match. If omitted and no branch matches, resolves to an empty string.
+  - **Nested Dynamic Choices & Wildcards**: Branches fully support nested choice blocks, shuffles, wildcards, and ternaries: `{$season: spring => {cherry|peach} blossoms | winter => {snowy peaks|ice glaze}}`
+  - **Prefix Flexibility**: Both `{$var: ...}` and `{case $var: ...}` syntax formats are recognized.
+  - **Multiline Branch Assignments**: Each branch (`pattern => result`) can span multiple lines with its own indentation, tags, and inline comments:
+    ```text
+    {case $season:
+        summer =>
+            masterpiece, best quality,
+            sundress, straw hat,
+            tropical sun, sandy beach
+        | winter =>
+            masterpiece, best quality,
+            heavy woolen coat, knitted scarf,
+            snowy pine forest, soft falling snow
+        | * =>
+            casual shirt, blue jeans,
+            clear afternoon
+    }
+    ```
+  - **Assigning a Multiline CASE Statement to a Variable**: Wrap the statement in triple quotes (`""" ... """`) or braced blocks (`$var = { ... };`) to store the resolved branch into a reusable variable:
+    ```text
+    $mood = happy;
+
+    $character_expression = """
+    {case $mood:
+        happy =>
+            cheerful smile,
+            sparkling eyes,
+            rosy cheeks
+        | sad =>
+            melancholic gaze,
+            tear on cheek,
+            somber expression
+        | * =>
+            neutral expression
+    }
+    """;
+
+    1girl, solo, $character_expression, portrait
+    ```
+  - **Dynamic LoRA Tagging (`<lora:name:strength>`)**: Embed dynamic LoRAs directly inside branch results so models switch conditionally based on variables:
+    ```text
+    $person = man;
+
+    {case $person:
+        man => <lora:Chroma\Don_Chroma_V1:1.0> smiling gentleman
+        | woman => <lora:Chroma\Amanda_Chroma_V4:1.0> smiling lady
+    }
+    ```
+    - **Syntax Flexibility**: Both `{case $var: ...}` (with colon) and `{case $var ...}` (without colon) are fully supported.
+    - **Automatic Tag Stripping**: All `<lora:...>` tags are parsed and completely stripped from `output_positive` before conditioning and text display. They will **never** leak into prompt text viewers, saved image metadata, or standard CLIP text encoders.
+    - **ModusFlow Ecosystem Integration**: When connected to the **ModusFlow LoRA Loader** via the existing `positive` (conditioning) or `pipe` wire, the extracted LoRA payload and clean prompt travel automatically in the conditioning metadata. The LoRA Loader dynamically applies the model and CLIP weights without requiring any extra cables or pre-declaring LoRAs in manual lists.
+    - **Behavior With Other / Third-Party LoRA Loaders**: The Text Editor continues to work 100% as expected (all variables, branches, wildcards, and clean text resolve completely normally). Standard ComfyUI or third-party loaders do not inspect conditioning metadata or support dynamic prompt tags; they will safely and **silently ignore** the LoRA instruction, while receiving the clean prompt without syntax errors or broken tags.
+  - **Multi-Attribute Branching Best Practices**: CASE branches output text directly into the prompt. To coordinate multiple attributes from a single condition:
+    1. **Master Block Variable**: Group all related character and scene descriptors into the branch text of a single master variable.
+    2. **Discrete Targeted Variables**: Define separate CASE variables per trait (e.g. `$lighting = {case $time: morning => soft dawn | night => neon};`).
+    3. **Synced Choice Tuples**: Use `[$var1, $var2] = { [v1, v2] | [v3, v4] };` for lockstep coordinated sets.
+- **Ternary If/Else Conditionals with Compound Boolean Logic (`{$cond ? true : false}`)**: Dynamically branch prompt output based on variable values, boolean flags, and compound logic:
+  - **Compound Boolean Operators (`&&`, `||`, `!`)**: Combine conditions with short-circuit evaluation:
+    - `{$is_night && $weather == "rain" ? stormy night : clear day}`
+    - `{!$is_night || $weather == "snow" ? winter noon : midnight rain}`
+    - `{($level >= 50 || $role in {paladin|hero}) && $is_night ? veteran night patrol : rookie}`
+  - **Relational Comparisons**: `==`, `!=`, `<`, `>`, `<=`, `>=`, `in`, `not in` (e.g. `{$age >= 21 ? vintage wine : fruit juice}`).
+  - **Choice Set Matching**: `{$class in {knight|paladin} ? heavy plate armor : leather tunic}`.
+  - **Truthiness & Negation (`!`, `not`)**: `{$wearing_hat ? black fedora : messy hair}` or `{!$injured ? battle stance : recovering}`.
+  - **Optional False Branch**: `{$color == "red" ? ruby gem}` (resolves to empty string if condition is not met).
+  - **Nested Dynamic Choices**: Branches fully support choices and wildcards: `{$color == "red" ? {crimson|ruby} : blue}`.
+
+- **Modular File Imports (`@import "path/file"`)**: Import and compose external prompt files modularly into your master workflow:
+  - **Root & Subfolder Resolution**: Looks relative to your configured `saved_prompts` directory (and subfolders such as `lib/`, `presets/`, `styles/`, etc.):
+    ```text
+    @import "styles/cyberpunk"
+    1girl, solo, in futuristic jacket,
+    @import "lighting/dramatic_rim.txt"
+    ```
+  - **Format Support (.txt and .json)**:
+    - `.txt`: Injects raw prompt text, YAML dictionaries, or multi-entry dictionary lists.
+    - `.json`: Automatically parses saved prompt JSON files (extracting the `positive` prompt) or data JSON files (parsed as dictionaries or lists).
+  - **First-Class Data Structures in Imports**:
+    Just like wildcard lists, files loaded via `@import` seamlessly support dictionary and array structures:
+    - **YAML Dictionaries (`hero.txt`)**:
+      ```text
+      $hero = @import "characters/hero.txt";
+      1girl $hero.name as $hero.role wielding $hero.weapon
+      ```
+    - **Multi-Entry Dictionary Lists (`heroes.txt`)**:
+      ```text
+      $party = @import "characters/heroes.txt";
+      Party Leader: $party[0].name (Count: $party.length)
+      ```
+    - **JSON Data Files (`gear.json`)**:
+      ```text
+      $gear = @import "items/gear.json";
+      Equipped: $gear.helm and $gear.boots
+      ```
+    - **Direct Iteration in Loops**:
+      Loop directly over an imported list of dictionaries:
+      ```text
+      for $m in @import "characters/heroes.txt" {
+          1girl $m.name as $m.role wielding $m.weapon,
+      }
+      ```
+  - **Optional Extension**: Omitting the extension will automatically test `path`, `path.txt`, and `path.json`.
+  - **Recursive Imports**: Imported files can themselves contain `@import` statements (with built-in recursion guard up to 5 levels).
+
+- **Reusable Macro Functions (`fn name($arg1, $arg2) = { ... };` and `@name(...)`)**: Define reusable, parameterized prompt template functions directly in your prompt text or imported libraries:
+  - **Definition Syntax**:
+    ```text
+    fn portrait($char, $style) = {
+        masterpiece 8k portrait of $char, in $style aesthetic, cinematic lighting, sharp focus
+    };
+
+    fn glowing_weapon($weapon, $color) = legendary $weapon wreathed in vibrant $color flames;
+    ```
+  - **Invocation Syntax**:
+    ```text
+    $protagonist = "valkyrie";
+    $theme = "norse mythology";
+
+    @portrait($protagonist, $theme), carrying a @glowing_weapon("spear", "azure")
+    ```
+  - **Parameter Substitution**: Function arguments map directly to `$param` variables inside the template body. Arguments can be literals (`"spear"`), variable references (`$protagonist`), or unquoted tokens (`azure`).
+- **Loops & Repetition (`repeat(count)` and `for ... in ...`)**: Generate structured tag sequences, ensemble character rosters, and repeated scene elements programmatically:
+  - **Numerical Repeater (`repeat(count) { body }`)**:
+    - Repeats the body template $N$ times (clamped between 1 and 20 to preserve CLIP token budgets):
+      ```text
+      repeat(3) {
+          detailed floating lantern #$index,
+      }
+      ```
+      Resolves to: `detailed floating lantern #1, detailed floating lantern #2, detailed floating lantern #3,`
+    - **Independent Choice Evaluation**: When dynamic choices `{a|b}` appear inside a `repeat` block, each iteration re-rolls independently:
+      ```text
+      repeat(4) {
+          {glowing|hovering} {crimson|azure} crystal,
+      }
+      ```
+    - **Iteration Variables**: Built-in `$index` (1-based: 1, 2, 3...) and `$i` (0-based: 0, 1, 2...), or explicit alias `repeat(3 as $step)`.
+  - **First-Class Arrays, Lists & Dictionaries**:
+    - **Array / List Declarations**:
+      ```text
+      $elements = [fire, frost, lightning];
+      $weights = [1.1, 1.25, 1.4];
+      ```
+      - Direct Indexing: `$elements[0]` $\rightarrow$ `fire`, `$elements[-1]` $\rightarrow$ `lightning`.
+      - Count / Length: `$elements.length` or `$elements | count` $\rightarrow$ `3`.
+      - Direct expansion: `$elements` $\rightarrow$ `fire, frost, lightning`.
+    - **Dictionary / Key-Value Map Declarations**:
+      ```text
+      $hero = {
+          name: "Valkyrie",
+          hair: "long braided silver hair",
+          eyes: "piercing azure eyes",
+          weapon: "runic lightning spear",
+          role: "tank"
+      };
+      ```
+      - Dot Property Access: `$hero.name`, `$hero.weapon`, `$hero.role`.
+      - Bracket Key Access: `$hero["hair"]`, `$hero['eyes']`.
+      - Direct expansion: `$hero` $\rightarrow$ `name: Valkyrie, hair: long braided silver hair, ...`.
+    - **Array of Dictionaries (Squad Rosters & Scene Entities)**:
+      ```text
+      $party = [
+          { name: "Valkyrie", role: "tank", weapon: "tower shield" },
+          { name: "Lyra", role: "mage", weapon: "crystal staff" }
+      ];
+      ```
+      - Indexed Property Access: `$party[0].name` $\rightarrow$ `Valkyrie`, `$party[1].weapon` $\rightarrow$ `crystal staff`.
+    - **Wildcard Lists as First-Class Data Structures (`$hero = __listname__`)**:
+      Wildcard list files in `saved_prompts/wildcards/` (or your configured prompts directory) are automatically recognized and parsed as first-class `PromptDict` and `PromptList` data structures:
+      - **Multi-Line YAML-Style Key-Value Files (`hero.txt`)**:
+        Place key-value pairs directly in a wildcard text file:
+        ```text
+        // saved_prompts/wildcards/hero.txt
+        name: "MyName"
+        role: "tank"
+        weapon: "aegis shield"
+        armor: "adamant plate"
+        ```
+        In the Text Editor:
+        ```text
+        $hero = __hero__;
+        1girl, solo, $hero.name as $hero.role equipped with $hero.weapon and $hero.armor
+        ```
+        Iterate over attributes:
+        ```text
+        $hero = __hero__;
+        for $attr, $val in $hero {
+            $attr: $val,
+        }
+        // ➜ name: MyName, role: tank, weapon: aegis shield, armor: adamant plate,
+        ```
+      - **Multi-Entry Dictionary Lists (`heroes.txt`)**:
+        Format wildcard list files with one dictionary per line:
+        ```text
+        // saved_prompts/wildcards/heroes.txt
+        { name: "Valkyrie", role: "tank", weapon: "spear" }
+        { name: "Lyra", role: "mage", weapon: "staff" }
+        { name: "Zephyr", role: "rogue", weapon: "daggers" }
+        ```
+        - **Random Single Entity Roll**: `$hero = __heroes__;` rolls a single random dictionary with dot access `$hero.name`, `$hero.role`, `$hero.weapon`.
+        - **Complete Roster Import**: `$party = __all$$heroes__;` imports all entries into a `PromptList`. Access via `$party[0].name`, `$party.length`, or iterate through them.
+        - **Direct Loop over Wildcard List**:
+          ```text
+          for $member in __heroes__ {
+              1girl $member.name ($member.role wielding $member.weapon),
+          }
+          ```
+      - **JSON Files (`.json`)**: Wildcard files with `.json` extensions containing objects `{ ... }` or arrays `[ ... ]` are parsed seamlessly into dictionary or list variables.
+      - **Data Structure Filters**:
+        - `$hero | keys` $\rightarrow$ `name, role, weapon, armor`
+        - `$hero | values` $\rightarrow$ `MyName, tank, aegis shield, adamant plate`
+        - `__all$$heroes__ | count` $\rightarrow$ `3`
+  - **List & Array Iteration (`for $item in $list { body }`)**:
+    - Iterates across variable lists, comma-delimited tokens, or inline brackets `[a, b, c]`:
+      ```text
+      $elements = [fire, lightning, frost];
+      for $elem in $elements {
+          (wreathed in $elem:1.25),
+      }
+      ```
+      Resolves to: `(wreathed in fire:1.25), (wreathed in lightning:1.25), (wreathed in frost:1.25),`
+  - **Indexed List Iteration (`for $idx, $item in $list`)**:
+    - Access both the 0-based index and the item value:
+      ```text
+      for $idx, $color in [magenta, cyan, gold] {
+          spotlight {$idx + 1}: $color rim lighting,
+      }
+      ```
+  - **Dictionary Looping (`for $key, $val in $dict` or `for $val in $dict`)**:
+    - Iterate across key-value pairs or values directly:
+      ```text
+      $traits = { hair: "silver", eyes: "blue", outfit: "tactical suit" };
+      for $attr, $val in $traits {
+          $attr: $val,
+      }
+      // ➜ hair: silver, eyes: blue, outfit: tactical suit,
+      ```
+    - Key enumeration: `for $k in $traits.keys() { trait: $k, }`
+  - **Looping Arrays of Dictionaries (Multi-Character Scenes)**:
+    - Directly reference entity properties inside the loop body:
+      ```text
+      for $m in $party {
+          1girl $m.name as $m.role wielding $m.weapon,
+      }
+      // ➜ 1girl Valkyrie as tank wielding tower shield, 1girl Lyra as mage wielding crystal staff,
+      ```
+  - **Tuple Unpacking (`for [$a, $b] in $tuples`)**:
+    - Iterate across multi-attribute rosters in lockstep:
+      ```text
+      $squad = [
+          [valkyrie, winged helmet, runic spear],
+          [paladin, polished silver plate, holy broadsword],
+          [rogue, shadowed leather tunic, dual daggers]
+      ];
+
+      for [$class, $armor, $weapon] in $squad {
+          1 $class wearing $armor and wielding $weapon,
+      }
+      ```
+  - **Numerical Range Loops (`1..N` and `range(...)`)**:
+    - `for $i in 1..4 { layer $i background, }`
+    - `for $i in range(1, 5) { tier $i armor, }`
+  - **Smart Delimiter Insertion**: If the body does not end with a comma, semicolon, or newline, iterations are automatically joined with `, `.
+  - **Conditionals on Object Properties**: Test properties directly: `{$hero.role == "tank" ? heavy plate armor : cloth tunic}`.
+  - **Variable Assignment**: Loops can be embedded inside variable definitions (`$crystals = { for $c in [ruby, emerald] { glowing $c crystal, } };`).
+
+- **Percentage-Based Chance Modifiers (`{40%: text}`)**: Dynamically include scene elements, weather effects, or detail tags based on a random percentage probability:
+  - **Syntax**: `{percentage%: text to include}`
+    - `{40%: dramatic volumetric dust, }` (40% probability of being included; resolves to empty string if random roll is $\ge 40\%$)
+    - `{25.5%: cybernetic arm enhancement}` (supports floating-point probabilities)
+    - `{50%: wearing {red|blue} coat}` (nestable with dynamic choices)
+  - **Clean Output**: If the chance roll fails, the tag resolves to empty string and any dangling double commas are automatically cleaned up.
+
+- **Null-Coalescing Operator (`$var ?? "fallback"`, `{$var ?? "fallback"}`)**: Provide clean fallback values for optional or empty variables:
+  - **Syntax**:
+    - `$theme ?? "fantasy world"`
+    - `$unset_var ?? "neon alley"`
+    - `{$missing_var ?? "medieval castle"}`
+  - **Behavior**: If `$var` is defined and non-empty (even if assigned an empty quoted string `""` or `''`), its value is used; otherwise, it resolves to the specified fallback token, quoted string, or secondary variable (`$var ?? $fallback_var`).
+
+- **Inline Arithmetic Expressions (`{$var + 10}`, `(tag:{$weight + 0.2})`)**: Perform real-time mathematical operations directly inside your prompts:
+  - **Supported Operators**: `+` (addition), `-` (subtraction), `*` (multiplication), `/` (division).
+  - **Dynamic Attention Weight Stepping**:
+    ```text
+    $base_weight = 1.1;
+    (masterpiece:{$base_weight + 0.2}), (cinematic lighting:{$base_weight + 0.05})
+    ```
+    Resolves to: `(masterpiece:1.3), (cinematic lighting:1.15)`
+  - **Numerical Variables**:
+    ```text
+    $level = 20;
+    character level: {$level + 5}, double power: {$level * 2}
+    ```
+    Resolves to: `character level: 25, double power: 40`
+  - **Clean Formatting**: Integer calculations remain clean integers; floating-point results format up to 4 decimal places without floating-point rounding artifacts or trailing zeroes.
+
+- **Expanded Piped Variable Filters (`$var | filter` and `{$var | filter}`)**: Transform variable strings on-the-fly with Unix / Jinja-style piping:
+  - **String Case Transformations**:
+    - `$hero | title`: Capitalizes each word (`"cyberpunk samurai"` $\rightarrow$ `"Cyberpunk Samurai"`).
+    - `$hero | upper`: Converts to uppercase (`"valkyrie"` $\rightarrow$ `"VALKYRIE"`).
+    - `$hero | lower` / `$hero | capitalize` / `$hero | trim`.
+  - **Smart Grammar & Formatting**:
+    - `$creature | plural`: Context-aware English pluralization (`"wolf"` $\rightarrow$ `"wolves"`, `"cherry"` $\rightarrow$ `"cherries"`, `"fox"` $\rightarrow$ `"foxes"`, `"cat"` $\rightarrow$ `"cats"`).
+    - `$tags | strip_weights`: Strips attention weights and parentheses into clean plain tags (`"(masterpiece:1.3), ((ultra-detailed))"` $\rightarrow$ `"masterpiece, ultra-detailed"`).
+    - `$colors | join(" + ")`: Splits comma-separated items and rejoins them with a custom delimiter (`"crimson, gold, emerald"` $\rightarrow$ `"crimson + gold + emerald"`).
+  - **List & Dictionary Operations**:
+    - `$list | count` / `$list | length`: Counts elements or dictionary keys (`$elements | count` $\rightarrow$ `3`).
+    - `$dict | keys`: Extracts keys as a comma-separated list (`$hero | keys` $\rightarrow$ `name, hair, weapon`).
+    - `$dict | values`: Extracts values as a comma-separated list (`$hero | values` $\rightarrow$ `Valkyrie, silver, spear`).
+    - `$list | first`: First element (`$elements | first` $\rightarrow$ `fire`).
+    - `$list | last`: Last element (`$elements | last` $\rightarrow$ `lightning`).
+    - `$list | reverse`: Reverses elements (`$elements | reverse` $\rightarrow$ `lightning, frost, fire`).
+    - `$list | sort`: Sorts elements alphabetically (`$elements | sort` $\rightarrow$ `fire, frost, lightning`).
+  - **Weighting & Wrapping**:
+    - `$tag | weight(1.35)`: Wraps the value in attention weight syntax: `(tag:1.35)`.
+    - `$tag | wrap('prefix', 'suffix')`: Wraps value in custom delimiters.
+    - `$var | default('fallback')`: Uses fallback if the variable resolves empty.
+  - **Chaining Filters**: Pipe multiple transformations in sequence: `$creature | plural | upper` $\rightarrow$ `"WOLVES"`.
+  - **Non-Conflicting Choice Isolation**: Filters only trigger on registered filter names. Expressions like `{$fruit | apple}` are safely recognized as dynamic choices between `$fruit` and `"apple"`, while `{$fruit | upper}` transforms the variable!
+
+- **Inline Negative Injections (`{!neg: tags}`)**: Embed negative constraints directly inside positive prompt text without jumping to the negative box.
+  - Example: `portrait of an android geisha {!neg: cartoon, 3d render, extra limbs}, holding porcelain cup {!neg: bad hands, broken fingers}`
+  - **Smart Concept Deduplication**: When merged into the negative prompt, tags are deduplicated by base semantic concept (e.g. `(bad anatomy:1.4)` vs `bad anatomy` or identical duplicate tags are automatically consolidated to prevent negative prompt pollution).
+- **Sequential Cycling (`{seq: a | b | c}` or `{cycle: a | b | c}`)**: Cycles deterministically through options on each queue execution instead of picking randomly:
+  - Example: `courtyard at {seq: dawn | midday | golden hour | midnight rain}`
+  - Run #1: `dawn` $\rightarrow$ Run #2: `midday` $\rightarrow$ Run #3: `golden hour` $\rightarrow$ Run #4: `midnight rain` $\rightarrow$ Run #5: `dawn` (loops cleanly).
+- **Numerical Ranges (`{range: min..max[:step]}` or `{rand: ...}`)**: Inline integer and floating-point random number generators:
+  - Integer range: `{range: 18..35}` (random int between 18 and 35) or `{range: 35..85:10}` (stepping by 10).
+  - Float range: `{range: 0.8..1.4:0.05}` (stepping by 0.05) or `{range: 1.4..2.8:float}` (generates random float formatted to two decimals).
+- **Synced Choice Tuples (`[$a, $b, ...] = { [a1, b1] | [a2, b2] };`)**: Synchronize multiple variables to roll together as a coordinated set:
+  ```text
+  [$element, $hair, $eyes] = {
+      [fire, crimson hair, amber eyes] |
+      [water, azure waves hair, sapphire eyes] |
+      [nature, emerald braided hair, hazel eyes]
+  };
+  an elven archer aligned with $element, featuring $hair and $eyes
+  ```
+- **Multiline Variable Blocks**: Wrap multi-line prompt paragraphs, trait collections, or complex descriptions cleanly into a single variable:
+  - **Braced Blocks (`$var = { ... };`)**: Ideal for multi-tag character or environment stacks with indentation and inline comments stripped cleanly:
+    ```text
+    $character = {
+        masterpiece portrait, 1girl, solo,
+        intricate cybernetic porcelain armor,
+        flowing silver ponytail, mechanical eyepiece
+    };
+    ```
+  - **Triple Quotes (`$var = """ ... """;`)**: Python-style multiline blocks:
+    ```text
+    $setting = """
+        ancient mossy stone ruins,
+        bioluminescent blue mushrooms,
+        soft drifting volumetric dust
+    """;
+    ```
+  - **Semicolon-Terminated (`$var = ... ;`)**: Natural multiline declaration spanning lines until the closing `;`:
+    ```text
+    $camera =
+        shot on Hasselblad H6D-100c,
+        85mm portrait prime lens,
+        shallow depth of field;
+    ```
+- **Workflow & Environment Macros (`%macro%`)**: Automatically expands runtime parameters:
+  - System timestamps: `%seed%`, `%date%` (`YYYY-MM-DD`), `%time%` (`HH:MM:SS`), `%timestamp%`, `%year%`, `%month%`, `%day%`.
+  - Workflow parameters (inspected from active nodes): `%sampler%`, `%scheduler%`, `%steps%`, `%cfg%`, `%width%`, `%height%`.
+- **Iterative Engine**: Backend expands dynamic choices, ranges, tuples, filters, and conditionals iteratively to prevent infinite loops while allowing deep prompt composition.
 
 ### 15. Pop-Out Studio Workstation (Floating / Fullscreen Immersion)
 - **One-Click Pop Out (`⛶ Pop Out Studio`)**: Detaches the editor from the crowded canvas into a dedicated, floating prompt engineering studio window overlaid above ComfyUI.
@@ -373,7 +753,7 @@ To prevent the frustration of resetting configurations whenever ComfyUI or the b
 - **Ollama AI Enhancement Model**: The selected local model is saved immediately to `config.json`, `localStorage`, and ComfyUI settings whenever chosen in either the status modal, settings panel, or pop-out studio. It will never reset to the first model in your list or default to another tag.
 - **Default Prompt Style**: Global default prompt philosophy (`🏷️ Tags (SDXL / Pony)` vs `✍️ Expressions (Flux / SD3)`) persists across reboots and automatically initializes newly created Text Editor nodes.
 - **Syntax Highlighting Theme**: Active theme choices persist across reboots, synchronizing across both canvas textareas and the Pop-Out Studio.
-- **Pop-Out Studio Window Geometry**: Floating window position ($X, Y$) and custom dimensions (width & height) are saved to storage on every move, resize, and dock. When you pop out the studio in future sessions, it restores to your exact coordinates and scale.
+- **Pop-Out Studio Window Geometry**: Floating window position ($X, Y$) and custom dimensions (width & height) are saved to storage on every move, resize, and dock. When switching between monitors or smaller displays, the studio automatically clamps its coordinates to remain fully visible on screen. You can also re-center at any time by double-clicking the title bar, clicking the `⌖` header button, or right-clicking the canvas node $\rightarrow$ **🎯 Reset / Center Pop-Out Studio**.
 - **Pop-Out Typography (Font Family & Size)**: Font choices (e.g. `JetBrains Mono`, `Fira Code`, `Inter`, `Editorial Serif`) and base font size ($11\text{px}-28\text{px}$) persist across sessions and browser tabs.
 - **Prompt Category Filter**: The active category filter selected in the Pop-Out Studio persists across sessions so you don't have to re-navigate your preset library.
 - **Automatic URL Sanitization**: Ollama server endpoints automatically clean up whitespace, accidental trailing slashes, and trailing dots on IP addresses (e.g., `192.168.x.x.:11434` $\rightarrow$ `192.168.x.x:11434`), preventing offline connection errors.

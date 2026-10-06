@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { ComfyClient, PromptFileItem, SongFileItem } from "./comfyClient";
+import { ComfyClient, PromptFileItem, SongFileItem, LoraMetadata } from "./comfyClient";
 
 export class PromptsTreeProvider implements vscode.TreeDataProvider<PromptTreeItem> {
     private _onDidChangeTreeData = new vscode.EventEmitter<PromptTreeItem | undefined | void>();
@@ -260,4 +260,107 @@ export class SongTreeItem extends vscode.TreeItem {
         }
     }
 }
+
+export class LorasTreeProvider implements vscode.TreeDataProvider<LoraTreeItem> {
+    private _onDidChangeTreeData = new vscode.EventEmitter<LoraTreeItem | undefined | void>();
+    readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+    private _metaCache = new Map<string, LoraMetadata>();
+
+    constructor(private client: ComfyClient) {}
+
+    refresh(): void {
+        this._metaCache.clear();
+        this._onDidChangeTreeData.fire();
+    }
+
+    getTreeItem(element: LoraTreeItem): vscode.TreeItem {
+        return element;
+    }
+
+    async getChildren(element?: LoraTreeItem): Promise<LoraTreeItem[]> {
+        if (!element) {
+            const list = await this.client.listLoras();
+            const folders = new Map<string, string[]>();
+
+            for (const lora of list) {
+                const parts = lora.replace(/\\/g, "/").split("/");
+                const folder = parts.length > 1 ? parts.slice(0, -1).join("/") : "Root";
+                if (!folders.has(folder)) folders.set(folder, []);
+                folders.get(folder)!.push(lora);
+            }
+
+            if (folders.size === 1 && folders.has("Root")) {
+                return list.map(l => this.createLoraItem(l));
+            }
+
+            const nodes: LoraTreeItem[] = [];
+            for (const [folder, items] of folders.entries()) {
+                nodes.push(new LoraTreeItem(
+                    folder,
+                    vscode.TreeItemCollapsibleState.Collapsed,
+                    "loraFolder",
+                    items
+                ));
+            }
+            return nodes.sort((a, b) => a.label.localeCompare(b.label));
+        }
+
+        if (element.contextValue === "loraFolder" && element.childItems) {
+            return element.childItems.map(l => this.createLoraItem(l));
+        }
+
+        return [];
+    }
+
+    private createLoraItem(loraName: string): LoraTreeItem {
+        const displayName = loraName.replace(/\\/g, "/").split("/").pop() || loraName;
+        const item = new LoraTreeItem(
+            displayName,
+            vscode.TreeItemCollapsibleState.None,
+            "loraItem"
+        );
+        item.loraFullName = loraName;
+        item.description = `<lora:${loraName}:0.8>`;
+        item.tooltip = `LoRA: ${loraName}\nClick to insert <lora:${loraName}:0.8> into active editor`;
+        item.command = {
+            command: "modusflow.insertLoraSnippet",
+            title: "Insert LoRA Snippet",
+            arguments: [loraName]
+        };
+
+        this.client.getLoraMetadata(loraName).then(meta => {
+            if (meta) {
+                this._metaCache.set(loraName, meta);
+                let tip = `LoRA: ${loraName}`;
+                if (meta.modelName) tip += `\nModel: ${meta.modelName}`;
+                if (meta.trainedWords && meta.trainedWords.length > 0) {
+                    tip += `\nTrigger Words: ${meta.trainedWords.slice(0, 10).join(", ")}`;
+                    item.description = `[${meta.trainedWords.slice(0, 3).join(", ")}]`;
+                }
+                item.tooltip = tip;
+            }
+        }).catch(() => {});
+
+        return item;
+    }
+}
+
+export class LoraTreeItem extends vscode.TreeItem {
+    public loraFullName?: string;
+
+    constructor(
+        public readonly label: string,
+        public readonly collapsibleState: vscode.TreeItemCollapsibleState,
+        public readonly contextValue: string,
+        public readonly childItems?: string[]
+    ) {
+        super(label, collapsibleState);
+        if (contextValue === "loraFolder") {
+            this.iconPath = new vscode.ThemeIcon("folder");
+        } else {
+            this.iconPath = new vscode.ThemeIcon("layers");
+        }
+    }
+}
+
 

@@ -49,6 +49,8 @@ const DEFAULT_THEMES = {
         weight: "#34d399",
         curator: "#4ade80",
         lora: "#f87171",
+        keyword: "#e879f9",
+        function: "#818cf8",
         plain_text: "#e2e8f0",
         caret_color: "#ffffff",
         bg_color: "#181825"
@@ -62,6 +64,8 @@ const DEFAULT_THEMES = {
         weight: "#99cc99",
         curator: "#6699cc",
         lora: "#f2777a",
+        keyword: "#cc99cc",
+        function: "#6699cc",
         plain_text: "#cccccc",
         caret_color: "#cccccc",
         bg_color: "#2d2d2d"
@@ -75,6 +79,8 @@ const DEFAULT_THEMES = {
         weight: "#22c55e",
         curator: "#39ff14",
         lora: "#ff0055",
+        keyword: "#ff007f",
+        function: "#ffe600",
         plain_text: "#f3f4f6",
         caret_color: "#00f0ff",
         bg_color: "#0d0e15"
@@ -88,6 +94,8 @@ const DEFAULT_THEMES = {
         weight: "#a9dc76",
         curator: "#ab9df2",
         lora: "#ff6188",
+        keyword: "#ff6188",
+        function: "#a9dc76",
         plain_text: "#fcfcfa",
         caret_color: "#ffd866",
         bg_color: "#221f22"
@@ -101,6 +109,8 @@ const DEFAULT_THEMES = {
         weight: "#50fa7b",
         curator: "#50fa7b",
         lora: "#ff5555",
+        keyword: "#ff79c6",
+        function: "#50fa7b",
         plain_text: "#f8f8f2",
         caret_color: "#f8f8f2",
         bg_color: "#1e1f29"
@@ -114,6 +124,8 @@ const DEFAULT_THEMES = {
         weight: "#a3be8c",
         curator: "#8fbcbb",
         lora: "#bf616a",
+        keyword: "#81a1c1",
+        function: "#8fbcbb",
         plain_text: "#eceff4",
         caret_color: "#88c0d0",
         bg_color: "#242933"
@@ -127,6 +139,8 @@ const DEFAULT_THEMES = {
         weight: "#859900",
         curator: "#268bd2",
         lora: "#cb4b16",
+        keyword: "#859900",
+        function: "#268bd2",
         plain_text: "#93a1a1",
         caret_color: "#268bd2",
         bg_color: "#001e26"
@@ -140,6 +154,8 @@ const DEFAULT_THEMES = {
         weight: "#10b981",
         curator: "#22c55e",
         lora: "#ef4444",
+        keyword: "#f43f5e",
+        function: "#eab308",
         plain_text: "#ffffff",
         caret_color: "#ffffff",
         bg_color: "#09090b"
@@ -471,7 +487,8 @@ function injectSyntaxStyles() {
             box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.1);
             max-height: 230px;
             overflow-y: auto;
-            z-index: 100030;
+            z-index: 100050 !important;
+            pointer-events: auto !important;
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
             display: none;
             box-sizing: border-box;
@@ -592,8 +609,10 @@ function injectSyntaxStyles() {
             overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             color: #cdd6f4;
-            min-width: 650px;
-            min-height: 480px;
+            min-width: min(650px, calc(100vw - 20px));
+            min-height: min(480px, calc(100vh - 20px));
+            max-width: calc(100vw - 20px);
+            max-height: calc(100vh - 20px);
             resize: both;
             box-sizing: border-box;
         }
@@ -687,7 +706,7 @@ function injectSyntaxStyles() {
             min-height: 0;
             border: 1px solid #313244;
             border-radius: 8px;
-            overflow: hidden;
+            overflow: visible;
             background: #181825;
         }
         .modusflow-popout-ta {
@@ -989,6 +1008,127 @@ const PROMPT_SNIPPETS = {
     "!optics": "85mm prime lens, f/1.8 aperture, shallow depth of field, subtle film grain, natural distortion"
 };
 
+// ── Tab & Shift+Tab Indent/Dedent Handling (4 Spaces) ─────────────────────────
+function handleEditorTabKey(ta, e, onUpdate) {
+    if (e.key !== "Tab" || e.ctrlKey || e.altKey || e.metaKey) return false;
+
+    const TAB_SPACES = "    ";
+    const TAB_SIZE = 4;
+    const text = ta.value;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+
+    // Shift + Tab: Dedent / Outdent
+    if (e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+        let lineEnd = text.indexOf("\n", end);
+        if (lineEnd === -1) lineEnd = text.length;
+
+        const block = text.slice(lineStart, lineEnd);
+        const lines = block.split("\n");
+        let firstLineRemoved = 0;
+        let totalRemoved = 0;
+
+        const newLines = lines.map((line, idx) => {
+            let removed = 0;
+            if (line.startsWith("\t")) {
+                removed = 1;
+                line = line.slice(1);
+            } else {
+                while (removed < TAB_SIZE && line.startsWith(" ")) {
+                    line = line.slice(1);
+                    removed++;
+                }
+            }
+            if (idx === 0) firstLineRemoved = removed;
+            totalRemoved += removed;
+            return line;
+        });
+
+        const newBlock = newLines.join("\n");
+        ta.setRangeText(newBlock, lineStart, lineEnd, "select");
+        const newStart = Math.max(lineStart, start - firstLineRemoved);
+        const newEnd = Math.max(newStart, end - totalRemoved);
+        ta.selectionStart = newStart;
+        ta.selectionEnd = newEnd;
+        onUpdate?.();
+        return true;
+    }
+
+    // Normal Tab: Check for macro snippet trigger first (!snippet)
+    let wordStart = start;
+    while (wordStart > 0 && /[!a-zA-Z0-9_-]/.test(text[wordStart - 1])) wordStart--;
+    const trigger = text.slice(wordStart, start);
+    if (trigger.startsWith("!") && typeof PROMPT_SNIPPETS !== "undefined" && PROMPT_SNIPPETS[trigger.toLowerCase()]) {
+        e.preventDefault();
+        e.stopPropagation();
+        const expansion = PROMPT_SNIPPETS[trigger.toLowerCase()];
+        ta.setRangeText(expansion, wordStart, start, "end");
+        onUpdate?.();
+        return true;
+    }
+
+    // Normal Tab: Indent / Tab over 4 spaces
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (start !== end && text.slice(start, end).includes("\n")) {
+        // Multi-line selection: indent each line by 4 spaces
+        const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+        let lineEnd = text.indexOf("\n", end);
+        if (lineEnd === -1) lineEnd = text.length;
+
+        const block = text.slice(lineStart, lineEnd);
+        const lines = block.split("\n");
+        const newLines = lines.map(line => TAB_SPACES + line);
+        const newBlock = newLines.join("\n");
+
+        ta.setRangeText(newBlock, lineStart, lineEnd, "select");
+        ta.selectionStart = start + TAB_SIZE;
+        ta.selectionEnd = end + (lines.length * TAB_SIZE);
+        onUpdate?.();
+        return true;
+    } else {
+        // Single cursor or inline selection: replace selection with 4 spaces
+        ta.setRangeText(TAB_SPACES, start, end, "end");
+        onUpdate?.();
+        return true;
+    }
+}
+
+function attachTabPasteNormalization(ta, onUpdate) {
+    if (!ta || ta._hasTabPasteNorm) return;
+    ta._hasTabPasteNorm = true;
+
+    ta.addEventListener("paste", (e) => {
+        const clipData = e.clipboardData || window.clipboardData;
+        if (!clipData) return;
+        const pasted = clipData.getData("text");
+        if (pasted && pasted.includes("\t")) {
+            e.preventDefault();
+            const converted = pasted.replace(/\t/g, "    ");
+            const start = ta.selectionStart;
+            const end = ta.selectionEnd;
+            ta.setRangeText(converted, start, end, "end");
+            ta.dispatchEvent(new Event("input", { bubbles: true }));
+            onUpdate?.();
+        }
+    });
+}
+
+function normalizeRawTabs(ta) {
+    if (!ta || typeof ta.value !== "string" || !ta.value.includes("\t")) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const beforeCount = (ta.value.slice(0, start).match(/\t/g) || []).length;
+    ta.value = ta.value.replace(/\t/g, "    ");
+    ta.selectionStart = start + beforeCount * 3;
+    ta.selectionEnd = end + beforeCount * 3;
+}
+
 function estimateTokens(text) {
     if (!text) return { words: 0, tokens: 0, chunks: 0, currentChunk: 1, chunkProgress: 0, hasBreak: false };
     const clean = text
@@ -1098,12 +1238,139 @@ function tokenizeAndHighlight(text, theme) {
     addMatches(/\/\/[^\r\n]*|#[^\r\n]*/g, "comment");
     // 4. LoRA tags: <lora:...>
     addMatches(/<lora:[^>\r\n]+>/gi, "lora");
-    // 5. Prompt Variables: $name = value; or $name
-    addMatches(/\$[a-zA-Z0-9_-]+(?:\s*=\s*[^;\r\n]+;?)?/g, "variable");
+    // 4.5 CASE Statements: {$var: val1 => result1 | * => default} or {case $var: ...}
+    const addCaseMatches = () => {
+        let ci = 0;
+        const cn = text.length;
+        while (ci < cn) {
+            const isCasePrefix = text.slice(ci, ci + 6).toLowerCase() === "{case ";
+            const isVarPrefix = text.slice(ci, ci + 2) === "{$";
+            if (isCasePrefix || isVarPrefix) {
+                const cStart = ci;
+                ci += isCasePrefix ? 6 : 2;
+                let cDepth = 1;
+                while (ci < cn && cDepth > 0) {
+                    const ch = text[ci];
+                    if (ch === "{") cDepth++;
+                    else if (ch === "}") cDepth--;
+                    ci++;
+                }
+                if (cDepth === 0) {
+                    const block = text.slice(cStart, ci);
+                    const inner = block.slice(1, -1);
+                    if (inner.includes(":") && inner.includes("=>")) {
+                        const collides = intervals.some(iv => (cStart < iv.end && ci > iv.start));
+                        if (!collides) {
+                            intervals.push({ start: cStart, end: ci, type: "case_statement" });
+                        }
+                    }
+                }
+            } else {
+                ci++;
+            }
+        }
+    };
+    addCaseMatches();
+    // 4.6 Ternary Conditionals: {$var==val?true:false}, {$var in {a|b}?true:false}, etc. with nested brace support
+    const addTernaryMatches = () => {
+        let ti = 0;
+        const tn = text.length;
+        while (ti < tn) {
+            if (text.slice(ti, ti + 2) === "{$") {
+                const tStart = ti;
+                ti += 2;
+                let tDepth = 1;
+                while (ti < tn && tDepth > 0) {
+                    const ch = text[ti];
+                    if (ch === "{") tDepth++;
+                    else if (ch === "}") tDepth--;
+                    ti++;
+                }
+                if (tDepth === 0) {
+                    const block = text.slice(tStart, ti);
+                    const inner = block.slice(1, -1);
+                    let hasQ = false;
+                    let id = 0;
+                    for (let idx = 0; idx < inner.length; idx++) {
+                        const c = inner[idx];
+                        if (c === "{") id++;
+                        else if (c === "}") id--;
+                        else if (c === "?" && id === 0) {
+                            hasQ = true;
+                            break;
+                        }
+                    }
+                    if (hasQ && !inner.includes("=>")) {
+                        const collides = intervals.some(iv => (tStart < iv.end && ti > iv.start));
+                        if (!collides) {
+                            intervals.push({ start: tStart, end: ti, type: "ternary" });
+                        }
+                    }
+                }
+            } else {
+                ti++;
+            }
+        }
+    };
+    addTernaryMatches();
+    // 4.7 Inline Negative Injections: {!neg: ...}
+    addMatches(/\{!neg:[^}]+\}/gi, "inline_neg");
+    // 4.8 Environment & Workflow Macros: %seed%, %date%, %sampler%, %steps%, etc.
+    addMatches(/%[a-zA-Z0-9_]+%/g, "macro");
+
+    // 4.9 Function & Macro Definitions: fn name(...) or def name(...)
+    const addFuncDefMatches = () => {
+        const re = /\b(fn|def)\s+([a-zA-Z0-9_]+)/g;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+            const kwStart = m.index;
+            const kwEnd = kwStart + m[1].length;
+            const fnStart = m.index + m[0].indexOf(m[2]);
+            const fnEnd = fnStart + m[2].length;
+            if (!intervals.some(iv => kwStart < iv.end && kwEnd > iv.start)) {
+                intervals.push({ start: kwStart, end: kwEnd, type: "keyword" });
+            }
+            if (!intervals.some(iv => fnStart < iv.end && fnEnd > iv.start)) {
+                intervals.push({ start: fnStart, end: fnEnd, type: "function" });
+            }
+        }
+    };
+    addFuncDefMatches();
+
+    // 4.10 Imports: @import and as
+    addMatches(/@import\b/g, "keyword");
+
+    // 4.11 Macro Invocations: @functionName(...) or @macroName
+    addMatches(/@[a-zA-Z0-9_]+/g, "function");
+
+    // 4.12 Loops & Flow Keywords
+    addMatches(/\brepeat\b(?=\s*\()/g, "keyword");
+    addMatches(/\bfor\b(?=\s+(?:\[[^\]]+\]|\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)?)\s+in\b)/g, "keyword");
+    addMatches(/(?<=\bfor\s+(?:\[[^\]]+\]|\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)?)\s+)in\b/g, "keyword");
+    addMatches(/\bas\b(?=\s+\$[a-zA-Z0-9_]+)/g, "keyword");
+    addMatches(/\b(switch|return)\b(?=[\s(:])/g, "keyword");
+    addMatches(/\bcase\b(?=[\s:$])/g, "keyword");
+
+    // 4.13 Built-in Functions: range(...), rand(...)
+    addMatches(/\b(range|rand)\b(?=\s*\()/g, "function");
+
+    // 5. Prompt Variables: Synced Tuples, Multiline Blocks ({...}, """..."""), Piped Filters, or $name = value
+    addMatches(/\[\s*\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)*\s*\]\s*=\s*\{[^{}]+\};?/g, "variable");
+    addMatches(/\$[a-zA-Z0-9_]+\s*=\s*(?:"""[\s\S]*?"""|'''[\s\S]*?''')[;\s]*/g, "variable");
+    // Standard variables, indexed items, and property accesses: $var, $var[0], $var.prop
+    addMatches(/\$[a-zA-Z0-9_]+(?:\[\d+\])*(?:\.[a-zA-Z0-9_]+\b(?!\s*\())*/g, "variable");
+
+    // 5.1 Methods & Properties on objects/lists: .keys(), .values(), .items(), .length, .size()
+    addMatches(/(?<=\.)(?:[a-zA-Z0-9_]+\b(?=\s*\()|length\b)/g, "function");
+
+    // 5.2 Pipe Filters: | upper, | lower, | title, etc.
+    addMatches(/(?<=(?:\$[a-zA-Z0-9_.]+(?:\([^)]*\))?|\)|\])\s*\|\s*)([a-zA-Z0-9_]+)\b/g, "function");
     // 6. Curator placeholders: {curator}, {curator2}, etc.
     addMatches(/\{curator\d*\}/gi, "curator");
-    // 7. Shuffle syntax: {shuffle:...}
-    addMatches(/\{shuffle:[^}]+\}/gi, "shuffle");
+    // 7. Shuffle & Sequential syntax: {shuffle:...}, {seq:...}, {cycle:...}
+    addMatches(/\{(?:shuffle|seq|cycle):[^}]+\}/gi, "shuffle");
+    // 7.5 Numerical Ranges: {range:...}, {rand:...}
+    addMatches(/\{(?:range|rand):[^}]+\}/gi, "choice");
     // 8. Pick-N & Ranges: {2$$...}, {1-3$$...}
     addMatches(/\{\s*\d+(?:-\d+)?\$\$[^}]+\}/g, "choice");
     // 9. Weighted Odds: {80::a|20::b}
@@ -1193,6 +1460,32 @@ function tokenizeAndHighlight(text, theme) {
                 title += " (De-emphasized)";
             }
             html += `<span class="modusflow-weight-token" data-weight="${w}" style="color: ${baseColor}; ${extraStyle}" title="${title}">${tokenText}</span>`;
+        } else if (iv.type === "case_statement") {
+            const keywordColor = theme.keyword || theme.choice || "#cba6f7";
+            const varColor = theme.variable || "#38bdf8";
+            let innerHtml = tokenText;
+            innerHtml = innerHtml.replace(/^(\{)(case\b)/i, (m, b, kw) => `${b}<span style="color: ${keywordColor}; font-weight: bold;">${kw}</span>`);
+            innerHtml = innerHtml.replace(/(\$[a-zA-Z0-9_]+)/g, `<span style="color: ${varColor}; font-weight: 600;">$1</span>`);
+            innerHtml = innerHtml.replace(/(=&gt;|=>)/g, `<span style="color: ${keywordColor}; font-weight: bold;">$1</span>`);
+            html += `<span style="color: ${theme.choice || '#c084fc'}; font-weight: 500;" title="CASE Statement: ${tokenText}">${innerHtml}</span>`;
+        } else if (iv.type === "ternary") {
+            const keywordColor = theme.keyword || theme.choice || "#cba6f7";
+            const varColor = theme.variable || "#38bdf8";
+            let innerHtml = tokenText;
+            innerHtml = innerHtml.replace(/(\$[a-zA-Z0-9_]+)/g, `<span style="color: ${varColor}; font-weight: 600;">$1</span>`);
+            innerHtml = innerHtml.replace(/(\bin\b)/g, `<span style="color: ${keywordColor}; font-weight: bold;">$1</span>`);
+            html += `<span style="color: ${theme.choice || '#c084fc'}; font-weight: 500;" title="Ternary Conditional: ${tokenText}">${innerHtml}</span>`;
+        } else if (iv.type === "keyword") {
+            const color = theme.keyword || theme.choice || "#cba6f7";
+            html += `<span style="color: ${color}; font-weight: bold;" title="Keyword: ${tokenText}">${tokenText}</span>`;
+        } else if (iv.type === "function") {
+            const color = theme.function || theme.variable || "#89b4fa";
+            html += `<span style="color: ${color}; font-weight: 600;" title="Function/Macro: ${tokenText}">${tokenText}</span>`;
+        } else if (iv.type === "inline_neg") {
+            html += `<span style="color: #f87171; background: rgba(239, 68, 68, 0.15); border: 1px dashed rgba(248, 113, 113, 0.4); border-radius: 4px; padding: 0 4px; font-weight: 500;" title="Inline Negative Injection (Automatically extracted & deduplicated into Negative Prompt)">${tokenText}</span>`;
+        } else if (iv.type === "macro") {
+            const color = theme.wildcard || theme.variable || "#38bdf8";
+            html += `<span style="color: ${color}; font-weight: bold; background: rgba(56, 189, 248, 0.12); border-radius: 3px; padding: 0 2px;" title="Workflow & Environment Macro: ${tokenText}">${tokenText}</span>`;
         } else {
             const color = theme[iv.type] || theme.plain_text || "#e2e8f0";
             html += `<span style="color: ${color};">${tokenText}</span>`;
@@ -1226,6 +1519,45 @@ function countUnclosedParens(text) {
         }
     }
     return unclosed + depth;
+}
+
+function detectPromptHealth(text) {
+    if (!text || typeof text !== "string") {
+        return { duplicates: [], heavyWeights: [] };
+    }
+    const noComments = text
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/(?:^|\n)\s*(?:#|\/\/)[^\n]*/g, "");
+
+    const rawTags = noComments
+        .split(/[,\n]/)
+        .map(t => t.trim())
+        .filter(t => t && !t.startsWith("#") && !t.startsWith("//") && !t.startsWith("/*") && !t.startsWith("$"));
+
+    const duplicates = [];
+    const seenTags = new Set();
+    for (const t of rawTags) {
+        const lower = t.toLowerCase();
+        let norm = lower.replace(/^\(+|\)+$/g, "").trim();
+        norm = norm.replace(/:\s*[0-9.]+\s*$/, "").trim();
+        const key = norm || lower;
+        if (seenTags.has(key) && !duplicates.includes(t)) {
+            duplicates.push(t);
+        }
+        seenTags.add(key);
+    }
+
+    const heavyWeights = [];
+    const weightMatches = text.matchAll(/\([^():\r\n]+:\s*([0-9.]+)\)/g);
+    for (const m of weightMatches) {
+        if (/^\(\s*\d+\s*:\s*\d+\s*\)$/.test(m[0])) continue;
+        const val = parseFloat(m[1]);
+        if (!isNaN(val) && val > 1.6) {
+            heavyWeights.push(m[0]);
+        }
+    }
+
+    return { duplicates, heavyWeights };
 }
 
 function attachSyntaxHighlighter(widget, node) {
@@ -1302,6 +1634,23 @@ function attachSyntaxHighlighter(widget, node) {
 
             backdrop.scrollTop = ta.scrollTop;
             backdrop.scrollLeft = ta.scrollLeft;
+
+            if (healthBadge) {
+                healthBadge.style.bottom = "auto";
+                healthBadge.style.top = (ta.offsetTop + ta.offsetHeight - 26) + "px";
+                healthBadge.style.left = (ta.offsetLeft + 8) + "px";
+            }
+            if (tokenBadge) {
+                tokenBadge.style.bottom = "auto";
+                tokenBadge.style.top = (ta.offsetTop + ta.offsetHeight - 26) + "px";
+                tokenBadge.style.right = Math.max(8, (parent.clientWidth - (ta.offsetLeft + ta.offsetWidth) + 8)) + "px";
+            }
+            if (waveformStrip) {
+                waveformStrip.style.bottom = "auto";
+                waveformStrip.style.top = (ta.offsetTop + ta.offsetHeight - 3) + "px";
+                waveformStrip.style.left = ta.offsetLeft + "px";
+                waveformStrip.style.width = ta.offsetWidth + "px";
+            }
         }
 
         const tokenBadge = document.createElement("div");
@@ -1350,28 +1699,9 @@ function attachSyntaxHighlighter(widget, node) {
             }
 
             // Prompt Health & Linter
-            const textVal = ta.value || "";
-            const rawTags = textVal
-                .split(/[,\n]/)
-                .map(t => t.trim().toLowerCase())
-                .filter(t => t && !t.startsWith("#") && !t.startsWith("//") && !t.startsWith("/*") && !t.startsWith("$"));
-            const duplicates = [];
-            const seenTags = new Set();
-            for (const t of rawTags) {
-                if (seenTags.has(t) && !duplicates.includes(t)) {
-                    duplicates.push(t);
-                }
-                seenTags.add(t);
-            }
-            const heavyWeights = [];
-            const weightMatches = (ta.value || "").matchAll(/\([^():\r\n]+:\s*([0-9.]+)\)/g);
-            for (const m of weightMatches) {
-                if (/^\(\s*\d+\s*:\s*\d+\s*\)$/.test(m[0])) continue;
-                const val = parseFloat(m[1]);
-                if (!isNaN(val) && val > 1.6) {
-                    heavyWeights.push(m[0]);
-                }
-            }
+            const health = detectPromptHealth(ta.value || "");
+            const duplicates = health.duplicates;
+            const heavyWeights = health.heavyWeights;
 
             // Update Waveform Strip
             const totalToks = stats.tokens || 0;
@@ -1450,7 +1780,13 @@ function attachSyntaxHighlighter(widget, node) {
         widget._updateSyntaxHighlight = render;
         widget._applyTheme = render;
 
+        attachTabPasteNormalization(ta, () => {
+            widget.value = ta.value;
+            render();
+        });
+
         ta.addEventListener("input", () => {
+            normalizeRawTabs(ta);
             render();
             reportCanvasNode(node, true);
         });
@@ -1525,13 +1861,18 @@ function fetchWildcardList(force = false) {
         });
 }
 
+let _fetchingWildcards = false;
+let _fetchingLoras = false;
+
 function fetchLoraList(force = false) {
     if (_cachedLoras && !force) return Promise.resolve(_cachedLoras);
+    if (_fetchingLoras) return Promise.resolve(_cachedLoras || []);
+    _fetchingLoras = true;
     return fetch("/modusflow/get_loras")
         .then(r => r.json())
         .then(data => {
             if (data.success && Array.isArray(data.data)) {
-                _cachedLoras = data.data.map(name => name.replace(/\.(safetensors|pt|ckpt|bin)$/i, ""));
+                _cachedLoras = data.data.map(name => name.replace(/\.(safetensors|pt|ckpt|bin)$/i, "").replace(/\\/g, "/"));
             } else {
                 _cachedLoras = [];
             }
@@ -1540,6 +1881,9 @@ function fetchLoraList(force = false) {
         .catch(err => {
             console.debug("[ModusFlow Autocomplete] LoRA fetch:", err.message);
             return _cachedLoras || [];
+        })
+        .finally(() => {
+            _fetchingLoras = false;
         });
 }
 
@@ -1643,12 +1987,16 @@ function detectTrigger(text, cursor) {
     }
 
     // 5. LoRA tag: <lora: or <l
-    const loraMatch = sub.match(/(?:^|[\s,.:;!?([{\"])(<(?:lora:)?([a-zA-Z0-9_.\/-]*))$/i);
+    const loraMatch = sub.match(/(?:^|[\s,.:;!?([{\"])(<(?:lora:)?([a-zA-Z0-9_.\/\\-]*))$/i);
     if (loraMatch) {
+        let q = (loraMatch[2] || "").replace(/\\/g, "/");
+        if (/^l(ora)?$/i.test(q) && !loraMatch[1].includes(":")) {
+            q = "";
+        }
         return {
             type: "lora",
             fullToken: loraMatch[1],
-            query: loraMatch[2] || "",
+            query: q,
             replaceStart: cursor - loraMatch[1].length,
             replaceEnd: cursor
         };
@@ -1807,7 +2155,9 @@ function attachAutocomplete(widget, node) {
 
     let attempts = 0;
     const bind = () => {
-        const ta = widget.inputEl || widget.element;
+        const ta = (widget instanceof HTMLElement && widget.tagName === "TEXTAREA")
+            ? widget
+            : (widget?.inputEl || widget?.element);
         if (!ta || !ta.parentElement) {
             if (attempts++ < 30) requestAnimationFrame(bind);
             return;
@@ -1935,7 +2285,9 @@ function attachAutocomplete(widget, node) {
             if (!currentTrigger) return;
             const replacement = formatReplacement(item, currentTrigger.type);
             ta.setRangeText(replacement, currentTrigger.replaceStart, currentTrigger.replaceEnd, "end");
-            widget.value = ta.value;
+            if (widget && 'value' in widget && widget !== ta) {
+                widget.value = ta.value;
+            }
             ta.dispatchEvent(new Event("input", { bubbles: true }));
             closeMenu();
         }
@@ -1947,12 +2299,12 @@ function attachAutocomplete(widget, node) {
                 return;
             }
 
-            if (trigger.type === "wildcard" && !_cachedWildcards) {
-                fetchWildcardList().then(() => checkTriggerAndSuggest());
+            if (trigger.type === "wildcard" && (!_cachedWildcards || _cachedWildcards.length === 0) && !_fetchingWildcards) {
+                fetchWildcardList(true).then(() => checkTriggerAndSuggest());
                 return;
             }
-            if (trigger.type === "lora" && !_cachedLoras) {
-                fetchLoraList().then(() => checkTriggerAndSuggest());
+            if (trigger.type === "lora" && (!_cachedLoras || _cachedLoras.length === 0) && !_fetchingLoras) {
+                fetchLoraList(true).then(() => checkTriggerAndSuggest());
                 return;
             }
 
@@ -4265,6 +4617,10 @@ app.registerExtension({
                         callback: () => showPopOutStudio(this)
                     },
                     {
+                        content: "🎯 Reset / Center Pop-Out Studio",
+                        callback: () => resetPopOutStudioPosition(this)
+                    },
+                    {
                         content: "⇄ Convert Style: Tags ↔ Expressions (Pony ↔ Flux)",
                         callback: () => convertPromptStyle(this)
                     },
@@ -4793,23 +5149,20 @@ app.registerExtension({
                             return;
                         }
 
-                        // 11. Prompt Snippets (Macros) on Tab
-                        if (e.key === "Tab" && !e.shiftKey && !ctrlOrCmd && !e.altKey) {
-                            const text = ta.value;
-                            const pos = ta.selectionStart;
-                            let wordStart = pos;
-                            while (wordStart > 0 && /[!a-zA-Z0-9_-]/.test(text[wordStart - 1])) wordStart--;
-                            const trigger = text.slice(wordStart, pos);
-                            if (trigger.startsWith("!") && PROMPT_SNIPPETS[trigger.toLowerCase()]) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                const expansion = PROMPT_SNIPPETS[trigger.toLowerCase()];
-                                ta.setRangeText(expansion, wordStart, pos, "end");
+                        // 11. Tab and Shift+Tab (4 spaces indent/dedent & macro snippets)
+                        if (e.key === "Tab") {
+                            if (handleEditorTabKey(ta, e, () => {
                                 widget.value = ta.value;
                                 widget._updateSyntaxHighlight?.();
+                            })) {
                                 return;
                             }
                         }
+                    });
+
+                    attachTabPasteNormalization(ta, () => {
+                        widget.value = ta.value;
+                        widget._updateSyntaxHighlight?.();
                     });
                 };
 
@@ -7346,6 +7699,79 @@ app.registerExtension({
             }
 
             // ── Pop-Out Prompt Studio (Floating & Fullscreen Workstation) ─────────
+            function clampPopoutWindowToViewport(win, forceCenter = false) {
+                if (!win || win.classList.contains("is-maximized") || win.classList.contains("is-minimized")) return;
+
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+
+                let w = parseInt(win.style.width, 10) || win.offsetWidth || Math.min(1000, vw - 40);
+                let h = parseInt(win.style.height, 10) || win.offsetHeight || Math.min(700, vh - 40);
+
+                // Ensure dimensions fit the screen
+                if (w > vw - 20) {
+                    w = Math.max(320, vw - 20);
+                    win.style.width = `${w}px`;
+                }
+                if (h > vh - 20) {
+                    h = Math.max(240, vh - 20);
+                    win.style.height = `${h}px`;
+                }
+
+                if (forceCenter) {
+                    const top = Math.max(10, Math.floor((vh - h) / 2));
+                    const left = Math.max(10, Math.floor((vw - w) / 2));
+                    win.style.top = `${top}px`;
+                    win.style.left = `${left}px`;
+                    return;
+                }
+
+                let top = parseInt(win.style.top, 10);
+                let left = parseInt(win.style.left, 10);
+
+                if (isNaN(top)) top = Math.max(10, Math.floor((vh - h) / 2));
+                if (isNaN(left)) left = Math.max(10, Math.floor((vw - w) / 2));
+
+                // Always pull the left edge back if it is off-screen (< 10px)
+                if (left < 10) left = 10;
+                // Ensure right edge doesn't strand the window completely past the right
+                const maxLeft = Math.max(10, vw - Math.min(w, 150));
+                left = Math.min(left, maxLeft);
+                if (left + w > vw - 10) {
+                    left = Math.max(10, vw - w - 10);
+                }
+
+                // Always pull top edge back if off-screen (< 10px)
+                if (top < 10) top = 10;
+                const maxTop = Math.max(10, vh - 50);
+                top = Math.min(top, maxTop);
+                if (top + h > vh - 10) {
+                    top = Math.max(10, vh - h - 10);
+                }
+
+                win.style.left = `${left}px`;
+                win.style.top = `${top}px`;
+            }
+
+            function resetPopOutStudioPosition(node) {
+                try {
+                    localStorage.removeItem("modusflow_popout_geometry");
+                } catch (_) {}
+                if (node) node._popoutSavedRect = null;
+                if (node && node._popoutStudioEl && document.body.contains(node._popoutStudioEl)) {
+                    node._popoutStudioEl.classList.remove("is-minimized");
+                    node._popoutStudioEl.classList.remove("is-maximized");
+                    clampPopoutWindowToViewport(node._popoutStudioEl, true);
+                    node._popoutStudioEl.querySelector("textarea")?.focus();
+                    showStudioToast("🎯 Prompt Studio centered on screen");
+                } else if (node) {
+                    showPopOutStudio(node);
+                    if (node._popoutStudioEl) {
+                        clampPopoutWindowToViewport(node._popoutStudioEl, true);
+                    }
+                }
+            }
+
             function showPopOutStudio(node) {
                 if (node._popoutStudioEl && document.body.contains(node._popoutStudioEl)) {
                     if (node._popoutStudioEl.classList.contains("is-minimized")) {
@@ -7353,6 +7779,7 @@ app.registerExtension({
                     }
                     const currentZ = parseInt(node._popoutStudioEl.style.zIndex || "10001", 10);
                     node._popoutStudioEl.style.zIndex = String(currentZ + 1);
+                    clampPopoutWindowToViewport(node._popoutStudioEl);
                     node._popoutStudioEl.querySelector("textarea")?.focus();
                     showStudioToast("Prompt Studio brought to front");
                     return;
@@ -7394,6 +7821,7 @@ app.registerExtension({
                     win.style.width = `${defW}px`;
                     win.style.height = `${defH}px`;
                 }
+                clampPopoutWindowToViewport(win);
 
                 // ── Header Bar ──
                 const header = document.createElement("div");
@@ -7437,6 +7865,16 @@ app.registerExtension({
                     showStudioToast("🚀 Prompt queued to ComfyUI!");
                 };
 
+                const centerBtn = document.createElement("button");
+                centerBtn.className = "modusflow-popout-btn";
+                centerBtn.innerHTML = "⌖";
+                centerBtn.title = "Center Studio on screen";
+                centerBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    clampPopoutWindowToViewport(win, true);
+                    showStudioToast("Prompt Studio centered on screen");
+                };
+
                 const minBtn = document.createElement("button");
                 minBtn.className = "modusflow-popout-btn";
                 minBtn.innerHTML = "—";
@@ -7466,6 +7904,7 @@ app.registerExtension({
                 };
 
                 winControls.appendChild(queueBtn);
+                winControls.appendChild(centerBtn);
                 winControls.appendChild(minBtn);
                 winControls.appendChild(maxBtn);
                 winControls.appendChild(dockBtn);
@@ -7901,6 +8340,13 @@ app.registerExtension({
                 }
                 posBox.appendChild(posWaveform);
 
+                const posHealthBadge = document.createElement("div");
+                posHealthBadge.className = "modusflow-health-badge";
+                posHealthBadge.title = "Prompt Health & Deduplication";
+                posHealthBadge.style.bottom = "8px";
+                posHealthBadge.style.left = "10px";
+                posBox.appendChild(posHealthBadge);
+
                 posPane.appendChild(posBox);
 
                 // Right Pane: Negative
@@ -7982,6 +8428,13 @@ app.registerExtension({
                     negWaveform.appendChild(chunkEl);
                 }
                 negBox.appendChild(negWaveform);
+
+                const negHealthBadge = document.createElement("div");
+                negHealthBadge.className = "modusflow-health-badge";
+                negHealthBadge.title = "Prompt Health & Deduplication";
+                negHealthBadge.style.bottom = "8px";
+                negHealthBadge.style.left = "10px";
+                negBox.appendChild(negHealthBadge);
 
                 negPane.appendChild(negBox);
 
@@ -8089,6 +8542,7 @@ app.registerExtension({
                 }
 
                 function onPosInput() {
+                    normalizeRawTabs(posTa);
                     pw.value = posTa.value;
                     if (pw.inputEl) pw.inputEl.value = posTa.value;
                     pw._updateSyntaxHighlight?.();
@@ -8102,17 +8556,46 @@ app.registerExtension({
 
                     const stats = estimateTokens(posTa.value || "");
                     const unclosed = countUnclosedParens(posTa.value || "");
+                    const health = detectPromptHealth(posTa.value || "");
                     let statStr = `Pos: ${stats.words}w · ~${stats.tokens} tok (${stats.chunkProgress}/75 Ch.${stats.currentChunk})`;
                     if (unclosed > 0) statStr += ` · ⚠️ ${unclosed} unclosed`;
+                    if (health.duplicates.length > 0) statStr += ` · 🟡 ${health.duplicates.length} dup`;
                     posStatPill.textContent = statStr;
                     const sub = document.getElementById("mf-pos-popout-sub");
                     if (sub) sub.textContent = `${stats.words} words · ${stats.tokens} tokens`;
+
+                    if (health.duplicates.length > 0 || health.heavyWeights.length > 0) {
+                        posHealthBadge.style.display = "block";
+                        if (health.duplicates.length > 0) {
+                            posHealthBadge.textContent = `🟡 ${health.duplicates.length} duplicate${health.duplicates.length > 1 ? 's' : ''} [Fix]`;
+                            posHealthBadge.title = `Duplicate tags detected: ${health.duplicates.slice(0, 3).join(", ")}${health.duplicates.length > 3 ? '...' : ''} (Click to auto-dedupe)`;
+                            posHealthBadge.onclick = (e) => {
+                                e.stopPropagation();
+                                const before = posTa.value;
+                                const cleaned = prettifyPromptText(before);
+                                if (cleaned !== before) {
+                                    posTa.value = cleaned;
+                                    onPosInput();
+                                    showStudioToast(`Removed duplicate tag${health.duplicates.length > 1 ? 's' : ''}`);
+                                    pushPromptHistory(node, "Auto-deduped tags");
+                                }
+                            };
+                        } else {
+                            posHealthBadge.textContent = `⚠️ ${health.heavyWeights.length} high weight (>1.6)`;
+                            posHealthBadge.title = "High attention weights (>1.6) can distort or burn generations";
+                            posHealthBadge.onclick = null;
+                        }
+                    } else {
+                        posHealthBadge.style.display = "none";
+                        posHealthBadge.onclick = null;
+                    }
 
                     updateWaveform(posWaveform, posTa.value);
                     app.graph?.setDirtyCanvas(true, true);
                 }
 
                 function onNegInput() {
+                    normalizeRawTabs(negTa);
                     nw.value = negTa.value;
                     if (nw.inputEl) nw.inputEl.value = negTa.value;
                     nw._updateSyntaxHighlight?.();
@@ -8125,9 +8608,40 @@ app.registerExtension({
                     }
 
                     const stats = estimateTokens(negTa.value || "");
-                    negStatPill.textContent = `Neg: ${stats.words}w · ~${stats.tokens} tok`;
+                    const negHealth = detectPromptHealth(negTa.value || "");
+                    if (negHealth.duplicates.length > 0) {
+                        negStatPill.textContent = `Neg: ${stats.words}w · ~${stats.tokens} tok · 🟡 ${negHealth.duplicates.length} dup`;
+                    } else {
+                        negStatPill.textContent = `Neg: ${stats.words}w · ~${stats.tokens} tok`;
+                    }
                     const sub = document.getElementById("mf-neg-popout-sub");
                     if (sub) sub.textContent = `${stats.words} words · ${stats.tokens} tokens`;
+
+                    if (negHealth.duplicates.length > 0 || negHealth.heavyWeights.length > 0) {
+                        negHealthBadge.style.display = "block";
+                        if (negHealth.duplicates.length > 0) {
+                            negHealthBadge.textContent = `🟡 ${negHealth.duplicates.length} duplicate${negHealth.duplicates.length > 1 ? 's' : ''} [Fix]`;
+                            negHealthBadge.title = `Duplicate tags detected: ${negHealth.duplicates.slice(0, 3).join(", ")}${negHealth.duplicates.length > 3 ? '...' : ''} (Click to auto-dedupe)`;
+                            negHealthBadge.onclick = (e) => {
+                                e.stopPropagation();
+                                const before = negTa.value;
+                                const cleaned = prettifyPromptText(before);
+                                if (cleaned !== before) {
+                                    negTa.value = cleaned;
+                                    onNegInput();
+                                    showStudioToast(`Removed duplicate tag${negHealth.duplicates.length > 1 ? 's' : ''}`);
+                                    pushPromptHistory(node, "Auto-deduped tags");
+                                }
+                            };
+                        } else {
+                            negHealthBadge.textContent = `⚠️ ${negHealth.heavyWeights.length} high weight (>1.6)`;
+                            negHealthBadge.title = "High attention weights (>1.6) can distort or burn generations";
+                            negHealthBadge.onclick = null;
+                        }
+                    } else {
+                        negHealthBadge.style.display = "none";
+                        negHealthBadge.onclick = null;
+                    }
 
                     const val = (negTa.value || "").toLowerCase();
                     pedalBtns.forEach(({ btn, mod }) => {
@@ -8272,10 +8786,27 @@ app.registerExtension({
                 };
 
                 posTa.addEventListener("keydown", (e) => {
-                    handleUndoRedoShortcuts(e);
+                    if (handleUndoRedoShortcuts(e)) return;
+                    if (handleEditorTabKey(posTa, e, () => {
+                        onPosInput();
+                        onTypeWithHistory();
+                    })) return;
                 });
+                attachTabPasteNormalization(posTa, () => {
+                    onPosInput();
+                    onTypeWithHistory();
+                });
+
                 negTa.addEventListener("keydown", (e) => {
-                    handleUndoRedoShortcuts(e);
+                    if (handleUndoRedoShortcuts(e)) return;
+                    if (handleEditorTabKey(negTa, e, () => {
+                        onNegInput();
+                        onTypeWithHistory();
+                    })) return;
+                });
+                attachTabPasteNormalization(negTa, () => {
+                    onNegInput();
+                    onTypeWithHistory();
                 });
 
                 attachOllamaSelectionContextMenu(posTa, pw, node, onPosInput);
@@ -8345,6 +8876,12 @@ app.registerExtension({
                 let winStartX = 0;
                 let winStartY = 0;
 
+                header.addEventListener("dblclick", (e) => {
+                    if (e.target.tagName === "BUTTON" || e.target.tagName === "SELECT" || e.target.tagName === "INPUT") return;
+                    clampPopoutWindowToViewport(win, true);
+                    showStudioToast("🎯 Prompt Studio centered on screen");
+                });
+
                 header.addEventListener("mousedown", (e) => {
                     if (e.target.tagName === "BUTTON" || e.target.tagName === "SELECT" || e.target.tagName === "INPUT") return;
                     if (win.classList.contains("is-maximized")) return;
@@ -8359,14 +8896,17 @@ app.registerExtension({
                         if (!isDragging) return;
                         const dx = ev.clientX - dragStartX;
                         const dy = ev.clientY - dragStartY;
-                        win.style.left = `${Math.max(0, winStartX + dx)}px`;
-                        win.style.top = `${Math.max(0, winStartY + dy)}px`;
+                        const maxL = Math.max(10, window.innerWidth - 120);
+                        const maxT = Math.max(10, window.innerHeight - 50);
+                        win.style.left = `${Math.min(Math.max(10, winStartX + dx), maxL)}px`;
+                        win.style.top = `${Math.min(Math.max(10, winStartY + dy), maxT)}px`;
                     };
 
                     const onMouseUp = () => {
                         isDragging = false;
                         window.removeEventListener("mousemove", onMouseMove);
                         window.removeEventListener("mouseup", onMouseUp);
+                        clampPopoutWindowToViewport(win);
                         if (!win.classList.contains("is-maximized") && !win.classList.contains("is-minimized")) {
                             node._popoutSavedRect = {
                                 top: win.style.top,
@@ -8384,6 +8924,11 @@ app.registerExtension({
                     window.addEventListener("mouseup", onMouseUp);
                 });
 
+                const onWindowResize = () => {
+                    clampPopoutWindowToViewport(win);
+                };
+                window.addEventListener("resize", onWindowResize);
+
                 function toggleMaximize() {
                     const isMax = win.classList.toggle("is-maximized");
                     maxBtn.innerHTML = isMax ? "🗗" : "⇱";
@@ -8393,6 +8938,7 @@ app.registerExtension({
                         win.style.left = node._popoutSavedRect.left;
                         win.style.width = node._popoutSavedRect.width;
                         win.style.height = node._popoutSavedRect.height;
+                        clampPopoutWindowToViewport(win);
                     }
                     updatePopoutBackdrops();
                 }
@@ -8411,11 +8957,13 @@ app.registerExtension({
                         statGroup.style.display = "flex";
                         minBtn.innerHTML = "—";
                         minBtn.title = "Minimize to floating dock";
+                        clampPopoutWindowToViewport(win);
                         updatePopoutBackdrops();
                     }
                 }
 
                 function closePopout() {
+                    window.removeEventListener("resize", onWindowResize);
                     if (!win.classList.contains("is-maximized") && !win.classList.contains("is-minimized")) {
                         node._popoutSavedRect = {
                             top: win.style.top,
@@ -8444,6 +8992,10 @@ app.registerExtension({
                 onPosInput();
                 onNegInput();
                 pushPopoutHistory();
+                attachAutocomplete(posTa, node);
+                attachAutocomplete(negTa, node);
+                fetchLoraList(true);
+                fetchWildcardList(true);
                 posTa.focus();
                 showStudioToast("Prompt Studio popped out! (Drag header to move, 🚀 Queue to run)");
             }

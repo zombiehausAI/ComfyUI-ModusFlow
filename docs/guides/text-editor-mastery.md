@@ -113,6 +113,161 @@ portrait of an elven archer with $color eyes, wearing a matching $color hooded c
 ```
 ModusFlow evaluates `$color` once and replaces it everywhere it appears in the prompt.
 
+#### Multiline Variable Blocks
+Organize complex descriptions, character designs, or environment settings into clean, reusable blocks:
+* **Braced Blocks (`$var = { ... };`)**: Indentation is automatically trimmed, comments inside are filtered out, and nested choices/wildcards are fully resolved:
+  ```text
+  $outfit = {
+      intricate cybernetic titanium armor,
+      flowing midnight blue velvet cape,
+      dragon etched pauldrons,
+      glowing neon accents
+  };
+  portrait of a warrior wearing $outfit, sharp focus
+  ```
+* **Triple-Quoted Strings (`$var = """ ... """;`)**:
+  ```text
+  $setting = """
+      ancient moss-covered stone temple,
+      bioluminescent blue mushrooms,
+      soft atmospheric dust motes
+  """;
+  ```
+* **Semicolon-Terminated (`$var = ... ;`)**:
+  ```text
+  $camera =
+      shot on Hasselblad H6D-100c,
+      85mm portrait lens,
+      shallow depth of field;
+  ```
+
+### Ternary If/Else Conditionals (`{$var==val?true:false}`)
+Dynamically branch your prompt output based on evaluated variables or conditions:
+```text
+$color = {red|blue};
+portrait of a warrior wearing {$color==red?crimson dragonscale armor:azure plate mail}
+```
+* **Equality (`==`)**: Evaluates true when the variable matches the target value (e.g., `{$color==red?man:woman}`). Strictly uses `==` for comparisons so as not to confuse with variable assignment (`$var = value;`).
+* **Inequality (`!=`)**: Evaluates true when the variable does not match the target value (e.g., `{$weather!=rainy?clear sunny sky:stormy clouds}`).
+* **Truthiness (`{$var?true:false}`)**: Evaluates true if `$var` is defined, non-empty, and not `false`, `0`, or `none` (e.g., `{$wearing_hat?black fedora:messy hair}`).
+* **Optional False Branch**: If the colon and false branch are omitted, it cleanly evaluates to an empty string when false (e.g., `{$color==red?ruby brooch}`).
+* **Nested Choices & Wildcards**: Branches fully support nested choice blocks and wildcards (e.g., `{$color==red?{crimson|ruby}:blue}`).
+
+### CASE Statements (`{$var: pattern => result | * => default}`)
+When branching across three or more options, **CASE statements** provide a cleaner, more readable alternative to nested if/else chains:
+```text
+$season = {spring|summer|autumn|winter};
+portrait of an adventurer in a {$season:
+    spring => blossoming meadow of cherry trees |
+    summer => sun-drenched coastal beach |
+    autumn => misty forest with golden maple leaves |
+    winter => snow-covered mountain pass |
+    * => lush emerald countryside
+}, cinematic lighting
+```
+* **Arrow & Pipe Structure**: Branches are delimited by `|` (just like choice blocks) and map conditions to results with `=>`.
+* **Exact Matching**: Checks variable value against exact strings (case-insensitive, e.g. `summer => sunflowers`).
+* **Multi-Value Patterns**: Match any of several values using commas (e.g. `rain, storm, drizzle => rain slicker`).
+* **Relational Operators**: Supports numerical and lexicographical comparisons (e.g. `>= 50 => grandmaster | * => apprentice`).
+* **Fallback / Wildcard (`*`)**: Uses `*`, `default`, `_`, or `else` to catch unhandled values. If omitted, unmatched values evaluate to an empty string.
+* **Nested Choices**: Individual branch outputs can contain choice blocks or wildcards (e.g. `spring => {cherry|peach} blossoms`).
+* **Prefix Flexibility**: Both `{$var: ...}` and `{case $var: ...}` syntax forms are supported.
+* **Multiline Branch Assignments**: Branches can span multiple lines to format descriptors and tags cleanly:
+  ```text
+  {case $season:
+      summer =>
+          masterpiece, best quality,
+          sundress, straw hat,
+          tropical sun, sandy beach
+      | winter =>
+          masterpiece, best quality,
+          heavy woolen coat, knitted scarf,
+          snowy pine forest, soft falling snow
+      | * =>
+          casual shirt, blue jeans
+  }
+  ```
+* **Assigning Multiline CASE Statements to Variables**: Wrap the CASE block in a multiline variable (`""" ... """` or `{ ... };`) to reuse it across prompts:
+  ```text
+  $mood = happy;
+
+  $character_expression = """
+  {case $mood:
+      happy =>
+          cheerful smile,
+          sparkling eyes,
+          rosy cheeks
+      | sad =>
+          melancholic gaze,
+          tear on cheek,
+          somber expression
+      | * =>
+          neutral expression
+  }
+  """;
+
+  1girl, solo, $character_expression, portrait
+  ```
+* **Multi-Attribute Coordination**: To coordinate multiple prompt traits from a single condition, either pack the attributes into a master branch variable, define separate conditioned variables per trait, or use Synced Choice Tuples (`[$a, $b] = ...`).
+
+### Synced Choice Tuples (`[$var1, $var2] = { [a1, b1] | [a2, b2] };`)
+When generating complex characters or coordinated themes, you often want multiple variables to roll together as an indivisible unit:
+```text
+[$element, $hair, $eyes] = {
+    [fire, crimson braided hair, amber eyes] |
+    [water, azure wavy hair, sapphire eyes] |
+    [nature, emerald locks, hazel eyes]
+};
+an elven archer of $element with $hair and $eyes
+```
+ModusFlow selects one tuple randomly on each generation and binds every variable simultaneously.
+
+### String Modifiers & Piped Filters (`$var | filter`)
+Format and wrap variables on-the-fly without hardcoding tags:
+* `$hero | title`: Formats in Title Case (`"cyberpunk samurai"` $\rightarrow$ `"Cyberpunk Samurai"`).
+* `$hero | upper` / `$hero | lower` / `$hero | capitalize` / `$hero | trim`: Case and whitespace normalization.
+* `$tag | weight(1.3)`: Wraps the term in attention weights: `(glowing runes:1.3)`.
+* `$tag | wrap('[', ']')`: Encloses the term in custom delimiters.
+* `$var | default('fallback')`: Supplies a fallback string if the variable resolves empty.
+* **Chained Filters**: Combine multiple filters in a single pipeline: `$hero | title | weight(1.2)`.
+
+### Inline Negative Injections (`{!neg: tags}`)
+Keep your negative tags co-located with positive subjects so you never have to jump between text boxes:
+```text
+masterpiece portrait of an android geisha {!neg: cartoon, 3d render, extra limbs},
+holding an antique tea cup {!neg: bad hands, broken fingers},
+shot on Hasselblad 80mm
+```
+* **Automatic Extraction**: The engine strips `{!neg: ...}` from the positive prompt and moves the tags into the negative prompt.
+* **Smart Concept Deduplication**: Prevents negative prompt pollution by checking base semantic concepts (e.g., if the negative prompt already has `(bad hands:1.4)`, incoming `bad hands` is recognized as duplicate and omitted).
+
+### Sequential & Cycling Choices (`{seq: a | b | c}` or `{cycle: a | b | c}`)
+Step through options deterministically on each queue run (ideal for batching, grids, and multi-prompt sequences):
+```text
+heroine standing in a courtyard at {seq: dawn | midday | golden hour | midnight rain}
+```
+* Queue 1 $\rightarrow$ `dawn`
+* Queue 2 $\rightarrow$ `midday`
+* Queue 3 $\rightarrow$ `golden hour`
+* Queue 4 $\rightarrow$ `midnight rain`
+* Queue 5 $\rightarrow$ loops back to `dawn`
+
+### Numerical Ranges (`{range: min..max[:step]}` or `{rand: ...}`)
+Generate random integers or floats without writing long lists of numbers:
+* Integer: `{range: 18..35}` (random int between 18 and 35).
+* Stepped Integer: `{range: 35..85:10}mm lens` (steps of 10: 35, 45, 55, 65, 75, 85).
+* Float Range: `{range: 0.8..1.4:0.05}` or `f/{range: 1.4..2.8:float}` (formatted to two decimals).
+
+### Workflow & Environment Macros (`%macro%`)
+Embed real-time workflow parameters and timestamps directly into your prompt or output filenames:
+* `%seed%`: Active generation seed.
+* `%date%` / `%time%` / `%timestamp%`: Formatted timestamps (`YYYY-MM-DD`, `HH:MM:SS`, `YYYYMMDD_HHMMSS`).
+* `%year%` / `%month%` / `%day%`: Granular date components.
+* `%sampler%` / `%scheduler%`: Active KSampler settings (e.g. `euler_ancestral`, `karras`).
+* `%steps%` / `%cfg%`: Active step count and CFG scale.
+* `%width%` / `%height%`: Active latent dimensions.
+
+
 ### Multi-Pick Wildcards (`__2$$wildcard__`)
 Pick multiple random lines from a single wildcard `.txt` file:
 ```text

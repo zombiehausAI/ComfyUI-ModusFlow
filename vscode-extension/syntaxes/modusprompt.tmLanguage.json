@@ -7,6 +7,24 @@
       "include": "#comments"
     },
     {
+      "include": "#case_statements"
+    },
+    {
+      "include": "#loops"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#functions"
+    },
+    {
+      "include": "#macros"
+    },
+    {
+      "include": "#filters"
+    },
+    {
       "include": "#loras"
     },
     {
@@ -175,6 +193,127 @@
             "4": { "name": "constant.numeric.attention-weight.modusprompt" },
             "5": { "name": "punctuation.section.weight.end.modusprompt" }
           }
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.modusprompt",
+          "match": "\\b(case|switch|for|in|as|repeat|fn|def|return|default)\\b"
+        },
+        {
+          "name": "keyword.control.import.modusprompt",
+          "match": "@import\\b"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "support.function.builtin.modusprompt",
+          "match": "\\b(range|rand)\\s*\\("
+        },
+        {
+          "name": "support.function.method.modusprompt",
+          "match": "\\.(keys|values|length)\\b"
+        },
+        {
+          "name": "entity.name.function.macro.modusprompt",
+          "match": "(@[a-zA-Z0-9_]+)\\s*\\("
+        }
+      ]
+    },
+    "macros": {
+      "patterns": [
+        {
+          "name": "entity.name.function.preset.modusprompt",
+          "match": "!(cine|photo|anime|neg)\\b"
+        }
+      ]
+    },
+    "filters": {
+      "patterns": [
+        {
+          "name": "support.function.pipe.modusprompt",
+          "match": "(\\|)\\s*(upper|lower|title|trim|join)\\b",
+          "captures": {
+            "1": { "name": "keyword.operator.pipe.modusprompt" },
+            "2": { "name": "support.function.filter.modusprompt" }
+          }
+        }
+      ]
+    },
+    "case_statements": {
+      "patterns": [
+        {
+          "name": "meta.case-statement.modusprompt",
+          "begin": "(\\{)\\s*(case\\b)",
+          "beginCaptures": {
+            "1": { "name": "punctuation.section.block.begin.modusprompt" },
+            "2": { "name": "keyword.control.case.modusprompt" }
+          },
+          "end": "(\\})",
+          "endCaptures": {
+            "1": { "name": "punctuation.section.block.end.modusprompt" }
+          },
+          "patterns": [
+            { "name": "keyword.operator.arrow.modusprompt", "match": "=>" },
+            { "name": "keyword.control.default.modusprompt", "match": "\\bdefault\\b" },
+            { "name": "punctuation.separator.pipe.modusprompt", "match": "\\|" },
+            { "name": "string.quoted.double.modusprompt", "begin": "\"", "end": "\"" },
+            { "name": "string.quoted.single.modusprompt", "begin": "'", "end": "'" },
+            { "include": "#variables" },
+            { "include": "#loras" },
+            { "include": "#wildcards" },
+            { "include": "#comments" }
+          ]
+        }
+      ]
+    },
+    "loops": {
+      "patterns": [
+        {
+          "name": "meta.loop.repeat.modusprompt",
+          "begin": "(\\{)\\s*(repeat\\b)",
+          "beginCaptures": {
+            "1": { "name": "punctuation.section.block.begin.modusprompt" },
+            "2": { "name": "keyword.control.repeat.modusprompt" }
+          },
+          "end": "(\\})",
+          "endCaptures": {
+            "1": { "name": "punctuation.section.block.end.modusprompt" }
+          },
+          "patterns": [
+            { "name": "keyword.operator.arrow.modusprompt", "match": "=>" },
+            { "include": "#variables" },
+            { "include": "#loras" },
+            { "include": "#wildcards" },
+            { "include": "#dynamic_choices" },
+            { "include": "#comments" }
+          ]
+        },
+        {
+          "name": "meta.loop.for.modusprompt",
+          "begin": "(\\{)\\s*(for\\b)",
+          "beginCaptures": {
+            "1": { "name": "punctuation.section.block.begin.modusprompt" },
+            "2": { "name": "keyword.control.for.modusprompt" }
+          },
+          "end": "(\\})",
+          "endCaptures": {
+            "1": { "name": "punctuation.section.block.end.modusprompt" }
+          },
+          "patterns": [
+            { "name": "keyword.control.in.modusprompt", "match": "\\bin\\b" },
+            { "name": "keyword.operator.arrow.modusprompt", "match": "=>" },
+            { "include": "#variables" },
+            { "include": "#loras" },
+            { "include": "#wildcards" },
+            { "include": "#functions" },
+            { "include": "#dynamic_choices" },
+            { "include": "#comments" }
+          ]
         }
       ]
     }
