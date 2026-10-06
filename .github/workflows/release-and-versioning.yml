@@ -106,8 +106,10 @@ jobs:
           cd ..
 
           git add VERSION vscode-extension/package.json vscode-extension/package-lock.json
-          git commit -m "chore(dev): bump dev version to $NEXT_DEV [skip ci]"
-          git push origin dev
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(dev): bump dev version to $NEXT_DEV [skip ci]"
+            git push origin dev
+          fi
         shell: bash
 
   # JOB 2: Pushes to 'dev' -> Auto-increment dev build counter (-dev.1, -dev.2, ...)
@@ -166,6 +168,8 @@ jobs:
       - name: Commit incremented dev version
         run: |
           git add VERSION vscode-extension/package.json vscode-extension/package-lock.json
-          git commit -m "chore(dev): auto-increment dev version to ${{ steps.inc_dev.outputs.new_dev_version }} [skip ci]"
-          git push origin dev
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(dev): auto-increment dev version to ${{ steps.inc_dev.outputs.new_dev_version }} [skip ci]"
+            git push origin dev
+          fi
         shell: bash
