@@ -43,6 +43,8 @@ from .modules.controlnet_preprocessor_node import ModusFlowImagePreprocessor
 from .modules.smart_resizer_node import ModusFlowSmartResizer
 from .modules.faceswap_node import ModusFlowFaceSwap
 from .modules.glamour_controller_node import ModusFlowGlamourController
+from .modules.studio_director_node import ModusFlowStudioDirector
+from .modules.background_replacer_node import ModusFlowBackgroundReplacer
 import server
 from aiohttp import web
 import folder_paths
@@ -1652,6 +1654,8 @@ NODE_CLASS_MAPPINGS = {
     "ModusFlowSmartResizer": ModusFlowSmartResizer,
     "ModusFlowFaceSwap": ModusFlowFaceSwap,
     "ModusFlowGlamourController": ModusFlowGlamourController,
+    "ModusFlowStudioDirector": ModusFlowStudioDirector,
+    "ModusFlowBackgroundReplacer": ModusFlowBackgroundReplacer,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1701,6 +1705,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ModusFlowSmartResizer": "ModusFlow Smart Resizer",
     "ModusFlowFaceSwap": "ModusFlow Face Swapper",
     "ModusFlowGlamourController": "ModusFlow Glamour & Body Sculptor",
+    "ModusFlowStudioDirector": "ModusFlow Virtual Studio Director",
+    "ModusFlowBackgroundReplacer": "ModusFlow Background Replacer",
 }
 
 WEB_DIRECTORY = "./web"

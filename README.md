@@ -227,6 +227,7 @@ Edit `config.json` to configure:
 - [All-in-One Detailer](docs/allinone-detailer.md)
 - [Face Swapper](docs/faceswap.md) (Photo-to-Photo Face Swapping, Alignment & Lighting Match)
 - [Glamour & Body Sculptor](docs/glamour-and-body-sculpting.md) (Interactive Sliders for Bust, Waist, Hips, Age, and Glamour)
+- [Background Replacer & Relighter](docs/background-replacer.md) (Automated Subject Isolation, Ambient Relighting & Backdrop Swap)
 - [Model Upscale (All-in-One)](docs/tools-and-utilities.md) (Neural Model Upscale with Bypass & Downscaling)
 - [Upscaler](docs/upscaler.md) (Diffusion Tiled Upscaling)
 - [Restormer](docs/restormer.md)
@@ -242,6 +243,7 @@ Edit `config.json` to configure:
 - [ACE Step Audio 1.5](docs/ace-step-audio.md)
 
 **Conditioning & Control**
+- [Virtual Studio Director](docs/studio-director.md) (Lens Optics, Camera Angles, Studio Lighting & Film Stocks)
 - [ControlNet Suite](docs/tools-and-utilities.md) (Pipe-Aware ControlNet Apply & Loader)
 - [Conditioning Concat](docs/conditioning-concat.md)
 
@@ -256,6 +258,7 @@ Edit `config.json` to configure:
 ### 📂 Example Workflows
 
 Pre-configured sample workflows with optimal defaults and pipe-driven architecture are provided in the [`workflows/`](workflows/) directory:
+- **[Virtual Studio Director and Relighting (ModusFlow).json](workflows/Virtual%20Studio%20Director%20and%20Relighting%20(ModusFlow).json)**: Studio lighting, lens optics, and 1-click environmental backdrop relighting and replacement pipeline.
 - **[Glamour and Body Sculpting Studio (ModusFlow).json](workflows/Glamour%20and%20Body%20Sculpting%20Studio%20(ModusFlow).json)**: Multi-zone portrait & anatomy transformation pipeline controlling face/age/ethnicity, eyes, chest, waist/hips/curves, and hands with De-Wax micro-pore restoration and A/B compare.
 - **[FaceSwap - LoRA (ModusFlow).json](workflows/FaceSwap%20-%20LoRA%20(ModusFlow).json)**: "Load and forget" face/character swapping pipeline utilizing trained character LoRAs, face detection inpainting, De-Wax skin texture restoration, and A/B comparison.
 - **[FaceSwap - Reference Photo (ModusFlow).json](workflows/FaceSwap%20-%20Reference%20Photo%20(ModusFlow).json)**: Photo-to-photo face swapping with zero LoRA training using the native `ModusFlow Face Swapper`, Reinhard color & lighting transfer, and Detailer lighting unification.
