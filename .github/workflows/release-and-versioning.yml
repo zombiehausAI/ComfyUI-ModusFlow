@@ -39,9 +39,22 @@ jobs:
         run: |
           node -e "
             const fs = require('fs');
+            const { execSync } = require('child_process');
             const raw = fs.readFileSync('VERSION', 'utf8').trim();
-            const releaseVer = raw.replace(/-dev[.-].*$/, '');
-            const [major, minor, patch] = releaseVer.split('.').map(Number);
+            let releaseVer = raw.replace(/-dev[.-].*$/, '');
+            let [major, minor, patch] = releaseVer.split('.').map(Number);
+
+            try {
+              const tags = execSync('git tag -l', { encoding: 'utf8' }).split('\n').map(t => t.trim());
+              if (tags.includes(\`v\${releaseVer}\`)) {
+                console.log(\`Tag v\${releaseVer} already exists! Incrementing patch...\`);
+                patch += 1;
+                releaseVer = \`\${major}.\${minor}.\${patch}\`;
+              }
+            } catch (err) {
+              console.log('Tag check error:', err.message);
+            }
+
             const nextDevVer = \`\${major}.\${minor}.\${patch + 1}-dev.1\`;
 
             console.log('Target Release Version:', releaseVer);
@@ -90,6 +103,7 @@ jobs:
             *.vsix
             ComfyUI-ModusFlow.zip
           generate_release_notes: true
+          make_latest: true
 
       - name: Bump dev branch to next patch dev version
         run: |
@@ -106,8 +120,10 @@ jobs:
           cd ..
 
           git add VERSION vscode-extension/package.json vscode-extension/package-lock.json
-          git commit -m "chore(dev): bump dev version to $NEXT_DEV [skip ci]"
-          git push origin dev
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(dev): bump dev version to $NEXT_DEV [skip ci]"
+            git push origin dev
+          fi
         shell: bash
 
   # JOB 2: Pushes to 'dev' -> Auto-increment dev build counter (-dev.1, -dev.2, ...)
