@@ -1,0 +1,445 @@
+{
+  "id": "modusflow-all-in-one-hires-fix",
+  "revision": 0,
+  "last_node_id": 8,
+  "last_link_id": 15,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "ModusFlowModelLoader",
+      "pos": [
+        60,
+        200
+      ],
+      "size": [
+        320,
+        260
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "links": null
+        }
+      ],
+      "title": "ModusFlow Model Loader",
+      "properties": {
+        "Node name for S&R": "ModusFlowModelLoader"
+      },
+      "widgets_values": [
+        "sd_xl_base_1.0.safetensors",
+        "Baked VAE",
+        "fp16",
+        "None",
+        0,
+        "off"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "ModusFlowMultiCLIPTextEncode",
+      "pos": [
+        420,
+        200
+      ],
+      "size": [
+        360,
+        320
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "shape": 7,
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "title": "Positive & Negative Prompts",
+      "properties": {
+        "Node name for S&R": "ModusFlowMultiCLIPTextEncode"
+      },
+      "widgets_values": [
+        "masterpiece, photorealistic portrait of an elegant woman on a city rooftop at sunset, warm cinematic lighting, natural skin pores, 8k",
+        "blurry, plastic skin, bad anatomy, deformed, cartoon, 3d render, extra limbs"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "ModusFlowSeedController",
+      "pos": [
+        420,
+        560
+      ],
+      "size": [
+        260,
+        140
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "seed",
+          "type": "INT",
+          "links": [
+            3,
+            4
+          ]
+        },
+        {
+          "name": "seed_text",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Master Seed",
+      "properties": {
+        "Node name for S&R": "ModusFlowSeedController"
+      },
+      "widgets_values": [
+        12345678,
+        "randomize"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "ModusFlowLatentPreset",
+      "pos": [
+        820,
+        560
+      ],
+      "size": [
+        260,
+        180
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "title": "Base Latent (1024x1024)",
+      "properties": {
+        "Node name for S&R": "ModusFlowLatentPreset"
+      },
+      "widgets_values": [
+        "1024x1024 (1:1 Square)",
+        1
+      ]
+    },
+    {
+      "id": 5,
+      "type": "ModusFlowKSampler",
+      "pos": [
+        820,
+        200
+      ],
+      "size": [
+        300,
+        320
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 2
+        },
+        {
+          "name": "latent_image",
+          "shape": 7,
+          "type": "LATENT",
+          "link": 5
+        },
+        {
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": null
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "title": "Base Generation (Pass 1)",
+      "properties": {
+        "Node name for S&R": "ModusFlowKSampler"
+      },
+      "widgets_values": [
+        25,
+        5.0,
+        "euler",
+        "karras",
+        1.0
+      ]
+    },
+    {
+      "id": 6,
+      "type": "ModusFlowHiresFix",
+      "pos": [
+        1160,
+        200
+      ],
+      "size": [
+        320,
+        420
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 6
+        },
+        {
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 7
+        },
+        {
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "enhanced_image",
+          "type": "IMAGE",
+          "links": [
+            8
+          ]
+        },
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": null
+        }
+      ],
+      "title": "All-in-One Hires Fix (Pass 2)",
+      "properties": {
+        "Node name for S&R": "ModusFlowHiresFix"
+      },
+      "widgets_values": [
+        1.5,
+        "bicubic",
+        0.35,
+        20,
+        5.0,
+        "euler",
+        "karras",
+        0,
+        true,
+        true
+      ]
+    },
+    {
+      "id": 7,
+      "type": "ModusFlowExportCard",
+      "pos": [
+        1520,
+        200
+      ],
+      "size": [
+        340,
+        360
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 8
+        },
+        {
+          "name": "prompt_text",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "negative_text",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "exported_image",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "clean_prompt",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Social Export Card (Civitai PNGInfo)",
+      "properties": {
+        "Node name for S&R": "ModusFlowExportCard"
+      },
+      "widgets_values": [
+        "Hires_Masterpiece",
+        true,
+        "ModusFlow",
+        "bottom_right",
+        0.6,
+        true
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      1,
+      "PIPE"
+    ],
+    [
+      2,
+      2,
+      2,
+      5,
+      0,
+      "PIPE"
+    ],
+    [
+      3,
+      3,
+      0,
+      5,
+      2,
+      "INT"
+    ],
+    [
+      4,
+      3,
+      0,
+      6,
+      2,
+      "INT"
+    ],
+    [
+      5,
+      4,
+      0,
+      5,
+      1,
+      "LATENT"
+    ],
+    [
+      6,
+      5,
+      1,
+      6,
+      0,
+      "IMAGE"
+    ],
+    [
+      7,
+      5,
+      2,
+      6,
+      1,
+      "PIPE"
+    ],
+    [
+      8,
+      6,
+      0,
+      7,
+      0,
+      "IMAGE"
+    ]
+  ]
+}

@@ -1,0 +1,599 @@
+{
+  "id": "modusflow-style-and-aesthetic-studio",
+  "revision": 0,
+  "last_node_id": 9,
+  "last_link_id": 18,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "ModusFlowModelLoader",
+      "pos": [
+        60,
+        200
+      ],
+      "size": [
+        320,
+        260
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "links": null
+        }
+      ],
+      "title": "Base Model Loader",
+      "properties": {
+        "Node name for S&R": "ModusFlowModelLoader"
+      },
+      "widgets_values": [
+        "sd_xl_base_1.0.safetensors",
+        "Baked VAE",
+        "fp16",
+        "None",
+        0,
+        "off"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "ModusFlowStylePicker",
+      "pos": [
+        420,
+        80
+      ],
+      "size": [
+        380,
+        280
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "base_prompt",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "style_tags",
+          "type": "STRING",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "negative_tags",
+          "type": "STRING",
+          "links": [
+            3
+          ]
+        },
+        {
+          "name": "full_prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": null
+        }
+      ],
+      "title": "Style & Aesthetic Picker",
+      "properties": {
+        "Node name for S&R": "ModusFlowStylePicker"
+      },
+      "widgets_values": [
+        "cyberpunk_synthwave (neon grid, holographic glow, electric magenta & cyan)",
+        "cool_cyber_cyan (electric teal, deep navy, cool shadows)",
+        1.0
+      ]
+    },
+    {
+      "id": 3,
+      "type": "ModusFlowStudioDirector",
+      "pos": [
+        420,
+        390
+      ],
+      "size": [
+        380,
+        380
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "base_prompt",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive_tags",
+          "type": "STRING",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "negative_tags",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "full_prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": null
+        }
+      ],
+      "title": "Virtual Studio Director (Optics & Lighting)",
+      "properties": {
+        "Node name for S&R": "ModusFlowStudioDirector"
+      },
+      "widgets_values": [
+        "35mm_street (classic documentary & environmental portrait)",
+        "low_angle_heroic (dominant, powerful upward perspective)",
+        "cyberpunk_neon (dual-tone electric blue and hot magenta)",
+        "cinestill_800t (tungsten night photography with red halation)",
+        "f1.8_portrait_bokeh (sharp subject, beautifully blurred background)",
+        "rainy_reflections (glistening wet surfaces and rain droplets)",
+        1.0
+      ]
+    },
+    {
+      "id": 4,
+      "type": "ModusFlowMultiCLIPTextEncode",
+      "pos": [
+        840,
+        160
+      ],
+      "size": [
+        360,
+        340
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "shape": 7,
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "title": "Subject & Environment Prompt",
+      "properties": {
+        "Node name for S&R": "ModusFlowMultiCLIPTextEncode"
+      },
+      "widgets_values": [
+        "a futuristic cybernetic mercenary standing in a rain-drenched alley, glowing visor, chrome robotic arm, detailed holographic ads, masterpiece, sharp focus",
+        "blurry, low quality, deformed, extra limbs, cartoon, 3d render"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "ModusFlowSeedController",
+      "pos": [
+        840,
+        540
+      ],
+      "size": [
+        260,
+        140
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "seed",
+          "type": "INT",
+          "links": [
+            6,
+            7
+          ]
+        },
+        {
+          "name": "seed_text",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Master Seed",
+      "properties": {
+        "Node name for S&R": "ModusFlowSeedController"
+      },
+      "widgets_values": [
+        999999,
+        "randomize"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "ModusFlowLatentPreset",
+      "pos": [
+        1240,
+        540
+      ],
+      "size": [
+        260,
+        180
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "title": "Latent Preset (1024x1024)",
+      "properties": {
+        "Node name for S&R": "ModusFlowLatentPreset"
+      },
+      "widgets_values": [
+        "1024x1024 (1:1 Square)",
+        1
+      ]
+    },
+    {
+      "id": 7,
+      "type": "ModusFlowKSampler",
+      "pos": [
+        1240,
+        160
+      ],
+      "size": [
+        300,
+        320
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 5
+        },
+        {
+          "name": "latent_image",
+          "shape": 7,
+          "type": "LATENT",
+          "link": 8
+        },
+        {
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": null
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            9
+          ]
+        },
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "title": "Stylized Generation (Pass 1)",
+      "properties": {
+        "Node name for S&R": "ModusFlowKSampler"
+      },
+      "widgets_values": [
+        25,
+        5.0,
+        "euler",
+        "karras",
+        1.0
+      ]
+    },
+    {
+      "id": 8,
+      "type": "ModusFlowHiresFix",
+      "pos": [
+        1580,
+        160
+      ],
+      "size": [
+        320,
+        420
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 9
+        },
+        {
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 10
+        },
+        {
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "enhanced_image",
+          "type": "IMAGE",
+          "links": [
+            11
+          ]
+        },
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": null
+        }
+      ],
+      "title": "All-in-One Hires Fix (Pass 2)",
+      "properties": {
+        "Node name for S&R": "ModusFlowHiresFix"
+      },
+      "widgets_values": [
+        1.5,
+        "bicubic",
+        0.32,
+        20,
+        5.0,
+        "euler",
+        "karras",
+        0,
+        true,
+        true
+      ]
+    },
+    {
+      "id": 9,
+      "type": "ModusFlowExportCard",
+      "pos": [
+        1940,
+        160
+      ],
+      "size": [
+        340,
+        360
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 11
+        },
+        {
+          "name": "prompt_text",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "negative_text",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "exported_image",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "clean_prompt",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Social Export Card",
+      "properties": {
+        "Node name for S&R": "ModusFlowExportCard"
+      },
+      "widgets_values": [
+        "Style_Studio",
+        true,
+        "Cyberpunk Art",
+        "bottom_right",
+        0.65,
+        true
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      4,
+      1,
+      "PIPE"
+    ],
+    [
+      2,
+      2,
+      0,
+      4,
+      0,
+      "STRING"
+    ],
+    [
+      3,
+      2,
+      1,
+      4,
+      1,
+      "STRING"
+    ],
+    [
+      4,
+      3,
+      0,
+      4,
+      0,
+      "STRING"
+    ],
+    [
+      5,
+      4,
+      2,
+      7,
+      0,
+      "PIPE"
+    ],
+    [
+      6,
+      5,
+      0,
+      7,
+      2,
+      "INT"
+    ],
+    [
+      7,
+      5,
+      0,
+      8,
+      2,
+      "INT"
+    ],
+    [
+      8,
+      6,
+      0,
+      7,
+      1,
+      "LATENT"
+    ],
+    [
+      9,
+      7,
+      1,
+      8,
+      0,
+      "IMAGE"
+    ],
+    [
+      10,
+      7,
+      2,
+      8,
+      1,
+      "PIPE"
+    ],
+    [
+      11,
+      8,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ]
+  ]
+}
