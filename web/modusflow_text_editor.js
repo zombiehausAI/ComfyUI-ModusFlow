@@ -223,6 +223,8 @@ function injectSyntaxStyles() {
             overflow-x: hidden !important;
             scrollbar-width: thin !important;
             scrollbar-color: rgba(137, 180, 250, 0.45) rgba(17, 17, 27, 0.6) !important;
+            padding-bottom: 28px !important;
+            box-sizing: border-box !important;
         }
         .modusflow-syntax-ta::-webkit-scrollbar {
             width: 8px !important;
@@ -250,6 +252,23 @@ function injectSyntaxStyles() {
             user-select: none;
             -webkit-user-select: none;
         }
+        .modusflow-editor-status-bar {
+            position: absolute;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
+            box-sizing: border-box;
+            background: rgba(17, 17, 27, 0.94);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 4px;
+            z-index: 5;
+            pointer-events: auto;
+            user-select: none;
+            overflow: hidden;
+        }
         .modusflow-token-badge {
             position: absolute;
             bottom: 4px;
@@ -267,6 +286,12 @@ function injectSyntaxStyles() {
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
             user-select: none;
             transition: all 0.2s ease;
+        }
+        .modusflow-editor-status-bar .modusflow-token-badge {
+            position: static;
+            margin-left: auto;
+            flex-shrink: 0;
+            white-space: nowrap;
         }
         .modusflow-token-badge.token-warning {
             color: #fbbf24;
@@ -291,6 +316,11 @@ function injectSyntaxStyles() {
             cursor: pointer;
             user-select: none;
             transition: all 0.2s ease;
+        }
+        .modusflow-editor-status-bar .modusflow-health-badge {
+            position: static;
+            flex-shrink: 0;
+            white-space: nowrap;
         }
         .modusflow-health-badge:hover {
             border-color: #fab387;
@@ -719,7 +749,7 @@ function injectSyntaxStyles() {
             font-family: var(--mf-popout-font-family, ui-monospace, SFMono-Regular, monospace);
             font-size: var(--mf-popout-font-size, 14px);
             line-height: 1.5;
-            padding: 12px;
+            padding: 12px 12px 34px 12px;
             border: none;
             outline: none;
             resize: none;
@@ -1597,6 +1627,8 @@ function attachSyntaxHighlighter(widget, node) {
         ta.style.wordBreak = "break-word";
         ta.style.overflowWrap = "break-word";
         ta.style.letterSpacing = "normal";
+        ta.style.paddingBottom = "28px";
+        ta.style.boxSizing = "border-box";
 
         function syncGeometry() {
             if (!ta || !backdrop) return;
@@ -1622,7 +1654,7 @@ function attachSyntaxHighlighter(widget, node) {
             backdrop.style.boxSizing = cs.boxSizing || "border-box";
 
             backdrop.style.paddingTop = cs.paddingTop;
-            backdrop.style.paddingBottom = cs.paddingBottom;
+            backdrop.style.paddingBottom = "28px";
             backdrop.style.paddingLeft = cs.paddingLeft;
             backdrop.style.paddingRight = (parseFloat(cs.paddingRight) || 0) + scrollbarWidth + "px";
 
@@ -1635,33 +1667,38 @@ function attachSyntaxHighlighter(widget, node) {
             backdrop.scrollTop = ta.scrollTop;
             backdrop.scrollLeft = ta.scrollLeft;
 
-            if (healthBadge) {
-                healthBadge.style.bottom = "auto";
-                healthBadge.style.top = (ta.offsetTop + ta.offsetHeight - 26) + "px";
-                healthBadge.style.left = (ta.offsetLeft + 8) + "px";
-            }
-            if (tokenBadge) {
-                tokenBadge.style.bottom = "auto";
-                tokenBadge.style.top = (ta.offsetTop + ta.offsetHeight - 26) + "px";
-                tokenBadge.style.right = Math.max(8, (parent.clientWidth - (ta.offsetLeft + ta.offsetWidth) + 8)) + "px";
+            if (statusBar) {
+                statusBar.style.bottom = "auto";
+                statusBar.style.top = (ta.offsetTop + ta.offsetHeight - 24) + "px";
+                statusBar.style.left = ta.offsetLeft + "px";
+                statusBar.style.width = ta.offsetWidth + "px";
             }
             if (waveformStrip) {
                 waveformStrip.style.bottom = "auto";
-                waveformStrip.style.top = (ta.offsetTop + ta.offsetHeight - 3) + "px";
+                waveformStrip.style.top = (ta.offsetTop + ta.offsetHeight - 2) + "px";
                 waveformStrip.style.left = ta.offsetLeft + "px";
                 waveformStrip.style.width = ta.offsetWidth + "px";
             }
         }
 
-        const tokenBadge = document.createElement("div");
-        tokenBadge.className = "modusflow-token-badge";
-        tokenBadge.title = "Estimated words / CLIP tokens (75-token chunks)";
-        parent.appendChild(tokenBadge);
+        const statusBar = document.createElement("div");
+        statusBar.className = "modusflow-editor-status-bar";
+        statusBar.addEventListener("click", (e) => {
+            if (e.target === statusBar) {
+                ta.focus();
+            }
+        });
+        parent.appendChild(statusBar);
 
         const healthBadge = document.createElement("div");
         healthBadge.className = "modusflow-health-badge";
         healthBadge.title = "Prompt Health & Deduplication";
-        parent.appendChild(healthBadge);
+        statusBar.appendChild(healthBadge);
+
+        const tokenBadge = document.createElement("div");
+        tokenBadge.className = "modusflow-token-badge";
+        tokenBadge.title = "Estimated words / CLIP tokens (75-token chunks)";
+        statusBar.appendChild(tokenBadge);
 
         const waveformStrip = document.createElement("div");
         waveformStrip.className = "modusflow-waveform-strip";
@@ -1680,7 +1717,7 @@ function attachSyntaxHighlighter(widget, node) {
             const stats = estimateTokens(ta.value || "");
             const unclosed = countUnclosedParens(ta.value || "");
             if (stats.tokens > 0 || unclosed > 0) {
-                tokenBadge.style.display = "block";
+                tokenBadge.style.display = "inline-flex";
                 let textDesc = `${stats.words}w · ~${stats.tokens} tok (${stats.chunkProgress}/75 Ch.${stats.currentChunk})`;
                 if (stats.hasBreak) {
                     textDesc += " · ⚡ BREAK";
@@ -1727,7 +1764,7 @@ function attachSyntaxHighlighter(widget, node) {
             }
 
             if (duplicates.length > 0 || heavyWeights.length > 0) {
-                healthBadge.style.display = "block";
+                healthBadge.style.display = "inline-flex";
                 if (duplicates.length > 0) {
                     healthBadge.textContent = `🟡 ${duplicates.length} duplicate${duplicates.length > 1 ? 's' : ''} [Fix]`;
                     healthBadge.title = `Duplicate tags detected: ${duplicates.slice(0, 3).join(", ")}${duplicates.length > 3 ? '...' : ''} (Click to auto-dedupe)`;
