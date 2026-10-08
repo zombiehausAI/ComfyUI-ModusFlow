@@ -225,6 +225,7 @@ Edit `config.json` to configure:
 
 **Image Enhancement & Post-Processing**
 - [All-in-One Detailer](docs/allinone-detailer.md)
+- [All-in-One Hires Fix](docs/hires-fix.md) (1-Click Resolution Upscaling, Resampling & Micro-Pores)
 - [Face Swapper](docs/faceswap.md) (Photo-to-Photo Face Swapping, Alignment & Lighting Match)
 - [Glamour & Body Sculptor](docs/glamour-and-body-sculpting.md) (Interactive Sliders for Bust, Waist, Hips, Age, and Glamour)
 - [Background Replacer & Relighter](docs/background-replacer.md) (Automated Subject Isolation, Ambient Relighting & Backdrop Swap)
@@ -244,6 +245,7 @@ Edit `config.json` to configure:
 
 **Conditioning & Control**
 - [Virtual Studio Director](docs/studio-director.md) (Lens Optics, Camera Angles, Studio Lighting & Film Stocks)
+- [Style & Aesthetic Picker](docs/style-picker.md) (1-Click Art Movements, Anime, Editorial & Color Palettes)
 - [ControlNet Suite](docs/tools-and-utilities.md) (Pipe-Aware ControlNet Apply & Loader)
 - [Conditioning Concat](docs/conditioning-concat.md)
 
@@ -253,6 +255,7 @@ Edit `config.json` to configure:
 - [List Curator](docs/guides/text-editor-mastery.md) (Wildcard Curation & Sampling)
 - [Prompt Mixer](docs/guides/text-editor-mastery.md) (Modular Prompt Layer Builder & Stacker)
 - [Image Gallery](docs/image-gallery.md)
+- [Social Export Card](docs/export-card.md) (Clean Prompt Sanitizer, Civitai PNGInfo & Watermarks)
 - [Save Image](docs/save-image.md)
 
 ### 📂 Example Workflows

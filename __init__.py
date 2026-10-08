@@ -45,6 +45,9 @@ from .modules.faceswap_node import ModusFlowFaceSwap
 from .modules.glamour_controller_node import ModusFlowGlamourController
 from .modules.studio_director_node import ModusFlowStudioDirector
 from .modules.background_replacer_node import ModusFlowBackgroundReplacer
+from .modules.style_picker_node import ModusFlowStylePicker
+from .modules.hires_fix_node import ModusFlowHiresFix
+from .modules.export_card_node import ModusFlowExportCard
 import server
 from aiohttp import web
 import folder_paths
@@ -1656,6 +1659,9 @@ NODE_CLASS_MAPPINGS = {
     "ModusFlowGlamourController": ModusFlowGlamourController,
     "ModusFlowStudioDirector": ModusFlowStudioDirector,
     "ModusFlowBackgroundReplacer": ModusFlowBackgroundReplacer,
+    "ModusFlowStylePicker": ModusFlowStylePicker,
+    "ModusFlowHiresFix": ModusFlowHiresFix,
+    "ModusFlowExportCard": ModusFlowExportCard,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1707,6 +1713,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ModusFlowGlamourController": "ModusFlow Glamour & Body Sculptor",
     "ModusFlowStudioDirector": "ModusFlow Virtual Studio Director",
     "ModusFlowBackgroundReplacer": "ModusFlow Background Replacer",
+    "ModusFlowStylePicker": "ModusFlow Style & Aesthetic Picker",
+    "ModusFlowHiresFix": "ModusFlow All-in-One Hires Fix",
+    "ModusFlowExportCard": "ModusFlow Social Export Card",
 }
 
 WEB_DIRECTORY = "./web"
