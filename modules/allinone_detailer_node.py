@@ -200,9 +200,9 @@ def detail_region(image_tensor, mask_pil, model, clip, vae,
         proc_h = int(crop_h * scale)
     else:
         proc_w, proc_h = crop_w, crop_h
-    # Round up to nearest 8-pixel multiple (VAE requirement)
-    target_w = (proc_w + 7) // 8 * 8
-    target_h = (proc_h + 7) // 8 * 8
+    # Round up to nearest 16-pixel multiple (universal requirement for SD1.5, SDXL, and Flux/Chroma DiT patchify)
+    target_w = (proc_w + 15) // 16 * 16
+    target_h = (proc_h + 15) // 16 * 16
 
     crop_pil_resized = crop_pil.resize((target_w, target_h), Image.LANCZOS)
     img_t = pil_to_tensor(crop_pil_resized)

@@ -198,6 +198,7 @@ Edit `config.json` to configure:
 - 🧭 **[Workflow & Node Usage Guide](docs/workflow-guide.md)** — Step-by-step guide to connecting nodes, pipe-driven workflows, detailing passes, and upscaling.
 - 🦄 **[Pony V6: Face & Quality Mastery Guide](docs/guides/pony-v6-faces-and-quality.md)** — Secrets to generating clean, sharp, distortion-free faces, eyes, and anatomy in Pony Diffusion V6 XL.
 - 📝 **[Text Editor & Wildcard Mastery Guide](docs/guides/text-editor-mastery.md)** — Model weight translation (Chroma/Flux T5 vs. SDXL/Pony), front-loading priority, tag shuffling `{shuffle: ...}`, deterministic seeds, inline choices `{a|b}`, strict `saved_prompts` wildcards, and on-canvas list curation.
+- 💄 **[Glamour & Body Sculpting Studio Guide](docs/glamour-and-body-sculpting.md)** — Guide to multi-zone character remodeling: age, ethnicity, hair color, eye detailing, waist/hips, chest/torso, and hands with context padding.
 - 🖥️ **[ModusFlow Studio Specification](docs/MODUSFLOW_STUDIO_SPEC.md)** — Architecture & technical specification for the standalone cross-platform Photino.Blazor desktop workstation.
 
 ### Node Documentation
@@ -224,6 +225,8 @@ Edit `config.json` to configure:
 
 **Image Enhancement & Post-Processing**
 - [All-in-One Detailer](docs/allinone-detailer.md)
+- [Face Swapper](docs/faceswap.md) (Photo-to-Photo Face Swapping, Alignment & Lighting Match)
+- [Glamour & Body Sculptor](docs/glamour-and-body-sculpting.md) (Interactive Sliders for Bust, Waist, Hips, Age, and Glamour)
 - [Model Upscale (All-in-One)](docs/tools-and-utilities.md) (Neural Model Upscale with Bypass & Downscaling)
 - [Upscaler](docs/upscaler.md) (Diffusion Tiled Upscaling)
 - [Restormer](docs/restormer.md)
@@ -253,6 +256,10 @@ Edit `config.json` to configure:
 ### 📂 Example Workflows
 
 Pre-configured sample workflows with optimal defaults and pipe-driven architecture are provided in the [`workflows/`](workflows/) directory:
+- **[Glamour and Body Sculpting Studio (ModusFlow).json](workflows/Glamour%20and%20Body%20Sculpting%20Studio%20(ModusFlow).json)**: Multi-zone portrait & anatomy transformation pipeline controlling face/age/ethnicity, eyes, chest, waist/hips/curves, and hands with De-Wax micro-pore restoration and A/B compare.
+- **[FaceSwap - LoRA (ModusFlow).json](workflows/FaceSwap%20-%20LoRA%20(ModusFlow).json)**: "Load and forget" face/character swapping pipeline utilizing trained character LoRAs, face detection inpainting, De-Wax skin texture restoration, and A/B comparison.
+- **[FaceSwap - Reference Photo (ModusFlow).json](workflows/FaceSwap%20-%20Reference%20Photo%20(ModusFlow).json)**: Photo-to-photo face swapping with zero LoRA training using the native `ModusFlow Face Swapper`, Reinhard color & lighting transfer, and Detailer lighting unification.
+- **[Outfit Changer (ModusFlow).json](workflows/Outfit%20Changer%20(ModusFlow).json)**: Wardrobe replacer & styling pipeline that in-paints new clothing, suits, or outfits while keeping face likeness, anatomy, and background intact.
 - **[Chroma Img2Img All-in-One (ModusFlow).json](workflows/Chroma%20Img2Img%20All-in-One%20(ModusFlow).json)**: Chroma 1-HD image-to-image workflow using the All-in-One `ModusFlow Img2Img VAE Encode` node with single-slider fidelity control (0–100%) and 100% ModusFlow nodes.
 - **[Chroma Img2Img Modular (ModusFlow).json](workflows/Chroma%20Img2Img%20Modular%20(ModusFlow).json)**: Chroma 1-HD image-to-image workflow using separate `ModusFlow Load Image`, `ModusFlow VAE Encode`, and `ModusFlow Fidelity Controller` nodes.
 - **[Wan2.2 (ModusFlow).json](workflows/Wan2.2%20(ModusFlow).json)**: Production Wan 2.2 Video Diffusion workflow with native 48-channel latent masking for Image-to-Video (I2V) and Text-to-Video (T2V).

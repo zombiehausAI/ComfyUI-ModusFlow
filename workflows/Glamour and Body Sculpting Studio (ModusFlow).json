@@ -1,0 +1,1054 @@
+{
+  "id": "modusflow-glamour-and-body-sculpting",
+  "revision": 1,
+  "last_node_id": 16,
+  "last_link_id": 40,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "ModusFlowLoadImage",
+      "pos": [
+        60,
+        200
+      ],
+      "size": [
+        320,
+        340
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1,
+            20
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "title": "Original Photo (To Transform)",
+      "properties": {
+        "Node name for S&R": "ModusFlowLoadImage"
+      },
+      "widgets_values": [
+        "portrait_to_transform.png",
+        "image"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "ModusFlowModelLoader",
+      "pos": [
+        60,
+        600
+      ],
+      "size": [
+        320,
+        260
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "links": null
+        }
+      ],
+      "title": "Base Model Loader",
+      "properties": {
+        "Node name for S&R": "ModusFlowModelLoader"
+      },
+      "widgets_values": [
+        "sd_xl_base_1.0.safetensors",
+        "Baked VAE",
+        "fp16",
+        "None",
+        0,
+        "off"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "ModusFlowLoraLoader",
+      "pos": [
+        420,
+        600
+      ],
+      "size": [
+        340,
+        360
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            3
+          ]
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "links": null
+        }
+      ],
+      "title": "Optional Slider / Style LoRAs",
+      "properties": {
+        "Node name for S&R": "ModusFlowLoraLoader"
+      },
+      "widgets_values": [
+        "None",
+        1.0,
+        1.0,
+        "None",
+        1.0,
+        1.0,
+        "None",
+        1.0,
+        1.0,
+        "None",
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "id": 4,
+      "type": "ModusFlowGlamourController",
+      "pos": [
+        420,
+        80
+      ],
+      "size": [
+        380,
+        480
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "base_positive",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "name": "base_negative",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "face_prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "face_denoise",
+          "type": "FLOAT",
+          "links": null
+        },
+        {
+          "name": "eyes_prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "eyes_denoise",
+          "type": "FLOAT",
+          "links": null
+        },
+        {
+          "name": "chest_prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "chest_denoise",
+          "type": "FLOAT",
+          "links": null
+        },
+        {
+          "name": "hips_prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "hips_denoise",
+          "type": "FLOAT",
+          "links": null
+        },
+        {
+          "name": "master_positive",
+          "type": "STRING",
+          "links": [
+            30
+          ]
+        },
+        {
+          "name": "master_negative",
+          "type": "STRING",
+          "links": [
+            31
+          ]
+        }
+      ],
+      "title": "Glamour & Body Sculpt Cockpit (Sliders)",
+      "properties": {
+        "Node name for S&R": "ModusFlowGlamourController"
+      },
+      "widgets_values": [
+        0.0,
+        "keep_original",
+        0.3,
+        0.5,
+        "keep_original",
+        "keep_original",
+        1.5,
+        -1.5,
+        2.0,
+        1.0,
+        1.5
+      ]
+    },
+    {
+      "id": 5,
+      "type": "ModusFlowMultiCLIPTextEncode",
+      "pos": [
+        840,
+        200
+      ],
+      "size": [
+        360,
+        340
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "shape": 7,
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            4,
+            6,
+            8,
+            10
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            5,
+            7,
+            9,
+            11
+          ]
+        },
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "title": "Master Text Conditioning",
+      "properties": {
+        "Node name for S&R": "ModusFlowMultiCLIPTextEncode"
+      },
+      "widgets_values": [
+        "masterpiece, photorealistic portrait, gorgeous features, flawless glowing skin, striking vibrant eyes, luxurious hair, perfectly sculpted anatomy, sharp focus, 8k",
+        "blurry, plastic skin, distorted anatomy, bad eyes, disfigured, extra limbs, cartoon, 3d render"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "ModusFlowSeedController",
+      "pos": [
+        840,
+        600
+      ],
+      "size": [
+        260,
+        140
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "seed",
+          "type": "INT",
+          "links": [
+            13
+          ]
+        },
+        {
+          "name": "seed_text",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "title": "Master Seed",
+      "properties": {
+        "Node name for S&R": "ModusFlowSeedController"
+      },
+      "widgets_values": [
+        424242,
+        "randomize"
+      ]
+    },
+    {
+      "id": 7,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        1240,
+        80
+      ],
+      "size": [
+        280,
+        320
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 4
+        },
+        {
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "title": "Slot 1: Face, Age, Ethnicity & Smile",
+      "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "face_yolov8n.pt",
+        25,
+        5.0,
+        0.52,
+        32,
+        6,
+        24,
+        32,
+        "euler",
+        "simple",
+        true
+      ]
+    },
+    {
+      "id": 8,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        1240,
+        440
+      ],
+      "size": [
+        280,
+        320
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 6
+        },
+        {
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "title": "Slot 2: Eyes & Hair Color/Shine",
+      "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "face_yolov8n.pt",
+        20,
+        4.5,
+        0.36,
+        24,
+        4,
+        16,
+        24,
+        "euler",
+        "simple",
+        true
+      ]
+    },
+    {
+      "id": 9,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        1560,
+        80
+      ],
+      "size": [
+        280,
+        320
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 8
+        },
+        {
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "title": "Slot 3: Breasts Scale, Chest & Toning",
+      "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "yolov8x-seg.pt",
+        25,
+        5.0,
+        0.65,
+        40,
+        8,
+        28,
+        40,
+        "euler",
+        "simple",
+        true
+      ]
+    },
+    {
+      "id": 10,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        1560,
+        440
+      ],
+      "size": [
+        280,
+        320
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 10
+        },
+        {
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": [
+            17
+          ]
+        }
+      ],
+      "title": "Slot 4: Waist, Hips, Butt & Thighs",
+      "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "yolov8x-seg.pt",
+        25,
+        5.0,
+        0.68,
+        48,
+        8,
+        32,
+        48,
+        "euler",
+        "simple",
+        true
+      ]
+    },
+    {
+      "id": 11,
+      "type": "ModusFlowDetailerSlot",
+      "pos": [
+        1560,
+        800
+      ],
+      "size": [
+        280,
+        320
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "slot",
+          "type": "DETAILER_SLOT",
+          "links": [
+            18
+          ]
+        }
+      ],
+      "title": "Slot 5: Hands & Manicure Refiner",
+      "properties": {
+        "Node name for S&R": "ModusFlowDetailerSlot"
+      },
+      "widgets_values": [
+        "hand_yolov8n.pt",
+        20,
+        4.5,
+        0.55,
+        32,
+        6,
+        20,
+        32,
+        "euler",
+        "simple",
+        true
+      ]
+    },
+    {
+      "id": 12,
+      "type": "ModusFlowAllInOneDetailer",
+      "pos": [
+        1880,
+        200
+      ],
+      "size": [
+        320,
+        560
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pipe",
+          "shape": 7,
+          "type": "PIPE",
+          "link": 12
+        },
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 1
+        },
+        {
+          "name": "model",
+          "shape": 7,
+          "type": "MODEL",
+          "link": null
+        },
+        {
+          "name": "clip",
+          "shape": 7,
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        },
+        {
+          "name": "positive",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "name": "slot_1",
+          "shape": 7,
+          "type": "DETAILER_SLOT",
+          "link": 14
+        },
+        {
+          "name": "slot_2",
+          "shape": 7,
+          "type": "DETAILER_SLOT",
+          "link": 15
+        },
+        {
+          "name": "slot_3",
+          "shape": 7,
+          "type": "DETAILER_SLOT",
+          "link": 16
+        },
+        {
+          "name": "slot_4",
+          "shape": 7,
+          "type": "DETAILER_SLOT",
+          "link": 17
+        },
+        {
+          "name": "slot_5",
+          "shape": 7,
+          "type": "DETAILER_SLOT",
+          "link": 18
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            19
+          ]
+        },
+        {
+          "name": "pipe",
+          "type": "PIPE",
+          "links": null
+        }
+      ],
+      "title": "ModusFlow Multi-Zone Sculptor",
+      "properties": {
+        "Node name for S&R": "ModusFlowAllInOneDetailer"
+      },
+      "widgets_values": [
+        0.4,
+        424242,
+        "randomize"
+      ]
+    },
+    {
+      "id": 13,
+      "type": "ModusDeWaxTextureRestore",
+      "pos": [
+        2240,
+        200
+      ],
+      "size": [
+        280,
+        300
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            21,
+            22
+          ]
+        }
+      ],
+      "title": "Skin Pores & Fabric Texture Restore",
+      "properties": {
+        "Node name for S&R": "ModusDeWaxTextureRestore"
+      },
+      "widgets_values": [
+        0.28,
+        0.06,
+        0.08,
+        0.5,
+        0.85,
+        0.0,
+        true
+      ]
+    },
+    {
+      "id": 14,
+      "type": "ModusFlowCompareImages",
+      "pos": [
+        2560,
+        200
+      ],
+      "size": [
+        360,
+        440
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image_a",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 20
+        },
+        {
+          "name": "image_b",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 21
+        }
+      ],
+      "outputs": [
+        {
+          "name": "comparison",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "title": "A/B Compare (Before vs Sculpted)",
+      "properties": {
+        "Node name for S&R": "ModusFlowCompareImages"
+      },
+      "widgets_values": [
+        "side_by_side",
+        0.5,
+        true
+      ]
+    },
+    {
+      "id": 15,
+      "type": "ModusFlowSaveImage",
+      "pos": [
+        2560,
+        680
+      ],
+      "size": [
+        320,
+        240
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 22
+        }
+      ],
+      "outputs": [],
+      "title": "Save Sculpted Character",
+      "properties": {
+        "Node name for S&R": "ModusFlowSaveImage"
+      },
+      "widgets_values": [
+        "Glamour_Sculpted",
+        "png",
+        "standard"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      12,
+      1,
+      "IMAGE"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      0,
+      "PIPE"
+    ],
+    [
+      3,
+      3,
+      0,
+      5,
+      1,
+      "PIPE"
+    ],
+    [
+      4,
+      5,
+      0,
+      7,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      5,
+      5,
+      1,
+      7,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      6,
+      5,
+      0,
+      8,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      7,
+      5,
+      1,
+      8,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      8,
+      5,
+      0,
+      9,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      9,
+      5,
+      1,
+      9,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      10,
+      5,
+      0,
+      10,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      11,
+      5,
+      1,
+      10,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      12,
+      5,
+      2,
+      12,
+      0,
+      "PIPE"
+    ],
+    [
+      13,
+      6,
+      0,
+      12,
+      7,
+      "INT"
+    ],
+    [
+      14,
+      7,
+      0,
+      12,
+      7,
+      "DETAILER_SLOT"
+    ],
+    [
+      15,
+      8,
+      0,
+      12,
+      8,
+      "DETAILER_SLOT"
+    ],
+    [
+      16,
+      9,
+      0,
+      12,
+      9,
+      "DETAILER_SLOT"
+    ],
+    [
+      17,
+      10,
+      0,
+      12,
+      10,
+      "DETAILER_SLOT"
+    ],
+    [
+      18,
+      11,
+      0,
+      12,
+      11,
+      "DETAILER_SLOT"
+    ],
+    [
+      19,
+      12,
+      0,
+      13,
+      0,
+      "IMAGE"
+    ],
+    [
+      20,
+      1,
+      0,
+      14,
+      0,
+      "IMAGE"
+    ],
+    [
+      21,
+      13,
+      0,
+      14,
+      1,
+      "IMAGE"
+    ],
+    [
+      22,
+      13,
+      0,
+      15,
+      0,
+      "IMAGE"
+    ]
+  ]
+}

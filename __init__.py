@@ -41,6 +41,8 @@ from .modules.prompt_mixer_node import ModusFlowPromptMixer
 from .modules.seed_controller_node import ModusFlowSeedController
 from .modules.controlnet_preprocessor_node import ModusFlowImagePreprocessor
 from .modules.smart_resizer_node import ModusFlowSmartResizer
+from .modules.faceswap_node import ModusFlowFaceSwap
+from .modules.glamour_controller_node import ModusFlowGlamourController
 import server
 from aiohttp import web
 import folder_paths
@@ -1648,6 +1650,8 @@ NODE_CLASS_MAPPINGS = {
     "ModusFlowSeedController": ModusFlowSeedController,
     "ModusFlowImagePreprocessor": ModusFlowImagePreprocessor,
     "ModusFlowSmartResizer": ModusFlowSmartResizer,
+    "ModusFlowFaceSwap": ModusFlowFaceSwap,
+    "ModusFlowGlamourController": ModusFlowGlamourController,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1695,6 +1699,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ModusFlowSeedController": "ModusFlow Master Seed",
     "ModusFlowImagePreprocessor": "ModusFlow Image Preprocessor",
     "ModusFlowSmartResizer": "ModusFlow Smart Resizer",
+    "ModusFlowFaceSwap": "ModusFlow Face Swapper",
+    "ModusFlowGlamourController": "ModusFlow Glamour & Body Sculptor",
 }
 
 WEB_DIRECTORY = "./web"
