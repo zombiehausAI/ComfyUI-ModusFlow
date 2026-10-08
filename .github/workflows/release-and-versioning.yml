@@ -182,6 +182,8 @@ jobs:
       - name: Commit incremented dev version
         run: |
           git add VERSION vscode-extension/package.json vscode-extension/package-lock.json
-          git commit -m "chore(dev): auto-increment dev version to ${{ steps.inc_dev.outputs.new_dev_version }} [skip ci]"
-          git push origin dev
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(dev): auto-increment dev version to ${{ steps.inc_dev.outputs.new_dev_version }} [skip ci]"
+            git push origin dev
+          fi
         shell: bash
