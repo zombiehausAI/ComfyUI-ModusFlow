@@ -1933,6 +1933,93 @@ function fetchLoraList(force = false) {
 const _wildcardKeysCache = new Map();
 const _fetchingWildcardKeys = new Set();
 
+function extractKeysFromDictString(str, keysSet) {
+    if (!str || typeof str !== "string") return;
+
+    function processEntry(entry) {
+        const trimmed = entry.trim();
+        if (!trimmed) return;
+        let q = null;
+        let colonIdx = -1;
+        let aD = 0, bD = 0, brD = 0, pD = 0;
+        for (let i = 0; i < trimmed.length; i++) {
+            const ch = trimmed[i];
+            if (q) {
+                if (ch === q && trimmed[i - 1] !== "\\") q = null;
+            } else if (ch === '"' || ch === "'") {
+                q = ch;
+            } else if (ch === '<') aD++;
+            else if (ch === '>') aD = Math.max(0, aD - 1);
+            else if (ch === '{') bD++;
+            else if (ch === '}') bD = Math.max(0, bD - 1);
+            else if (ch === '[') brD++;
+            else if (ch === ']') brD = Math.max(0, brD - 1);
+            else if (ch === '(') pD++;
+            else if (ch === ')') pD = Math.max(0, pD - 1);
+            else if (ch === ':' && aD === 0 && bD === 0 && brD === 0 && pD === 0) {
+                colonIdx = i;
+                break;
+            }
+        }
+        if (colonIdx > 0) {
+            const rawKey = trimmed.slice(0, colonIdx).trim().replace(/^['"]|['"]$/g, "");
+            if (/^[a-zA-Z0-9_]+$/.test(rawKey)) {
+                keysSet.add(rawKey);
+            }
+        }
+    }
+
+    let inQuote = null;
+    let angleDepth = 0;
+    let braceDepth = 0;
+    let bracketDepth = 0;
+    let parenDepth = 0;
+    let currentEntry = "";
+
+    for (let i = 0; i < str.length; i++) {
+        const ch = str[i];
+        if (inQuote) {
+            if (ch === inQuote && str[i - 1] !== "\\") inQuote = null;
+            currentEntry += ch;
+        } else if (ch === '"' || ch === "'") {
+            inQuote = ch;
+            currentEntry += ch;
+        } else if (ch === '<') {
+            angleDepth++;
+            currentEntry += ch;
+        } else if (ch === '>') {
+            angleDepth = Math.max(0, angleDepth - 1);
+            currentEntry += ch;
+        } else if (ch === '{') {
+            braceDepth++;
+            currentEntry += ch;
+        } else if (ch === '}') {
+            braceDepth = Math.max(0, braceDepth - 1);
+            currentEntry += ch;
+        } else if (ch === '[') {
+            bracketDepth++;
+            currentEntry += ch;
+        } else if (ch === ']') {
+            bracketDepth = Math.max(0, bracketDepth - 1);
+            currentEntry += ch;
+        } else if (ch === '(') {
+            parenDepth++;
+            currentEntry += ch;
+        } else if (ch === ')') {
+            parenDepth = Math.max(0, parenDepth - 1);
+            currentEntry += ch;
+        } else if ((ch === ',' || ch === '\n' || ch === ';') && !inQuote && angleDepth === 0 && braceDepth === 0 && bracketDepth === 0 && parenDepth === 0) {
+            processEntry(currentEntry);
+            currentEntry = "";
+        } else {
+            currentEntry += ch;
+        }
+    }
+    if (currentEntry.trim()) {
+        processEntry(currentEntry);
+    }
+}
+
 function extractKeysFromWildcardContent(content) {
     const keys = new Set();
     if (!content || typeof content !== "string") return [];
@@ -1944,11 +2031,15 @@ function extractKeysFromWildcardContent(content) {
             if (Array.isArray(parsed)) {
                 for (const item of parsed) {
                     if (item && typeof item === "object") {
-                        Object.keys(item).forEach(k => keys.add(k));
+                        Object.keys(item).forEach(k => {
+                            if (/^[a-zA-Z0-9_]+$/.test(k)) keys.add(k);
+                        });
                     }
                 }
             } else if (parsed && typeof parsed === "object") {
-                Object.keys(parsed).forEach(k => keys.add(k));
+                Object.keys(parsed).forEach(k => {
+                    if (/^[a-zA-Z0-9_]+$/.test(k)) keys.add(k);
+                });
             }
         } catch (_) {}
     }
@@ -1959,19 +2050,9 @@ function extractKeysFromWildcardContent(content) {
         if (!l || l.startsWith("#") || l.startsWith("//")) continue;
 
         if (l.startsWith("{") && l.endsWith("}")) {
-            const inner = l.slice(1, -1);
-            const km = inner.matchAll(/([a-zA-Z0-9_]+)\s*:/g);
-            for (const match of km) {
-                const k = match[1];
-                if (k !== "http" && k !== "https" && k !== "lora") {
-                    keys.add(k);
-                }
-            }
-        } else if (/^[a-zA-Z0-9_]+\s*:/.test(l)) {
-            const m = l.match(/^([a-zA-Z0-9_]+)\s*:/);
-            if (m && m[1] !== "http" && m[1] !== "https") {
-                keys.add(m[1]);
-            }
+            extractKeysFromDictString(l.slice(1, -1), keys);
+        } else {
+            extractKeysFromDictString(l, keys);
         }
     }
 
@@ -2021,27 +2102,13 @@ function extractInlineVariableKeys(varName, contextText) {
     const inlineDictRegex = new RegExp(`\\$${varName}\\s*=\\s*\\{([\\s\\S]*?)\\}`, 'i');
     const m = contextText.match(inlineDictRegex);
     if (m) {
-        const body = m[1];
-        const km = body.matchAll(/([a-zA-Z0-9_]+)\s*:/g);
-        for (const match of km) {
-            const k = match[1];
-            if (k !== "http" && k !== "https" && k !== "case" && k !== "seq" && k !== "range" && k !== "lora") {
-                keys.add(k);
-            }
-        }
+        extractKeysFromDictString(m[1], keys);
     }
 
     const inlineListRegex = new RegExp(`\\$${varName}\\s*=\\s*\\[([\\s\\S]*?)\\]`, 'i');
     const lm = contextText.match(inlineListRegex);
     if (lm) {
-        const body = lm[1];
-        const km = body.matchAll(/([a-zA-Z0-9_]+)\s*:/g);
-        for (const match of km) {
-            const k = match[1];
-            if (k !== "http" && k !== "https" && k !== "lora") {
-                keys.add(k);
-            }
-        }
+        extractKeysFromDictString(lm[1], keys);
     }
 
     return Array.from(keys);
