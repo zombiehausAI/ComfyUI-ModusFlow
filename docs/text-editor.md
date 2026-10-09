@@ -378,8 +378,8 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
     $person = man;
 
     {case $person:
-        man => <lora:Chroma\Don_Chroma_V1:1.0> smiling gentleman
-        | woman => <lora:Chroma\Amanda_Chroma_V4:1.0> smiling lady
+        man => <lora:Chroma\Gentleman_Chroma_V1:1.0> smiling gentleman
+        | woman => <lora:Chroma\Lady_Chroma_V1:1.0> smiling lady
     }
     ```
     - **Syntax Flexibility**: Both `{case $var: ...}` (with colon) and `{case $var ...}` (without colon) are fully supported.
