@@ -595,6 +595,11 @@ function injectSyntaxStyles() {
             color: #c084fc;
             border: 1px solid rgba(192, 132, 252, 0.4);
         }
+        .modusflow-ac-badge.badge-property {
+            background: rgba(236, 72, 153, 0.18);
+            color: #ec4899;
+            border: 1px solid rgba(236, 72, 153, 0.4);
+        }
         .modusflow-ac-empty {
             padding: 8px 12px;
             font-size: 11px;
@@ -1924,6 +1929,132 @@ function fetchLoraList(force = false) {
         });
 }
 
+// ── Property / Dictionary Autocomplete Cache & Helpers ───────────────────────
+const _wildcardKeysCache = new Map();
+const _fetchingWildcardKeys = new Set();
+
+function extractKeysFromWildcardContent(content) {
+    const keys = new Set();
+    if (!content || typeof content !== "string") return [];
+
+    const trimmed = content.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+                for (const item of parsed) {
+                    if (item && typeof item === "object") {
+                        Object.keys(item).forEach(k => keys.add(k));
+                    }
+                }
+            } else if (parsed && typeof parsed === "object") {
+                Object.keys(parsed).forEach(k => keys.add(k));
+            }
+        } catch (_) {}
+    }
+
+    const lines = content.split(/\r?\n/);
+    for (const line of lines) {
+        const l = line.trim();
+        if (!l || l.startsWith("#") || l.startsWith("//")) continue;
+
+        if (l.startsWith("{") && l.endsWith("}")) {
+            const inner = l.slice(1, -1);
+            const km = inner.matchAll(/([a-zA-Z0-9_]+)\s*:/g);
+            for (const match of km) {
+                const k = match[1];
+                if (k !== "http" && k !== "https" && k !== "lora") {
+                    keys.add(k);
+                }
+            }
+        } else if (/^[a-zA-Z0-9_]+\s*:/.test(l)) {
+            const m = l.match(/^([a-zA-Z0-9_]+)\s*:/);
+            if (m && m[1] !== "http" && m[1] !== "https") {
+                keys.add(m[1]);
+            }
+        }
+    }
+
+    return Array.from(keys);
+}
+
+function fetchWildcardKeys(filename) {
+    if (!filename) return Promise.resolve([]);
+    const cleanName = filename.replace(/^__+|__+$/g, "").trim();
+    if (_wildcardKeysCache.has(cleanName)) {
+        return Promise.resolve(_wildcardKeysCache.get(cleanName));
+    }
+    if (_fetchingWildcardKeys.has(cleanName)) {
+        return Promise.resolve([]);
+    }
+    _fetchingWildcardKeys.add(cleanName);
+
+    return fetch("/modusflow/wildcards/load", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: cleanName })
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data && data.success && data.data) {
+                const keys = extractKeysFromWildcardContent(data.data);
+                _wildcardKeysCache.set(cleanName, keys);
+                return keys;
+            }
+            _wildcardKeysCache.set(cleanName, []);
+            return [];
+        })
+        .catch(err => {
+            console.debug("[ModusFlow Autocomplete] Wildcard keys fetch:", err?.message);
+            _wildcardKeysCache.set(cleanName, []);
+            return [];
+        })
+        .finally(() => {
+            _fetchingWildcardKeys.delete(cleanName);
+        });
+}
+
+function extractInlineVariableKeys(varName, contextText) {
+    const keys = new Set();
+    if (!varName || !contextText) return [];
+
+    const inlineDictRegex = new RegExp(`\\$${varName}\\s*=\\s*\\{([\\s\\S]*?)\\}`, 'i');
+    const m = contextText.match(inlineDictRegex);
+    if (m) {
+        const body = m[1];
+        const km = body.matchAll(/([a-zA-Z0-9_]+)\s*:/g);
+        for (const match of km) {
+            const k = match[1];
+            if (k !== "http" && k !== "https" && k !== "case" && k !== "seq" && k !== "range" && k !== "lora") {
+                keys.add(k);
+            }
+        }
+    }
+
+    const inlineListRegex = new RegExp(`\\$${varName}\\s*=\\s*\\[([\\s\\S]*?)\\]`, 'i');
+    const lm = contextText.match(inlineListRegex);
+    if (lm) {
+        const body = lm[1];
+        const km = body.matchAll(/([a-zA-Z0-9_]+)\s*:/g);
+        for (const match of km) {
+            const k = match[1];
+            if (k !== "http" && k !== "https" && k !== "lora") {
+                keys.add(k);
+            }
+        }
+    }
+
+    return Array.from(keys);
+}
+
+const BUILTIN_OBJECT_HELPERS = [
+    { name: "keys", desc: "List all keys" },
+    { name: "values", desc: "List all values" },
+    { name: "length", desc: "Item count" },
+    { name: "first", desc: "First item" },
+    { name: "last", desc: "Last item" }
+];
+
 const SYSTEM_VARS = [
     { name: "date", desc: "Current date (YYYY-MM-DD)" },
     { name: "time", desc: "Current time (HH-MM-SS)" },
@@ -1971,9 +2102,33 @@ function extractPromptVariables(node) {
     return Array.from(vars).sort();
 }
 
-function detectTrigger(text, cursor) {
+function detectTrigger(text, cursor, node) {
     if (cursor <= 0 || !text) return null;
     const sub = text.slice(0, cursor);
+
+    // 0. Property access: $var.prop (e.g. $woman. or $woman.lo)
+    const propMatch = sub.match(/(?:^|[^\$a-zA-Z0-9_])\$([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]*)$/);
+    if (propMatch) {
+        const varName = propMatch[1];
+        const query = propMatch[2] || "";
+
+        let wildcardName = null;
+        const fullContext = (text || "") + (node ? "\n" + (node.widgets?.map(w => w.value || "").join("\n") || "") : "");
+        const wcDef = fullContext.match(new RegExp(`(?:^|\\n)\\s*\\$${varName}\\s*=\\s*__(?:[a-zA-Z0-9_\\-*$]+?\\$\\$)?([a-zA-Z0-9_\\-/]+)__`, 'i'));
+        if (wcDef) {
+            wildcardName = wcDef[1].trim();
+        }
+
+        return {
+            type: "property",
+            varName,
+            wildcardName,
+            fullToken: propMatch[0],
+            query,
+            replaceStart: cursor - query.length,
+            replaceEnd: cursor
+        };
+    }
 
     // 1. Wildcards: __name (preceded by start of line, whitespace, or punctuation)
     const wcMatch = sub.match(/(?:^|[\s,.:;!?([{\"])(__([a-zA-Z0-9_\/-]*))$/);
@@ -2054,6 +2209,8 @@ function formatReplacement(item, type) {
             return `{${item.name}} `;
         case "lora":
             return `<lora:${item.name}:1.0> `;
+        case "property":
+            return `${item.name}`;
         default:
             return `${item.name} `;
     }
@@ -2144,6 +2301,64 @@ function getSuggestions(trigger, node) {
             badgeClass: "badge-lora",
             desc: "LoRA model"
         }));
+    }
+
+    if (trigger.type === "property") {
+        const varName = trigger.varName;
+        const q = (trigger.query || "").toLowerCase();
+        const fullContext = (node?.widgets?.map(w => w.value || "").join("\n") || "") + "\n" + (node?._lastFullPrompt || "");
+
+        const propSet = new Set();
+        const items = [];
+
+        if (trigger.wildcardName && _wildcardKeysCache.has(trigger.wildcardName)) {
+            const wcKeys = _wildcardKeysCache.get(trigger.wildcardName) || [];
+            for (const k of wcKeys) {
+                if (!propSet.has(k)) {
+                    propSet.add(k);
+                    items.push({
+                        name: k,
+                        badge: "PROP",
+                        badgeClass: "badge-property",
+                        desc: `Property (${trigger.wildcardName})`
+                    });
+                }
+            }
+        }
+
+        const inlineKeys = extractInlineVariableKeys(varName, fullContext);
+        for (const k of inlineKeys) {
+            if (!propSet.has(k)) {
+                propSet.add(k);
+                items.push({
+                    name: k,
+                    badge: "PROP",
+                    badgeClass: "badge-property",
+                    desc: "Dictionary property"
+                });
+            }
+        }
+
+        for (const helper of BUILTIN_OBJECT_HELPERS) {
+            if (!propSet.has(helper.name)) {
+                items.push({
+                    name: helper.name,
+                    badge: "METH",
+                    badgeClass: "badge-system",
+                    desc: helper.desc
+                });
+            }
+        }
+
+        const filtered = items.filter(it => !q || it.name.toLowerCase().includes(q));
+        filtered.sort((a, b) => {
+            const aStarts = a.name.toLowerCase().startsWith(q);
+            const bStarts = b.name.toLowerCase().startsWith(q);
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+            return a.name.localeCompare(b.name);
+        });
+        return filtered;
     }
 
     return [];
@@ -2330,7 +2545,7 @@ function attachAutocomplete(widget, node) {
         }
 
         function checkTriggerAndSuggest() {
-            const trigger = detectTrigger(ta.value, ta.selectionStart);
+            const trigger = detectTrigger(ta.value, ta.selectionStart, node);
             if (!trigger) {
                 closeMenu();
                 return;
@@ -2342,6 +2557,10 @@ function attachAutocomplete(widget, node) {
             }
             if (trigger.type === "lora" && (!_cachedLoras || _cachedLoras.length === 0) && !_fetchingLoras) {
                 fetchLoraList(true).then(() => checkTriggerAndSuggest());
+                return;
+            }
+            if (trigger.type === "property" && trigger.wildcardName && !_wildcardKeysCache.has(trigger.wildcardName)) {
+                fetchWildcardKeys(trigger.wildcardName).then(() => checkTriggerAndSuggest());
                 return;
             }
 
