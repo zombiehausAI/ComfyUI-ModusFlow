@@ -535,6 +535,9 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
         ```
         - **Random Single Entity Roll**: `$hero = __heroes__;` rolls a single random dictionary with dot access `$hero.name`, `$hero.role`, `$hero.weapon`.
         - **Complete Roster Import**: `$party = __all$$heroes__;` imports all entries into a `PromptList`. Access via `$party[0].name`, `$party.length`, or iterate through them.
+        - **In-File `[ALL]` Directive**: Adding `[ALL]` or `#mode: all` as the first line of any wildcard `.txt` file automatically forces any standard reference like `__negatives__` to output all entries as a comma-separated list without needing `all$$`.
+        - **Inline `{all$$...}` Choices**: Use `{all$$item1|item2|item3}` or `{all$$item1, item2, item3}` directly in prompts to emit all items comma-separated.
+        - **`all(...)` Function Syntax**: Use `all(__wildcard__)`, `all(__wildcard__}`, or `all($list)` to evaluate and comma-separate all items from a wildcard list or variable.
         - **Direct Loop over Wildcard List**:
           ```text
           for $member in __heroes__ {

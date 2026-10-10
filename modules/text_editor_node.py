@@ -332,13 +332,15 @@ class ModusFlowTextEditor:
 
         text = resolve_imports(text)
 
-        # Helper: parse count spec "2" or "1-3"
+        # Helper: parse count spec "2", "1-3", "all", or "*"
         def parse_count(spec, total):
             if not spec or total <= 0:
                 return 1
-            if '-' in spec:
+            if str(spec).strip().lower() in ("all", "*"):
+                return total
+            if '-' in str(spec):
                 try:
-                    low, high = map(int, spec.split('-'))
+                    low, high = map(int, str(spec).split('-'))
                     low = max(1, min(low, total))
                     high = max(low, min(high, total))
                     return rng.randint(low, high)
@@ -540,7 +542,21 @@ class ModusFlowTextEditor:
                 return None
 
             raw_lines = [l.strip() for l in content.splitlines()]
-            lines = [l for l in raw_lines if l and not l.startswith(('#', '//'))]
+            file_mode_all = False
+            cleaned_lines = []
+            for l in raw_lines:
+                if not l:
+                    continue
+                lower_l = l.lower()
+                # Check for in-file header directive: [ALL], [MODE: ALL], #mode: all, #all, // mode: all
+                if re.match(r'^\[\s*(?:mode\s*:\s*)?all\s*\]$', lower_l) or re.match(r'^(?:#|//)\s*(?:mode\s*:\s*)?all\b', lower_l):
+                    file_mode_all = True
+                    continue
+                if l.startswith(('#', '//')):
+                    continue
+                cleaned_lines.append(l)
+
+            lines = cleaned_lines
             if not lines:
                 return ""
 
@@ -558,7 +574,8 @@ class ModusFlowTextEditor:
 
             # Multiple entries
             parsed_lines = [parse_complex_value(line, local_vars) for line in lines]
-            if count_spec in ("all", "*") or default_all:
+            is_all_selection = (count_spec in ("all", "*")) or default_all or (count_spec is None and file_mode_all)
+            if is_all_selection:
                 return PromptList(parsed_lines)
 
             k = parse_count(count_spec, len(parsed_lines)) if count_spec else 1
@@ -962,6 +979,11 @@ class ModusFlowTextEditor:
         # 1.5. Resolve Loop Statements: repeat(N) { ... } and for ... in ... { ... }
         def parse_list_items(list_expr: str, current_vars: dict):
             expr = list_expr.strip()
+
+            # Support all(...) in loop expression: for $item in all(__list__)
+            m_all = re.match(r'^all\s*[\(\{]\s*([^{}\(\)]+?)\s*[\)\}]$', expr, re.IGNORECASE)
+            if m_all:
+                return parse_list_items(m_all.group(1), current_vars)
 
             # Check if expr has property access or method call ($dict.keys(), $party[0].skills, etc.)
             m_chain = re.match(r'^\$([a-zA-Z0-9_]+)((?:\.[a-zA-Z0-9_]+(?:\(\))?|\[\s*(?:-?[0-9]+|"[^"]*"|\'[^\']*\')\s*\])+)$', expr)
@@ -1887,7 +1909,7 @@ class ModusFlowTextEditor:
             count_spec = None
             if '$$' in content:
                 parts = content.split('$$', 1)
-                count_spec = parts[0].strip()
+                count_spec = parts[0].strip().lower()
                 content = parts[1].strip()
 
             if '|' in content:
@@ -1916,6 +1938,9 @@ class ModusFlowTextEditor:
             if not options_with_weights:
                 return ""
 
+            if count_spec in ("all", "*"):
+                return ", ".join(item for item, _ in options_with_weights)
+
             k = parse_count(count_spec, len(options_with_weights)) if count_spec else 1
             picked = sample_items(options_with_weights, k)
             return ", ".join(picked)
@@ -1928,8 +1953,45 @@ class ModusFlowTextEditor:
                 return str(res)
             return wc_spec
 
+        # Helper: resolve all(...) function calls: e.g. all(__wildcard__), all($list), all(a|b|c), all{...}
+        all_pattern = r'\ball\s*[\(\{]\s*([^{}\(\)]+?)\s*[\)\}]'
+
+        def replace_all(match):
+            raw_target = match.group(1).strip()
+            if not raw_target:
+                return ""
+
+            # 1. Variable reference: all($var)
+            if raw_target.startswith("$") and raw_target[1:] in variables:
+                val = variables[raw_target[1:]]
+                if isinstance(val, (list, tuple)):
+                    return ", ".join(str(x) for x in val)
+                return str(val)
+
+            # 2. Wildcard reference: all(__name__) or all(name)
+            wc_candidate = raw_target
+            if not (wc_candidate.startswith("__") and wc_candidate.endswith("__")):
+                if re.match(r'^[a-zA-Z0-9_\-/]+$', wc_candidate):
+                    wc_candidate = f"__{wc_candidate}__"
+
+            if wc_candidate.startswith("__") and wc_candidate.endswith("__"):
+                res = load_wildcard_resource(wc_candidate, default_all=True, local_vars=variables)
+                if res is not None:
+                    return str(res)
+
+            # 3. Choices separated by | or , e.g. all(ugly | blurry | deformed)
+            if "|" in raw_target:
+                items = [x.strip() for x in raw_target.split("|") if x.strip()]
+                return ", ".join(items)
+            elif "," in raw_target:
+                items = [x.strip() for x in raw_target.split(",") if x.strip()]
+                return ", ".join(items)
+
+            return raw_target
+
         # 3 & 4. Iteratively resolve percentage chances, choices, and wildcards (up to 10 passes)
         # This guarantees:
+        # - all(...) and all{...} calls resolve to comma-separated entries
         # - Percentage chances {40%: text} evaluate cleanly
         # - Wildcard list rows can contain choices like `wearing {red|blue} sneakers`
         # - Dynamic choices can select between wildcards like `{__hats__|__helmets__}`
@@ -1952,6 +2014,11 @@ class ModusFlowTextEditor:
 
         for _ in range(10):
             changed = False
+            if re.search(all_pattern, text, flags=re.IGNORECASE):
+                new_text = re.sub(all_pattern, replace_all, text, flags=re.IGNORECASE)
+                if new_text != text:
+                    text = new_text
+                    changed = True
             if re.search(pct_pattern, text):
                 new_text = re.sub(pct_pattern, replace_pct_chance, text)
                 if new_text != text:
