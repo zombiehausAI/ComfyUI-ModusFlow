@@ -105,10 +105,18 @@ function escapeHtml(str) {
 }
 
 function injectSyntaxStyles() {
-    if (document.getElementById("modusflow-function-editor-styles")) return;
-    const styleEl = document.createElement("style");
-    styleEl.id = "modusflow-function-editor-styles";
+    let styleEl = document.getElementById("modusflow-function-editor-styles");
+    if (!styleEl) {
+        styleEl = document.createElement("style");
+        styleEl.id = "modusflow-function-editor-styles";
+        document.head.appendChild(styleEl);
+    }
     styleEl.textContent = `
+        .modusflow-fn-syntax-ta {
+            background: transparent !important;
+            background-color: transparent !important;
+            box-sizing: border-box !important;
+        }
         .modusflow-fn-syntax-ta::selection {
             background: rgba(99, 102, 241, 0.35) !important;
             color: transparent !important;
@@ -128,6 +136,15 @@ function injectSyntaxStyles() {
             user-select: none;
             -webkit-user-select: none;
             border-radius: 6px;
+            z-index: 0 !important;
+        }
+        .modusflow-fn-popout-ta::selection {
+            background: rgba(99, 102, 241, 0.35) !important;
+            color: transparent !important;
+        }
+        .modusflow-fn-popout-ta::-moz-selection {
+            background: rgba(99, 102, 241, 0.35) !important;
+            color: transparent !important;
         }
         .modusflow-decorator-global {
             display: inline-block;
@@ -643,6 +660,43 @@ function getSuggestions(trigger, currentScript = "") {
     return [];
 }
 
+function getCaretCoordinates(ta, position) {
+    const div = document.createElement("div");
+    const cs = window.getComputedStyle(ta);
+    const props = [
+        "direction", "boxSizing", "width", "height", "overflowX", "overflowY",
+        "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "borderStyle",
+        "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+        "fontStyle", "fontVariant", "fontWeight", "fontStretch", "fontSize",
+        "fontSizeAdjust", "lineHeight", "fontFamily", "textAlign", "textTransform",
+        "textIndent", "textDecoration", "letterSpacing", "wordSpacing", "tabSize"
+    ];
+    div.style.position = "absolute";
+    div.style.visibility = "hidden";
+    div.style.whiteSpace = "pre-wrap";
+    div.style.wordWrap = "break-word";
+    div.style.top = "0";
+    div.style.left = "-9999px";
+    for (const p of props) {
+        div.style[p] = cs[p];
+    }
+    div.style.width = (ta.clientWidth || 300) + "px";
+    div.textContent = ta.value.substring(0, position);
+    const span = document.createElement("span");
+    span.textContent = ta.value.substring(position) || ".";
+    div.appendChild(span);
+    document.body.appendChild(div);
+    const top = span.offsetTop - ta.scrollTop + parseInt(cs.borderTopWidth || "0", 10);
+    const left = span.offsetLeft - ta.scrollLeft + parseInt(cs.borderLeftWidth || "0", 10);
+    const lineHeight = parseInt(cs.lineHeight, 10) || 18;
+    document.body.removeChild(div);
+    return {
+        top: top + ta.offsetTop,
+        left: left + ta.offsetLeft,
+        lineHeight: lineHeight
+    };
+}
+
 function attachAutocomplete(ta, getScriptText) {
     if (!ta || !ta.parentElement || ta._hasFnAutocomplete) return;
     ta._hasFnAutocomplete = true;
@@ -705,6 +759,30 @@ function attachAutocomplete(ta, getScriptText) {
         ta.focus();
     }
 
+    function positionMenu() {
+        if (!currentTrigger) return;
+        const coords = getCaretCoordinates(ta, currentTrigger.replaceStart);
+        const parentW = parent.clientWidth || 400;
+        const parentH = parent.clientHeight || 300;
+        const menuWidth = Math.min(320, parentW - 20);
+
+        let left = coords.left;
+        if (left + menuWidth > parentW - 10) {
+            left = Math.max(8, parentW - menuWidth - 10);
+        }
+        if (left < 4) left = 4;
+
+        let top = coords.top + coords.lineHeight + 4;
+        const estMenuH = Math.min(220, activeItems.length * 32 + 20);
+        if (top + estMenuH > parentH && coords.top - estMenuH > 4) {
+            top = coords.top - estMenuH - 4;
+        }
+
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+        menu.style.width = `${menuWidth}px`;
+    }
+
     ta.addEventListener("input", () => {
         const cursor = ta.selectionStart;
         currentTrigger = detectTrigger(ta.value, cursor);
@@ -721,8 +799,7 @@ function attachAutocomplete(ta, getScriptText) {
         }
 
         selectedIndex = 0;
-        menu.style.top = Math.min(ta.offsetHeight - 40, ta.offsetTop + 30) + "px";
-        menu.style.left = Math.min(ta.offsetWidth - 220, Math.max(10, ta.offsetLeft + 10)) + "px";
+        positionMenu();
         renderMenu();
     });
 
@@ -788,13 +865,19 @@ function attachSyntaxHighlighter(widget, node) {
         ta.classList.add("modusflow-fn-syntax-ta");
         ta.style.position = "relative";
         ta.style.zIndex = "1";
-        ta.style.background = "transparent";
-        ta.style.color = "transparent";
+        ta.style.setProperty("background", "transparent", "important");
+        ta.style.setProperty("background-color", "transparent", "important");
         ta.style.caretColor = getActiveTheme().caret_color || "#ffffff";
         ta.style.fontFamily = MONOSPACE_FONT;
         ta.style.fontSize = "13px";
         ta.style.lineHeight = "1.4";
         ta.style.tabSize = "4";
+        ta.style.overflowY = "auto";
+        ta.style.overflowX = "hidden";
+        ta.style.whiteSpace = "pre-wrap";
+        ta.style.wordBreak = "break-word";
+        ta.style.overflowWrap = "break-word";
+        ta.style.boxSizing = "border-box";
 
         const badge = document.createElement("div");
         badge.className = "modusflow-fn-badge";
@@ -806,6 +889,36 @@ function attachSyntaxHighlighter(widget, node) {
             backdrop.style.left = ta.offsetLeft + "px";
             backdrop.style.width = ta.offsetWidth + "px";
             backdrop.style.height = ta.offsetHeight + "px";
+
+            const cs = window.getComputedStyle(ta);
+            const borderLeft = parseFloat(cs.borderLeftWidth) || 0;
+            const borderRight = parseFloat(cs.borderRightWidth) || 0;
+            const scrollbarWidth = Math.max(0, ta.offsetWidth - ta.clientWidth - borderLeft - borderRight);
+
+            backdrop.style.fontFamily = MONOSPACE_FONT;
+            backdrop.style.fontSize = cs.fontSize || "13px";
+            backdrop.style.lineHeight = cs.lineHeight || "1.4";
+            backdrop.style.letterSpacing = cs.letterSpacing || "normal";
+            backdrop.style.wordSpacing = cs.wordSpacing || "normal";
+            backdrop.style.whiteSpace = "pre-wrap";
+            backdrop.style.wordBreak = cs.wordBreak || "break-word";
+            backdrop.style.overflowWrap = cs.overflowWrap || "break-word";
+            backdrop.style.tabSize = "4";
+            backdrop.style.boxSizing = cs.boxSizing || "border-box";
+
+            backdrop.style.paddingTop = cs.paddingTop;
+            backdrop.style.paddingBottom = cs.paddingBottom;
+            backdrop.style.paddingLeft = cs.paddingLeft;
+            backdrop.style.paddingRight = (parseFloat(cs.paddingRight) || 0) + scrollbarWidth + "px";
+
+            backdrop.style.border = cs.border;
+            backdrop.style.borderColor = "transparent";
+            backdrop.style.borderStyle = cs.borderStyle;
+            backdrop.style.borderWidth = cs.borderWidth;
+            backdrop.style.borderRadius = cs.borderRadius;
+
+            backdrop.scrollTop = ta.scrollTop;
+            backdrop.scrollLeft = ta.scrollLeft;
         }
 
         function updateMetrics(val) {
@@ -831,13 +944,31 @@ function attachSyntaxHighlighter(widget, node) {
             backdrop.scrollTop = ta.scrollTop;
             backdrop.scrollLeft = ta.scrollLeft;
             updateMetrics(ta.value);
+
+            if (ta.offsetWidth > 0 && ta.offsetHeight > 0) {
+                ta.style.setProperty("color", "transparent", "important");
+                backdrop.style.display = "block";
+            } else {
+                ta.style.removeProperty("color");
+                ta.style.color = theme.plain_text || "#e2e8f0";
+            }
         };
 
         ta.addEventListener("input", update);
         ta.addEventListener("scroll", () => {
             backdrop.scrollTop = ta.scrollTop;
             backdrop.scrollLeft = ta.scrollLeft;
-        });
+        }, { passive: true });
+        ta.addEventListener("focus", update);
+        ta.addEventListener("click", update);
+        ta.addEventListener("keyup", update);
+
+        if (window.ResizeObserver) {
+            const ro = new ResizeObserver(() => {
+                update();
+            });
+            ro.observe(ta);
+        }
 
         // Tab indentation and comment toggle
         ta.addEventListener("keydown", (e) => {
@@ -882,6 +1013,7 @@ function attachSyntaxHighlighter(widget, node) {
         widget._updateSyntaxHighlight = update;
         setTimeout(update, 20);
         setTimeout(update, 100);
+        setTimeout(update, 350);
     };
 
     bind();
@@ -1391,6 +1523,16 @@ app.registerExtension({
                 const r = onResize ? onResize.apply(this, arguments) : undefined;
                 const scriptWidget = this.widgets?.find(w => w.name === "script_code");
                 scriptWidget?._updateSyntaxHighlight?.();
+                return r;
+            };
+
+            const getExtraMenuOptions = nodeType.prototype.getExtraMenuOptions;
+            nodeType.prototype.getExtraMenuOptions = function (_, options) {
+                const r = getExtraMenuOptions ? getExtraMenuOptions.apply(this, arguments) : undefined;
+                options.push({
+                    content: "⛶ Pop Out Function Studio",
+                    callback: () => showFunctionPopoutStudio(this)
+                });
                 return r;
             };
         }
