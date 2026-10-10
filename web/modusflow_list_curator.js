@@ -14,6 +14,8 @@ const DEFAULT_THEMES = {
         weight: "#34d399",
         curator: "#4ade80",
         lora: "#f87171",
+        keyword: "#e879f9",
+        function: "#818cf8",
         plain_text: "#e2e8f0",
         caret_color: "#ffffff",
         bg_color: "#181825"
@@ -27,6 +29,8 @@ const DEFAULT_THEMES = {
         weight: "#99cc99",
         curator: "#6699cc",
         lora: "#f2777a",
+        keyword: "#cc99cc",
+        function: "#6699cc",
         plain_text: "#cccccc",
         caret_color: "#cccccc",
         bg_color: "#2d2d2d"
@@ -40,6 +44,8 @@ const DEFAULT_THEMES = {
         weight: "#22c55e",
         curator: "#39ff14",
         lora: "#ff0055",
+        keyword: "#ff007f",
+        function: "#ffe600",
         plain_text: "#f3f4f6",
         caret_color: "#00f0ff",
         bg_color: "#0d0e15"
@@ -53,6 +59,8 @@ const DEFAULT_THEMES = {
         weight: "#a9dc76",
         curator: "#ab9df2",
         lora: "#ff6188",
+        keyword: "#ff6188",
+        function: "#a9dc76",
         plain_text: "#fcfcfa",
         caret_color: "#ffd866",
         bg_color: "#221f22"
@@ -66,6 +74,8 @@ const DEFAULT_THEMES = {
         weight: "#50fa7b",
         curator: "#50fa7b",
         lora: "#ff5555",
+        keyword: "#ff79c6",
+        function: "#50fa7b",
         plain_text: "#f8f8f2",
         caret_color: "#f8f8f2",
         bg_color: "#1e1f29"
@@ -79,6 +89,8 @@ const DEFAULT_THEMES = {
         weight: "#a3be8c",
         curator: "#8fbcbb",
         lora: "#bf616a",
+        keyword: "#81a1c1",
+        function: "#8fbcbb",
         plain_text: "#eceff4",
         caret_color: "#88c0d0",
         bg_color: "#242933"
@@ -92,6 +104,8 @@ const DEFAULT_THEMES = {
         weight: "#859900",
         curator: "#268bd2",
         lora: "#cb4b16",
+        keyword: "#859900",
+        function: "#268bd2",
         plain_text: "#93a1a1",
         caret_color: "#268bd2",
         bg_color: "#001e26"
@@ -105,6 +119,8 @@ const DEFAULT_THEMES = {
         weight: "#10b981",
         curator: "#22c55e",
         lora: "#ef4444",
+        keyword: "#d946ef",
+        function: "#06b6d4",
         plain_text: "#ffffff",
         caret_color: "#ffffff",
         bg_color: "#09090b"
@@ -159,6 +175,24 @@ function injectSyntaxStyles() {
             overflow-wrap: break-word;
             user-select: none;
             -webkit-user-select: none;
+        }
+        .modusflow-section-banner {
+            display: inline;
+            background: linear-gradient(90deg, rgba(137, 180, 250, 0.25) 0%, rgba(203, 166, 247, 0.15) 100%);
+            border-bottom: 2px solid #89b4fa;
+            color: #89b4fa;
+            font-weight: bold;
+            letter-spacing: normal;
+        }
+        .modusflow-weight-token {
+            border-radius: 3px;
+            padding: 0 2px;
+            transition: all 0.15s ease;
+        }
+        .modusflow-hex-pill {
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-family: inherit;
         }
         .modusflow-token-badge {
             position: absolute;
@@ -328,45 +362,275 @@ function tokenizeAndHighlight(text, theme) {
         }
     };
 
-    // Priority order of syntax tokens:
-    // 1. Comments: /* ... */ or // ... or # ...
-    addMatches(/\/\*[\s\S]*?\*\/|\/\/[^\r\n]*|#[^\r\n]*/g, "comment");
-    // 2. LoRA tags: <lora:...>
+    // Priority order of syntax tokens (matching ModusFlow Text Editor):
+    // 0. Section Banners & Directives: [ALL], [Section Name], // [Section], /* [Section] */, #mode: all
+    addMatches(/(?:\/\/|#|\/\*)\s*\[[^\]\r\n]+\](?:\s*\*\/)?/g, "section_header");
+    addMatches(/(?:^|(?<=[\r\n]))\s*\[[^\]\r\n]+\](?=\s*(?:[\r\n]|$))/g, "section_header");
+    addMatches(/(?:^|(?<=[\r\n]))\s*#(?:mode\s*:\s*)?all\b/gi, "section_header");
+    // 1. Comments: /* ... */
+    addMatches(/\/\*[\s\S]*?\*\//g, "comment");
+    // 2. Hex colors: #RRGGBB or #RGB
+    addMatches(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g, "hex_color");
+    // 3. Comments (Line): // ... or # ...
+    addMatches(/\/\/[^\r\n]*|#[^\r\n]*/g, "comment");
+    // 4. LoRA tags: <lora:...>
     addMatches(/<lora:[^>\r\n]+>/gi, "lora");
-    // 3. Prompt Variables: $name = value; or $name
-    addMatches(/\$[a-zA-Z0-9_-]+(?:\s*=\s*[^;\r\n]+;?)?/g, "variable");
-    // 4. Curator placeholders: {curator}, {curator2}, etc.
-    addMatches(/\{curator\d*\}/gi, "curator");
-    // 5. Shuffle syntax: {shuffle:...}
-    addMatches(/\{shuffle:[^}]+\}/gi, "shuffle");
-    // 6. Pick-N & Ranges: {2$$...}, {1-3$$...}
-    addMatches(/\{\s*\d+(?:-\d+)?\$\$[^}]+\}/g, "choice");
-    // 7. Weighted Odds: {80::a|20::b}
+
+    // 4.5 CASE Statements: {$var: val1 => result1 | * => default} or {case $var: ...}
+    const addCaseMatches = () => {
+        let ci = 0;
+        const cn = text.length;
+        while (ci < cn) {
+            const isCasePrefix = text.slice(ci, ci + 6).toLowerCase() === "{case ";
+            const isVarPrefix = text.slice(ci, ci + 2) === "{$";
+            if (isCasePrefix || isVarPrefix) {
+                const cStart = ci;
+                ci += isCasePrefix ? 6 : 2;
+                let cDepth = 1;
+                while (ci < cn && cDepth > 0) {
+                    const ch = text[ci];
+                    if (ch === "{") cDepth++;
+                    else if (ch === "}") cDepth--;
+                    ci++;
+                }
+                if (cDepth === 0) {
+                    const block = text.slice(cStart, ci);
+                    const inner = block.slice(1, -1);
+                    if (inner.includes(":") && inner.includes("=>")) {
+                        const collides = intervals.some(iv => (cStart < iv.end && ci > iv.start));
+                        if (!collides) {
+                            intervals.push({ start: cStart, end: ci, type: "case_statement" });
+                        }
+                    }
+                }
+            } else {
+                ci++;
+            }
+        }
+    };
+    addCaseMatches();
+
+    // 4.6 Ternary Conditionals: {$var==val?true:false}
+    const addTernaryMatches = () => {
+        let ti = 0;
+        const tn = text.length;
+        while (ti < tn) {
+            if (text.slice(ti, ti + 2) === "{$") {
+                const tStart = ti;
+                ti += 2;
+                let tDepth = 1;
+                while (ti < tn && tDepth > 0) {
+                    const ch = text[ti];
+                    if (ch === "{") tDepth++;
+                    else if (ch === "}") tDepth--;
+                    ti++;
+                }
+                if (tDepth === 0) {
+                    const block = text.slice(tStart, ti);
+                    const inner = block.slice(1, -1);
+                    let hasQ = false;
+                    let id = 0;
+                    for (let idx = 0; idx < inner.length; idx++) {
+                        const c = inner[idx];
+                        if (c === "{") id++;
+                        else if (c === "}") id--;
+                        else if (c === "?" && id === 0) {
+                            hasQ = true;
+                            break;
+                        }
+                    }
+                    if (hasQ && !inner.includes("=>")) {
+                        const collides = intervals.some(iv => (tStart < iv.end && ti > iv.start));
+                        if (!collides) {
+                            intervals.push({ start: tStart, end: ti, type: "ternary" });
+                        }
+                    }
+                }
+            } else {
+                ti++;
+            }
+        }
+    };
+    addTernaryMatches();
+
+    // 4.7 Inline Negative Injections: {!neg: ...}
+    addMatches(/\{!neg:[^}]+\}/gi, "inline_neg");
+    // 4.8 Environment & Workflow Macros: %seed%, %date%, %sampler%, %steps%, etc.
+    addMatches(/%[a-zA-Z0-9_]+%/g, "macro");
+
+    // 4.9 Function & Macro Definitions: fn name(...) or def name(...)
+    const addFuncDefMatches = () => {
+        const re = /\b(fn|def)\s+([a-zA-Z0-9_]+)/g;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+            const kwStart = m.index;
+            const kwEnd = kwStart + m[1].length;
+            const fnStart = m.index + m[0].indexOf(m[2]);
+            const fnEnd = fnStart + m[2].length;
+            if (!intervals.some(iv => kwStart < iv.end && kwEnd > iv.start)) {
+                intervals.push({ start: kwStart, end: kwEnd, type: "keyword" });
+            }
+            if (!intervals.some(iv => fnStart < iv.end && fnEnd > iv.start)) {
+                intervals.push({ start: fnStart, end: fnEnd, type: "function" });
+            }
+        }
+    };
+    addFuncDefMatches();
+
+    // 4.10 Imports: @import and as
+    addMatches(/@import\b/g, "keyword");
+    // 4.11 Macro Invocations: @functionName(...) or @macroName
+    addMatches(/@[a-zA-Z0-9_]+/g, "function");
+
+    // 4.12 Loops & Flow Keywords
+    addMatches(/\brepeat\b(?=\s*[\(\{])/g, "keyword");
+    addMatches(/\bfor\b(?=\s+(?:\[[^\]]+\]|\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)?)\s+in\b)/g, "keyword");
+    addMatches(/(?<=\bfor\s+(?:\[[^\]]+\]|\$[a-zA-Z0-9_]+(?:\s*,\s*\$[a-zA-Z0-9_]+)?)\s+)in\b/g, "keyword");
+    addMatches(/\bas\b(?=\s+\$[a-zA-Z0-9_]+)/g, "keyword");
+    addMatches(/\b(switch|return)\b(?=[\s(:])/g, "keyword");
+    addMatches(/\bcase\b(?=[\s:$])/g, "keyword");
+
+    // 4.13 Built-in Functions: all(...), range(...), rand(...)
+    addMatches(/\b(all|range|rand)\b(?=\s*[\(\{])/gi, "function");
+
+    // 5. Pick-N & Ranges: {2$$...}, {1-3$$...}, {all$$...}
+    addMatches(/\{\s*(?:\d+(?:-\d+)?|all|\*)\$\$[^}]+\}/gi, "choice");
+    // 5.5 Weighted Odds: {80::a|20::b}
     addMatches(/\{\s*\d+::[^}]+\}/g, "choice");
-    // 8. Dynamic Choices: {a|b|c}
+    // 5.6 Dynamic Choices: {a|b|c}
     addMatches(/\{[^{}]*\|[^{}]*\}/g, "choice");
-    // 9. Wildcards: __name__ or __folder/name__
-    addMatches(/__[a-zA-Z0-9_/-]+__/g, "wildcard");
-    // 10. Attention Weights: (tag:1.3)
+
+    // 6. Prompt Variables: Synced Tuples, Multiline Blocks, Piped Filters, or $name = value
+    addMatches(/\[\s*(?<!\$)\$[a-zA-Z0-9_]+(?:\s*,\s*(?<!\$)\$[a-zA-Z0-9_]+)*\s*\]\s*=\s*\{[^{}]+\};?/g, "variable");
+    addMatches(/(?<!\$)\$[a-zA-Z0-9_]+\s*=\s*(?:"""[\s\S]*?"""|'''[\s\S]*?''')[;\s]*/g, "variable");
+    addMatches(/(?<!\$)\$[a-zA-Z0-9_]+(?:\[\d+\])*(?:\.[a-zA-Z0-9_]+\b(?!\s*[\(\{]))*/g, "variable");
+
+    // 6.1 Methods & Properties on objects/lists: .keys(), .values(), .items(), .length, .size()
+    addMatches(/(?<=\.)(?:[a-zA-Z0-9_]+\b(?=\s*[\(\{])|length\b)/g, "function");
+    // 6.2 Pipe Filters: | upper, | lower, | title, etc.
+    addMatches(/(?<=(?:\$[a-zA-Z0-9_.]+(?:\([^)]*\))?|\)|\])\s*\|\s*)([a-zA-Z0-9_]+)\b/g, "function");
+
+    // 7. Curator placeholders: {curator}, {curator2}, etc.
+    addMatches(/\{curator\d*\}/gi, "curator");
+    // 7.1 Shuffle & Sequential syntax: {shuffle:...}, {seq:...}, {cycle:...}
+    addMatches(/\{(?:shuffle|seq|cycle):[^}]+\}/gi, "shuffle");
+    // 7.2 Numerical Ranges: {range:...}, {rand:...}
+    addMatches(/\{(?:range|rand):[^}]+\}/gi, "choice");
+    // 11. Wildcards: __name__ or __all$$name__ or __folder/name__
+    addMatches(/__(?:(?:\d+(?:-\d+)?|all|\*)\$\$)?([a-zA-Z0-9_\-/]+)__/g, "wildcard");
+    // 12. Attention Weights: (tag:1.3)
     addMatches(/\([^():\r\n]+:\s*-?\d+(?:\.\d+)?\)/g, "weight");
 
-    intervals.sort((a, b) => a.start - b.start);
+    // 13. Rainbow & Matching Parentheses + Unclosed Warning
+    const RAINBOW_PAREN_COLORS = ["#38bdf8", "#c084fc", "#f472b6", "#34d399", "#fbbf24", "#a78bfa"];
+    const isExcluded = (pos) => intervals.some(iv => pos >= iv.start && pos < iv.end);
+    const pStack = [];
+
+    for (let i = 0; i < text.length; i++) {
+        if (isExcluded(i)) continue;
+        const ch = text[i];
+        if (ch === "(") {
+            pStack.push({ index: i, depth: pStack.length });
+        } else if (ch === ")") {
+            if (pStack.length > 0) {
+                const open = pStack.pop();
+                const color = RAINBOW_PAREN_COLORS[open.depth % RAINBOW_PAREN_COLORS.length];
+                if (!isExcluded(open.index) && !isExcluded(i)) {
+                    intervals.push({ start: open.index, end: open.index + 1, type: "rainbow_paren", color });
+                    intervals.push({ start: i, end: i + 1, type: "rainbow_paren", color });
+                }
+            } else if (!isExcluded(i)) {
+                intervals.push({ start: i, end: i + 1, type: "unmatched_paren" });
+            }
+        }
+    }
+
+    while (pStack.length > 0) {
+        const unclosed = pStack.pop();
+        if (!isExcluded(unclosed.index)) {
+            intervals.push({ start: unclosed.index, end: unclosed.index + 1, type: "unclosed_paren" });
+        }
+    }
+
+    intervals.sort((a, b) => {
+        if (a.start !== b.start) return a.start - b.start;
+        return (b.end - b.start) - (a.end - a.start);
+    });
 
     let html = "";
     let cursor = 0;
 
     for (const iv of intervals) {
+        if (iv.start < cursor) {
+            continue;
+        }
         if (iv.start > cursor) {
-            html += escapeHtml(text.slice(cursor, iv.start));
+            html += `<span style="color: ${theme.plain_text || '#e2e8f0'};">${escapeHtml(text.slice(cursor, iv.start))}</span>`;
         }
         const tokenText = escapeHtml(text.slice(iv.start, iv.end));
-        const color = theme[iv.type] || theme.plain_text || "#e2e8f0";
-        html += `<span style="color: ${color};">${tokenText}</span>`;
+        if (iv.type === "section_header") {
+            html += `<span class="modusflow-section-banner">${tokenText}</span>`;
+        } else if (iv.type === "rainbow_paren") {
+            html += `<span style="color: ${iv.color}; font-weight: bold;">${tokenText}</span>`;
+        } else if (iv.type === "unclosed_paren" || iv.type === "unmatched_paren") {
+            html += `<span style="background: rgba(239, 68, 68, 0.4); color: #f87171; border-radius: 2px; text-decoration: underline wavy #ef4444; font-weight: bold;" title="${iv.type === 'unclosed_paren' ? 'Unclosed opening parenthesis!' : 'Unmatched closing parenthesis!'}">${tokenText}</span>`;
+        } else if (iv.type === "hex_color") {
+            const rawHex = text.slice(iv.start, iv.end);
+            html += `<span class="modusflow-hex-pill" data-hex="${rawHex}" style="color: ${rawHex}; font-weight: bold; background: ${rawHex}33; text-decoration: underline dotted ${rawHex};" title="Hex Color: ${rawHex}">${tokenText}</span>`;
+        } else if (iv.type === "weight") {
+            const raw = text.slice(iv.start, iv.end);
+            const wMatch = raw.match(/:(-?\d+(?:\.\d+)?)\)$/);
+            const w = wMatch ? parseFloat(wMatch[1]) : 1.0;
+            const baseColor = theme.weight || "#fde047";
+            let extraStyle = "";
+            let title = `Weight: ${w.toFixed(2)}`;
+            if (w > 1.0) {
+                const glowSpread = Math.min(12, Math.round((w - 1.0) * 10));
+                const glowAlpha = Math.min(0.9, 0.25 + (w - 1.0) * 0.45);
+                const bgAlpha = Math.min(0.35, (w - 1.0) * 0.22);
+                extraStyle = `font-weight: bold; text-shadow: 0 0 ${glowSpread}px rgba(251, 191, 36, ${glowAlpha}); background: rgba(245, 158, 11, ${bgAlpha});`;
+                if (w > 1.6) title += " ⚠️ High attention weight (> 1.6)";
+            } else if (w < 1.0 && w >= 0) {
+                const opacity = Math.max(0.4, w * 0.9);
+                extraStyle = `opacity: ${opacity}; filter: saturate(0.65);`;
+                title += " (De-emphasized)";
+            }
+            html += `<span class="modusflow-weight-token" data-weight="${w}" style="color: ${baseColor}; ${extraStyle}" title="${title}">${tokenText}</span>`;
+        } else if (iv.type === "case_statement") {
+            const keywordColor = theme.keyword || theme.choice || "#cba6f7";
+            const varColor = theme.variable || "#38bdf8";
+            let innerHtml = tokenText;
+            innerHtml = innerHtml.replace(/^(\{)(case\b)/i, (m, b, kw) => `${b}<span style="color: ${keywordColor}; font-weight: bold;">${kw}</span>`);
+            innerHtml = innerHtml.replace(/(\$[a-zA-Z0-9_]+)/g, `<span style="color: ${varColor}; font-weight: 600;">$1</span>`);
+            innerHtml = innerHtml.replace(/(=&gt;|=>)/g, `<span style="color: ${keywordColor}; font-weight: bold;">$1</span>`);
+            html += `<span style="color: ${theme.choice || '#c084fc'}; font-weight: 500;" title="CASE Statement: ${tokenText}">${innerHtml}</span>`;
+        } else if (iv.type === "ternary") {
+            const keywordColor = theme.keyword || theme.choice || "#cba6f7";
+            const varColor = theme.variable || "#38bdf8";
+            let innerHtml = tokenText;
+            innerHtml = innerHtml.replace(/(\$[a-zA-Z0-9_]+)/g, `<span style="color: ${varColor}; font-weight: 600;">$1</span>`);
+            innerHtml = innerHtml.replace(/(\bin\b)/g, `<span style="color: ${keywordColor}; font-weight: bold;">$1</span>`);
+            html += `<span style="color: ${theme.choice || '#c084fc'}; font-weight: 500;" title="Ternary Conditional: ${tokenText}">${innerHtml}</span>`;
+        } else if (iv.type === "keyword") {
+            const color = theme.keyword || theme.choice || "#cba6f7";
+            html += `<span style="color: ${color}; font-weight: bold;" title="Keyword: ${tokenText}">${tokenText}</span>`;
+        } else if (iv.type === "function") {
+            const color = theme.function || theme.variable || "#818cf8";
+            html += `<span style="color: ${color}; font-weight: 600;" title="Function: ${tokenText}">${tokenText}</span>`;
+        } else if (iv.type === "inline_neg") {
+            html += `<span style="color: #f87171; background: rgba(239, 68, 68, 0.15); border: 1px dashed rgba(248, 113, 113, 0.4); border-radius: 4px; padding: 0 4px; font-weight: 500;" title="Inline Negative Injection">${tokenText}</span>`;
+        } else if (iv.type === "macro") {
+            const color = theme.wildcard || theme.variable || "#38bdf8";
+            html += `<span style="color: ${color}; font-weight: bold; background: rgba(56, 189, 248, 0.12); border-radius: 3px; padding: 0 2px;" title="Macro: ${tokenText}">${tokenText}</span>`;
+        } else {
+            const color = theme[iv.type] || theme.plain_text || "#e2e8f0";
+            html += `<span style="color: ${color};">${tokenText}</span>`;
+        }
         cursor = iv.end;
     }
 
     if (cursor < text.length) {
-        html += escapeHtml(text.slice(cursor));
+        html += `<span style="color: ${theme.plain_text || '#e2e8f0'};">${escapeHtml(text.slice(cursor))}</span>`;
     }
 
     if (text.endsWith("\n")) {
@@ -464,6 +728,7 @@ function attachSyntaxHighlighter(widget, node) {
             ta.style.background = "transparent";
             ta.style.caretColor = theme.caret_color || "#ffffff";
             backdrop.style.backgroundColor = theme.bg_color || "#181825";
+            backdrop.style.color = theme.plain_text || "#e2e8f0";
 
             backdrop.innerHTML = tokenizeAndHighlight(ta.value || "", theme);
             syncGeometry();

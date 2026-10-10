@@ -53,6 +53,7 @@ class ModusFlowTextEditor:
                 "curator_negative": ("STRING", {"forceInput": True}),
                 "positive_embedding": ("STRING", {"forceInput": True}),
                 "negative_embedding": ("STRING", {"forceInput": True}),
+                "function_lib": ("FUNCTION_LIB", {"forceInput": True}),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
@@ -210,7 +211,7 @@ class ModusFlowTextEditor:
         return ", ".join(added_tags)
 
     @staticmethod
-    def resolve_dynamic_prompts(text: str, seed: int = None, cycle_index: int = 0, initial_vars: dict = None) -> str:
+    def resolve_dynamic_prompts(text: str, seed: int = None, cycle_index: int = 0, initial_vars: dict = None, function_lib: dict = None) -> str:
         """
         Resolve:
         - Modular File Imports (@import "path/file.txt", @import "subfolder/prompt.json")
@@ -287,6 +288,9 @@ class ModusFlowTextEditor:
                         os.path.join(p_dir, "prompts", rel_path),
                         os.path.join(p_dir, "prompts", f"{rel_path}.txt"),
                         os.path.join(p_dir, "prompts", f"{rel_path}.json"),
+                        os.path.join(p_dir, "functions", rel_path),
+                        os.path.join(p_dir, "functions", f"{rel_path}.mf"),
+                        os.path.join(p_dir, "functions", f"{rel_path}.txt"),
                     ])
                 if os.path.isabs(rel_path):
                     candidates.insert(0, rel_path)
@@ -374,6 +378,28 @@ class ModusFlowTextEditor:
         # Macro Functions: fn name($arg1, $arg2) = { body };
         macros = {}
 
+        # Ingest external function_lib definitions if provided
+        if function_lib and isinstance(function_lib, dict):
+            # 1. Namespaced functions (e.g. camera.portrait)
+            for ns, fns in function_lib.get("namespaces", {}).items():
+                if isinstance(fns, dict):
+                    for fn_name, fn_data in fns.items():
+                        if isinstance(fn_data, dict):
+                            p = fn_data.get("params", [])
+                            b = fn_data.get("body", "")
+                            macros[f"{ns}.{fn_name}"] = (p, ModusFlowTextEditor.filter_comments(b).strip())
+                        elif isinstance(fn_data, (tuple, list)) and len(fn_data) >= 2:
+                            macros[f"{ns}.{fn_name}"] = (fn_data[0], ModusFlowTextEditor.filter_comments(fn_data[1]).strip())
+
+            # 2. Global functions (accessible as @fn_name and namespace.fn_name)
+            for fn_name, fn_data in function_lib.get("globals", {}).items():
+                if isinstance(fn_data, dict):
+                    p = fn_data.get("params", [])
+                    b = fn_data.get("body", "")
+                    macros[fn_name] = (p, ModusFlowTextEditor.filter_comments(b).strip())
+                elif isinstance(fn_data, (tuple, list)) and len(fn_data) >= 2:
+                    macros[fn_name] = (fn_data[0], ModusFlowTextEditor.filter_comments(fn_data[1]).strip())
+
         def parse_call_args(args_str):
             args = []
             cur = []
@@ -403,13 +429,29 @@ class ModusFlowTextEditor:
             return args
 
         def resolve_macros(content, macro_defs, current_vars, call_depth=5):
-            if call_depth <= 0 or not macro_defs or "@" not in content:
+            if call_depth <= 0 or not macro_defs:
+                return content
+
+            has_candidate = False
+            for fn_name in macro_defs:
+                if ("@" + fn_name) in content or fn_name in content:
+                    has_candidate = True
+                    break
+            if not has_candidate:
                 return content
 
             for fn_name, (params, body) in macro_defs.items():
-                pattern = rf'@{fn_name}\s*\('
-                while True:
-                    m = re.search(pattern, content)
+                if "." in fn_name:
+                    pattern = re.compile(rf'(?:@)?{re.escape(fn_name)}\s*\(')
+                else:
+                    pattern = re.compile(rf'@{re.escape(fn_name)}\s*\(')
+
+                search_pos = 0
+                max_iter = 50
+                iter_cnt = 0
+                while search_pos < len(content) and iter_cnt < max_iter:
+                    iter_cnt += 1
+                    m = pattern.search(content, search_pos)
                     if not m:
                         break
                     call_start = m.start()
@@ -433,7 +475,8 @@ class ModusFlowTextEditor:
                         pos += 1
 
                     if d != 0:
-                        break
+                        search_pos = args_start
+                        continue
 
                     raw_args = content[args_start:pos]
                     call_end = pos + 1
@@ -450,6 +493,7 @@ class ModusFlowTextEditor:
 
                     instantiated = resolve_macros(instantiated, macro_defs, current_vars, call_depth - 1)
                     content = content[:call_start] + instantiated + content[call_end:]
+                    search_pos = call_start + len(instantiated)
             return content
 
         # Helpers for Array, List, and Dictionary parsing & Property Access
@@ -773,8 +817,8 @@ class ModusFlowTextEditor:
         depth = 0
         while ti < tn:
             if depth == 0:
-                # Check for Macro definition: fn name($arg1, $arg2) = ... or def name(...) = ...
-                m_fn = re.match(r'(?:^|\n)\s*(?:fn|def)\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=(?![>=])\s*', text[ti:])
+                # Check for Macro definition: fn name($arg1, $arg2) = ... or def name(...) = ... (with optional @global/@private)
+                m_fn = re.match(r'(?:^|\n)\s*(?:@(?:global|private)\s+)?(?:fn|def)\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=(?![>=])\s*', text[ti:])
                 if m_fn:
                     fn_name = m_fn.group(1)
                     raw_params = m_fn.group(2)
@@ -835,7 +879,7 @@ class ModusFlowTextEditor:
                         tuple_vals = [tv.strip() for tv in chosen_tuple_str.split(',')]
                         for idx, v_name in enumerate(var_names):
                             val = tuple_vals[idx] if idx < len(tuple_vals) else ""
-                            variables[v_name] = ModusFlowTextEditor.resolve_dynamic_prompts(val, seed=seed, cycle_index=cycle_index, initial_vars=variables)
+                            variables[v_name] = ModusFlowTextEditor.resolve_dynamic_prompts(val, seed=seed, cycle_index=cycle_index, initial_vars=variables, function_lib=function_lib)
                     ti += m_tuple.end()
                     continue
 
@@ -852,7 +896,7 @@ class ModusFlowTextEditor:
                         raw_content = ModusFlowTextEditor.filter_comments(raw_content)
                         lines = [l.strip() for l in raw_content.splitlines() if l.strip()]
                         clean_val = "\n".join(lines)
-                        eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index, initial_vars=variables)
+                        eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index, initial_vars=variables, function_lib=function_lib)
                         variables[v_name] = eval_val
                         ti = val_start + m_tq.end()
                         continue
@@ -901,7 +945,7 @@ class ModusFlowTextEditor:
                             if is_dynamic_syntax:
                                 clean_val = "{" + clean_val + "}"
 
-                            eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index, initial_vars=variables)
+                            eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index, initial_vars=variables, function_lib=function_lib)
                             variables[v_name] = eval_val
                             ti = b_pos
                             continue
@@ -930,7 +974,7 @@ class ModusFlowTextEditor:
 
                         if "|" in clean_val and not clean_val.startswith(("$", "{")) and "=>" not in clean_val:
                             clean_val = "{" + clean_val + "}"
-                        eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index, initial_vars=variables)
+                        eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index, initial_vars=variables, function_lib=function_lib)
                         variables[v_name] = eval_val
                         ti = val_start + m_semi.end()
                         continue
@@ -958,7 +1002,7 @@ class ModusFlowTextEditor:
 
                         if "|" in clean_val and not clean_val.startswith(("$", "{")) and "=>" not in clean_val:
                             clean_val = "{" + clean_val + "}"
-                        eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index, initial_vars=variables)
+                        eval_val = ModusFlowTextEditor.resolve_dynamic_prompts(clean_val, seed=seed, cycle_index=cycle_index, initial_vars=variables, function_lib=function_lib)
                         variables[v_name] = eval_val
                         ti = val_start + m_line.end()
                         continue
@@ -1466,7 +1510,7 @@ class ModusFlowTextEditor:
                                     for vn, vv in variables.items():
                                         eval_target = re.sub(rf'\${vn}\b(?!\.[a-zA-Z_]|\[)', str(vv), eval_target)
                                     if "{" in eval_target or "|" in eval_target:
-                                        eval_target = ModusFlowTextEditor.resolve_dynamic_prompts(eval_target, seed=seed, cycle_index=cycle_index, initial_vars=variables)
+                                        eval_target = ModusFlowTextEditor.resolve_dynamic_prompts(eval_target, seed=seed, cycle_index=cycle_index, initial_vars=variables, function_lib=function_lib)
                                     var_val = eval_target.strip()
 
                                 # Split cases_part into branches (checking if '|' separates branches at depth 0)
@@ -2108,6 +2152,7 @@ class ModusFlowTextEditor:
                      positive_input=None, negative_input=None,
                      curator_input=None, curator_input_2=None, curator_negative=None,
                      positive_embedding=None, negative_embedding=None,
+                     function_lib=None,
                      unique_id=None, extra_pnginfo=None):
         """Process positive and negative text inputs, resolve wildcards/weights, and return text, seed, conditioning, and pipe."""
         # 1. Determine actual seed based on seed_action
@@ -2209,8 +2254,8 @@ class ModusFlowTextEditor:
         no_comments_negative = self.filter_comments(clean_negative)
 
         # 5. Resolve dynamic wildcards, choices, and tag shuffles (seed-driven)
-        resolved_positive = self.resolve_dynamic_prompts(no_comments_positive, seed=actual_seed, cycle_index=effective_cycle)
-        resolved_negative = self.resolve_dynamic_prompts(no_comments_negative, seed=actual_seed, cycle_index=effective_cycle)
+        resolved_positive = self.resolve_dynamic_prompts(no_comments_positive, seed=actual_seed, cycle_index=effective_cycle, function_lib=function_lib)
+        resolved_negative = self.resolve_dynamic_prompts(no_comments_negative, seed=actual_seed, cycle_index=effective_cycle, function_lib=function_lib)
 
         # 5.5 Extract inline negative {!neg: ...} from positive prompt and merge with deduplication
         inline_negs = []

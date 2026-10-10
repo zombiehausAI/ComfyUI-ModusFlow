@@ -35,6 +35,7 @@ from .modules.controlnet_node import ModusFlowControlNetLoader, ModusFlowControl
 from .modules.latent_tools_node import ModusFlowLatentUpscale, ModusFlowMaskTools
 from .modules.image_compare_node import ModusFlowCompareImages
 from .modules.list_curator_node import ModusFlowListCurator
+from .modules.function_editor_node import ModusFlowFunctionEditor
 from .modules.model_upscale_node import ModusFlowModelUpscale
 from .modules.chroma_shift_node import ModusFlowChromaShift
 from .modules.prompt_mixer_node import ModusFlowPromptMixer
@@ -743,12 +744,14 @@ def _auto_migrate_saved_directories():
         songs_subdir = os.path.join(prompts_dir, 'songs')
         tags_subdir = os.path.join(songs_subdir, 'tags')
         lyrics_subdir = os.path.join(songs_subdir, 'lyrics')
+        functions_subdir = os.path.join(prompts_dir, 'functions')
 
         # Ensure all subdirectories exist
         os.makedirs(prompts_subdir, exist_ok=True)
         os.makedirs(songs_subdir, exist_ok=True)
         os.makedirs(tags_subdir, exist_ok=True)
         os.makedirs(lyrics_subdir, exist_ok=True)
+        os.makedirs(functions_subdir, exist_ok=True)
 
         # 1. Migrate loose files directly in saved_prompts/
         if os.path.isdir(prompts_dir):
@@ -1041,6 +1044,96 @@ async def delete_wildcard_endpoint(request):
         if os.path.isfile(file_path):
             os.remove(file_path)
             print(f"[ModusFlow ListCurator] Deleted wildcard file: {file_path}")
+            return web.json_response({"success": True, "message": f"Deleted {name}"})
+        return web.json_response({"success": False, "message": f"File '{name}' not found."})
+    except Exception as e:
+        return web.json_response({"success": False, "message": str(e)})
+
+# ── Function Library routes ─────────────────────────────────────────────────
+
+def _get_functions_dir():
+    fn_dir = os.path.join(_get_base_prompts_dir(), 'functions')
+    os.makedirs(fn_dir, exist_ok=True)
+    return fn_dir
+
+@server.PromptServer.instance.routes.get("/modusflow/functions/list")
+async def list_functions_endpoint(request):
+    """API endpoint to list all .mf and .txt function files in saved_prompts/functions/."""
+    try:
+        fn_dir = _get_functions_dir()
+        files = []
+        if os.path.isdir(fn_dir):
+            for f in sorted(os.listdir(fn_dir)):
+                if (f.lower().endswith('.mf') or f.lower().endswith('.txt')) and os.path.isfile(os.path.join(fn_dir, f)):
+                    files.append(os.path.splitext(f)[0])
+        return web.json_response({"success": True, "data": files})
+    except Exception as e:
+        return web.json_response({"success": False, "message": str(e)})
+
+@server.PromptServer.instance.routes.post("/modusflow/functions/load")
+async def load_function_endpoint(request):
+    """API endpoint to load the code of a function file."""
+    try:
+        data = await request.json()
+        raw_name = data.get("filename", "").strip()
+        name = os.path.basename(raw_name)
+        if not name:
+            return web.json_response({"success": False, "message": "Filename cannot be empty."})
+        fn_dir = _get_functions_dir()
+        file_path = None
+        for ext in (".mf", ".txt"):
+            cand = os.path.join(fn_dir, f"{os.path.splitext(name)[0]}{ext}")
+            if os.path.isfile(cand):
+                file_path = cand
+                break
+        if not file_path:
+            return web.json_response({"success": False, "message": f"Function file '{name}' not found."})
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return web.json_response({"success": True, "data": content, "filename": os.path.splitext(os.path.basename(file_path))[0]})
+    except Exception as e:
+        return web.json_response({"success": False, "message": str(e)})
+
+@server.PromptServer.instance.routes.post("/modusflow/functions/save")
+async def save_function_endpoint(request):
+    """API endpoint to save or update a function file in saved_prompts/functions/."""
+    try:
+        data = await request.json()
+        raw_name = data.get("filename", "").strip()
+        name = os.path.basename(raw_name)
+        content = data.get("content", "")
+        if not name:
+            return web.json_response({"success": False, "message": "Filename cannot be empty."})
+        base_name = os.path.splitext(name)[0]
+        ext = os.path.splitext(name)[1]
+        if ext.lower() not in (".mf", ".txt"):
+            ext = ".mf"
+        file_path = os.path.join(_get_functions_dir(), f"{base_name}{ext}")
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"[ModusFlow FunctionEditor] Saved function file: {file_path}")
+        return web.json_response({"success": True, "message": f"Saved {base_name}{ext}", "filename": base_name})
+    except Exception as e:
+        return web.json_response({"success": False, "message": str(e)})
+
+@server.PromptServer.instance.routes.post("/modusflow/functions/delete")
+async def delete_function_endpoint(request):
+    """API endpoint to delete a function file from saved_prompts/functions/."""
+    try:
+        data = await request.json()
+        raw_name = data.get("filename", "").strip()
+        name = os.path.basename(raw_name)
+        if not name:
+            return web.json_response({"success": False, "message": "Filename cannot be empty."})
+        fn_dir = _get_functions_dir()
+        deleted = False
+        for ext in (".mf", ".txt"):
+            cand = os.path.join(fn_dir, f"{os.path.splitext(name)[0]}{ext}")
+            if os.path.isfile(cand):
+                os.remove(cand)
+                deleted = True
+                print(f"[ModusFlow FunctionEditor] Deleted function file: {cand}")
+        if deleted:
             return web.json_response({"success": True, "message": f"Deleted {name}"})
         return web.json_response({"success": False, "message": f"File '{name}' not found."})
     except Exception as e:
@@ -1649,6 +1742,7 @@ NODE_CLASS_MAPPINGS = {
     "ModusFlowMaskTools": ModusFlowMaskTools,
     "ModusFlowCompareImages": ModusFlowCompareImages,
     "ModusFlowListCurator": ModusFlowListCurator,
+    "ModusFlowFunctionEditor": ModusFlowFunctionEditor,
     "ModusFlowModelUpscale": ModusFlowModelUpscale,
     "ModusFlowChromaShift": ModusFlowChromaShift,
     "ModusFlowPromptMixer": ModusFlowPromptMixer,
@@ -1703,6 +1797,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ModusFlowMaskTools": "ModusFlow Mask Tools",
     "ModusFlowCompareImages": "ModusFlow Compare Images",
     "ModusFlowListCurator": "ModusFlow List Curator",
+    "ModusFlowFunctionEditor": "ModusFlow Function Editor",
     "ModusFlowModelUpscale": "ModusFlow Model Upscale",
     "ModusFlowChromaShift": "ModusFlow Chroma Shift",
     "ModusFlowPromptMixer": "ModusFlow Prompt Mixer",
