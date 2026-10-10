@@ -21,10 +21,16 @@ Function libraries are saved strictly in `saved_prompts/functions/` as `.mf` or 
   - Loops and control keywords (`repeat`, `for`, `in`, `case`)
   - Dynamic choices and wildcards (`{all$$...}`, `{a|b}`, `__wildcard__`)
   - Comments (`//`, `/* ... */`, `#`)
-- **Tab Indentation & Shortcuts**:
-  - Press **`Tab`** to indent 4 spaces.
-  - Press **`Shift + Tab`** to unindent.
-  - Template buttons to quickly inject `@global` or `@private` function skeletons.
+- **⛶ Floating Pop-Out Editor Studio**: Click the **⛶ Pop Out Editor** button to launch a full-screen or draggable floating window on canvas with real-time two-way synchronization, line counter metrics, quick template ribbons, and window management controls.
+- **Intelligent Autocomplete**:
+  - `@` triggers scope decorators (`@global`, `@private`) and local macro suggestions.
+  - `fn` / `def` triggers snippet templates for parameterized functions.
+  - `repeat` / `for` triggers generation loop templates.
+  - `$` triggers prompt variables.
+  - `__` triggers installed wildcard lists.
+- **Tab Indentation & Comment Shortcuts**:
+  - Press **`Tab`** to indent 4 spaces; **`Shift + Tab`** to unindent.
+  - Press **`Ctrl + /`** (or **`Cmd + /`**) to toggle `// ` comments on current or selected lines.
 - **Function Library Chaining**: Daisy-chain multiple Function Editor nodes using the `chain_functions` input. Combine a `camera` library and a `lighting` library into a single pipe leading to the Text Editor.
 
 ## Inputs
@@ -111,8 +117,7 @@ fn crowd($count, $archetype) = {
 
 ## Canvas Controls
 
-- **➕ Insert @global Fn**: Appends a pre-formatted `@global` function template at cursor position.
-- **🔒 Insert @private Fn**: Appends a pre-formatted `@private` function template at cursor position.
+- **⛶ Pop Out Editor**: Opens the floating Pop-Out Editor Studio window with full-screen, minimize/maximize, template insertion, and real-time canvas sync.
 - **💾 Save As New**: Prompts for a filename (e.g. `camera`) and saves to `saved_prompts/functions/<name>.mf`.
 - **✏️ Update Selected**: Overwrites the currently selected file with the current canvas script.
 - **🗑️ Delete Function**: Permanently removes the selected function file from disk.

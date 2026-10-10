@@ -2,7 +2,7 @@ import { app } from "../../scripts/app.js";
 
 // ModusFlow Function Editor — on-canvas prompt function library management,
 // with @global and @private decorator scoping, dot-notation resolution,
-// full syntax highlighting, tab indentation, and intelligent autocomplete.
+// full syntax highlighting, intelligent autocomplete, and a floating Pop-Out Editor Studio.
 
 // ── Built-in Syntax Themes ───────────────────────────────────────────────────
 const DEFAULT_THEMES = {
@@ -17,8 +17,8 @@ const DEFAULT_THEMES = {
         lora: "#f87171",
         keyword: "#e879f9",
         function: "#818cf8",
-        decorator_global: "#10b981",
-        decorator_private: "#f59e0b",
+        decorator_global: "#34d399",
+        decorator_private: "#fbbf24",
         plain_text: "#e2e8f0",
         caret_color: "#ffffff",
         bg_color: "#181825"
@@ -76,14 +76,21 @@ const DEFAULT_THEMES = {
     }
 };
 
-let _activeTheme = DEFAULT_THEMES["Modus Neon (Default)"];
+let THEMES = { ...DEFAULT_THEMES };
+const MONOSPACE_FONT = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+
+function getActiveTheme() {
+    const saved = typeof localStorage !== "undefined" ? localStorage.getItem("modusflow_syntax_theme") : null;
+    if (saved && THEMES[saved]) return THEMES[saved];
+    return THEMES["Modus Neon (Default)"] || Object.values(THEMES)[0];
+}
 
 // Fetch custom syntax themes if available from PromptServer
 fetch("/modusflow/syntax_themes")
     .then(r => r.json())
     .then(data => {
-        if (data.success && data.themes && data.themes[data.active_theme]) {
-            _activeTheme = Object.assign({}, DEFAULT_THEMES["Modus Neon (Default)"], data.themes[data.active_theme]);
+        if (data.success && data.data && data.data.themes) {
+            THEMES = { ...DEFAULT_THEMES, ...data.data.themes };
         }
     })
     .catch(() => {});
@@ -97,68 +104,40 @@ function escapeHtml(str) {
         .replace(/'/g, "&#039;");
 }
 
-function injectFunctionEditorStyles() {
+function injectSyntaxStyles() {
     if (document.getElementById("modusflow-function-editor-styles")) return;
-    const style = document.createElement("style");
-    style.id = "modusflow-function-editor-styles";
-    style.textContent = `
-        .modusflow-fn-wrap {
-            position: relative !important;
-            display: block !important;
-            width: 100% !important;
-            box-sizing: border-box !important;
-        }
-        .modusflow-fn-backdrop {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            bottom: 0 !important;
-            pointer-events: none !important;
-            white-space: pre-wrap !important;
-            word-wrap: break-word !important;
-            overflow: hidden !important;
-            box-sizing: border-box !important;
-            font-family: monospace !important;
-            font-size: 13px !important;
-            line-height: 1.4 !important;
-            padding: 8px !important;
-            z-index: 1 !important;
-            border-radius: 6px !important;
-            border: 1px solid transparent !important;
-        }
-        .modusflow-fn-textarea {
-            position: relative !important;
-            z-index: 2 !important;
-            background: transparent !important;
+    const styleEl = document.createElement("style");
+    styleEl.id = "modusflow-function-editor-styles";
+    styleEl.textContent = `
+        .modusflow-fn-syntax-ta::selection {
+            background: rgba(99, 102, 241, 0.35) !important;
             color: transparent !important;
-            caret-color: #ffffff !important;
-            white-space: pre-wrap !important;
-            word-wrap: break-word !important;
-            font-family: monospace !important;
-            font-size: 13px !important;
-            line-height: 1.4 !important;
-            box-sizing: border-box !important;
-            padding: 8px !important;
-            border-radius: 6px !important;
-            border: 1px solid #334155 !important;
-            resize: vertical !important;
-            width: 100% !important;
         }
-        .modusflow-fn-textarea:focus {
-            outline: none !important;
-            border-color: #6366f1 !important;
-            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+        .modusflow-fn-syntax-ta::-moz-selection {
+            background: rgba(99, 102, 241, 0.35) !important;
+            color: transparent !important;
+        }
+        .modusflow-fn-syntax-backdrop {
+            position: absolute;
+            pointer-events: none;
+            overflow: hidden;
+            box-sizing: border-box;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            user-select: none;
+            -webkit-user-select: none;
+            border-radius: 6px;
         }
         .modusflow-decorator-global {
             display: inline-block;
             background: rgba(16, 185, 129, 0.18);
             color: #34d399;
             font-weight: bold;
-            padding: 1px 6px;
+            padding: 1px 5px;
             border-radius: 4px;
             border: 1px solid rgba(16, 185, 129, 0.4);
-            margin-right: 4px;
+            margin-right: 2px;
             text-transform: uppercase;
             font-size: 11px;
             letter-spacing: 0.5px;
@@ -168,32 +147,231 @@ function injectFunctionEditorStyles() {
             background: rgba(245, 158, 11, 0.18);
             color: #fbbf24;
             font-weight: bold;
-            padding: 1px 6px;
+            padding: 1px 5px;
             border-radius: 4px;
             border: 1px solid rgba(245, 158, 11, 0.4);
-            margin-right: 4px;
+            margin-right: 2px;
             text-transform: uppercase;
             font-size: 11px;
             letter-spacing: 0.5px;
         }
-        .modusflow-fn-kw {
-            color: #e879f9;
-            font-weight: bold;
+        .modusflow-fn-badge {
+            position: absolute;
+            bottom: 4px;
+            right: 8px;
+            font-size: 11px;
+            line-height: 1.2;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(15, 23, 42, 0.85);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            pointer-events: none;
+            z-index: 10;
+            font-family: ui-monospace, SFMono-Regular, monospace;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            user-select: none;
         }
-        .modusflow-fn-name {
-            color: #818cf8;
+        /* ── Autocomplete Menu ── */
+        .modusflow-fn-autocomplete-menu {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.96);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 8px;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.1);
+            max-height: 230px;
+            overflow-y: auto;
+            z-index: 10002;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            display: none;
+            box-sizing: border-box;
+            padding: 4px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+        }
+        .modusflow-fn-autocomplete-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #cbd5e1;
+            transition: background 0.12s ease, color 0.12s ease;
+            user-select: none;
+        }
+        .modusflow-fn-autocomplete-item:hover,
+        .modusflow-fn-autocomplete-item.is-selected {
+            background: rgba(99, 102, 241, 0.28);
+            color: #ffffff;
+        }
+        .modusflow-fn-autocomplete-badge {
+            font-size: 10px;
             font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 3px;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+            text-transform: uppercase;
         }
-        .modusflow-fn-param {
-            color: #38bdf8;
-            font-weight: 600;
+        .badge-fn-global { background: rgba(16, 185, 129, 0.25); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.5); }
+        .badge-fn-private { background: rgba(245, 158, 11, 0.25); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.5); }
+        .badge-fn-kw { background: rgba(232, 121, 249, 0.25); color: #e879f9; border: 1px solid rgba(232, 121, 249, 0.5); }
+        .badge-fn-var { background: rgba(56, 189, 248, 0.25); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.5); }
+        .badge-fn-list { background: rgba(251, 191, 36, 0.25); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.5); }
+
+        /* ── Pop-Out Studio Window ── */
+        .modusflow-fn-popout-window {
+            position: fixed;
+            z-index: 10001;
+            display: flex;
+            flex-direction: column;
+            background: #181825;
+            border: 1px solid #45475a;
+            border-radius: 12px;
+            box-shadow: 0 25px 65px rgba(0, 0, 0, 0.85), 0 0 1px 1px rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #cdd6f4;
+            min-width: min(700px, calc(100vw - 20px));
+            min-height: min(520px, calc(100vh - 20px));
+            max-width: calc(100vw - 20px);
+            max-height: calc(100vh - 20px);
+            resize: both;
+            box-sizing: border-box;
+        }
+        .modusflow-fn-popout-window.is-maximized {
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            border-radius: 0 !important;
+            resize: none !important;
+        }
+        .modusflow-fn-popout-window.is-minimized {
+            width: 320px !important;
+            height: 44px !important;
+            min-width: 0 !important;
+            min-height: 0 !important;
+            resize: none !important;
+            border-radius: 22px !important;
+            bottom: 24px !important;
+            right: 24px !important;
+            top: auto !important;
+            left: auto !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+        }
+        .modusflow-fn-popout-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 14px;
+            background: #1e1e2e;
+            border-bottom: 1px solid #313244;
+            user-select: none;
+            cursor: grab;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .modusflow-fn-popout-header:active {
+            cursor: grabbing;
+        }
+        .modusflow-fn-popout-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #181825;
+            border-bottom: 1px solid #313244;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+        .modusflow-fn-popout-btn {
+            background: #1e1e2e;
+            border: 1px solid #313244;
+            border-radius: 5px;
+            padding: 4px 8px;
+            color: #cdd6f4;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-family: inherit;
+        }
+        .modusflow-fn-popout-btn:hover {
+            border-color: #818cf8;
+            background: #28283d;
+            color: #ffffff;
+        }
+        .modusflow-fn-popout-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            padding: 10px;
+            box-sizing: border-box;
+            background: #11111b;
+            position: relative;
+        }
+        .modusflow-fn-popout-editor-box {
+            position: relative;
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            border-radius: 8px;
+            border: 1px solid #313244;
+            background: #181825;
+        }
+        .modusflow-fn-popout-ta {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 12px;
+            border: none;
+            outline: none;
+            resize: none;
+            background: transparent;
+            color: transparent;
+            font-family: ${MONOSPACE_FONT};
+            font-size: 14px;
+            line-height: 1.5;
+            tab-size: 4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            box-sizing: border-box;
+            z-index: 2;
+        }
+        .modusflow-fn-popout-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow: hidden;
+            box-sizing: border-box;
+            font-family: ${MONOSPACE_FONT};
+            font-size: 14px;
+            line-height: 1.5;
+            tab-size: 4;
+            pointer-events: none;
+            z-index: 1;
         }
     `;
-    document.head.appendChild(style);
+    document.head.appendChild(styleEl);
 }
 
 // ── Tokenizer & Syntax Highlighter Engine ────────────────────────────────────
-function tokenizeAndHighlight(text, theme = _activeTheme) {
+function tokenizeAndHighlight(text, theme = getActiveTheme()) {
     if (!text) return "";
     const intervals = [];
 
@@ -260,9 +438,9 @@ function tokenizeAndHighlight(text, theme = _activeTheme) {
         const tokenText = escapeHtml(text.slice(iv.start, iv.end));
 
         if (iv.type === "decorator_global") {
-            html += `<span class="modusflow-decorator-global" title="Global Scope (Accessible everywhere as @func)">${tokenText}</span>`;
+            html += `<span class="modusflow-decorator-global" title="Global Scope (Accessible as @func)">${tokenText}</span>`;
         } else if (iv.type === "decorator_private") {
-            html += `<span class="modusflow-decorator-private" title="Private Scope (Accessible via namespace.func)">${tokenText}</span>`;
+            html += `<span class="modusflow-decorator-private" title="Private Scope (Accessible as namespace.func)">${tokenText}</span>`;
         } else if (iv.type === "keyword") {
             const color = theme.keyword || "#e879f9";
             html += `<span style="color: ${color}; font-weight: bold;">${tokenText}</span>`;
@@ -305,35 +483,353 @@ function tokenizeAndHighlight(text, theme = _activeTheme) {
     return html;
 }
 
-// ── Attach Syntax Highlighter to Textarea ───────────────────────────────────
+// ── Autocomplete System ──────────────────────────────────────────────────────
+let _cachedWildcards = null;
+
+function fetchWildcardList() {
+    if (_cachedWildcards) return Promise.resolve(_cachedWildcards);
+    return fetch("/modusflow/wildcards/list")
+        .then(r => r.json())
+        .then(data => {
+            _cachedWildcards = (data.success && Array.isArray(data.data)) ? data.data : [];
+            return _cachedWildcards;
+        })
+        .catch(() => _cachedWildcards || []);
+}
+
+function detectTrigger(text, cursor) {
+    if (cursor <= 0 || !text) return null;
+    const sub = text.slice(0, cursor);
+
+    // 1. Decorators and functions: @name
+    const atMatch = sub.match(/(?:^|[\s,.:;!?([{\"])(@([a-zA-Z0-9_]*))$/);
+    if (atMatch) {
+        return {
+            type: "decorator",
+            fullToken: atMatch[1],
+            query: atMatch[2] || "",
+            replaceStart: cursor - atMatch[1].length,
+            replaceEnd: cursor
+        };
+    }
+
+    // 2. Variables: $name
+    const varMatch = sub.match(/(?:^|[^\$a-zA-Z0-9_])(\$([a-zA-Z0-9_]*))$/);
+    if (varMatch) {
+        return {
+            type: "variable",
+            fullToken: varMatch[1],
+            query: varMatch[2] || "",
+            replaceStart: cursor - varMatch[1].length,
+            replaceEnd: cursor
+        };
+    }
+
+    // 3. Wildcards: __name
+    const wcMatch = sub.match(/(?:^|[\s,.:;!?([{\"])(__([a-zA-Z0-9_\/-]*))$/);
+    if (wcMatch) {
+        return {
+            type: "wildcard",
+            fullToken: wcMatch[1],
+            query: wcMatch[2] || "",
+            replaceStart: cursor - wcMatch[1].length,
+            replaceEnd: cursor
+        };
+    }
+
+    // 4. Function keyword snippet: fn or def
+    const fnMatch = sub.match(/(?:^|\n)[ \t]*(fn|def)$/i);
+    if (fnMatch) {
+        return {
+            type: "fn_keyword",
+            fullToken: fnMatch[1],
+            query: fnMatch[1],
+            replaceStart: cursor - fnMatch[1].length,
+            replaceEnd: cursor
+        };
+    }
+
+    // 5. Loop snippet: repeat or for
+    const loopMatch = sub.match(/(?:^|\n)[ \t]*(repeat|for)$/i);
+    if (loopMatch) {
+        return {
+            type: "loop_keyword",
+            fullToken: loopMatch[1],
+            query: loopMatch[1],
+            replaceStart: cursor - loopMatch[1].length,
+            replaceEnd: cursor
+        };
+    }
+
+    return null;
+}
+
+function getSuggestions(trigger, currentScript = "") {
+    const q = (trigger.query || "").toLowerCase();
+
+    if (trigger.type === "decorator") {
+        const items = [
+            { name: "@global", badge: "SCOPE", badgeClass: "badge-fn-global", desc: "Export globally as @func and namespace.func" },
+            { name: "@private", badge: "SCOPE", badgeClass: "badge-fn-private", desc: "Keep private to namespace.func only" }
+        ];
+
+        // Parse local function names from current script
+        const fnMatches = currentScript.matchAll(/(?:fn|def)\s+([a-zA-Z0-9_]+)/g);
+        for (const m of fnMatches) {
+            if (m[1] && !items.some(it => it.name === `@${m[1]}`)) {
+                items.push({
+                    name: `@${m[1]}()`,
+                    badge: "FN",
+                    badgeClass: "badge-fn-kw",
+                    desc: "Call local macro function"
+                });
+            }
+        }
+
+        return items.filter(it => !q || it.name.toLowerCase().includes(q));
+    }
+
+    if (trigger.type === "fn_keyword") {
+        return [
+            {
+                name: "fn name($arg) = {\n    \n};",
+                insertText: "fn name($arg) = {\n    $arg\n};",
+                badge: "TEMPLATE",
+                badgeClass: "badge-fn-kw",
+                desc: "Macro function block"
+            }
+        ];
+    }
+
+    if (trigger.type === "loop_keyword") {
+        return [
+            {
+                name: "repeat(count) { ... }",
+                insertText: "repeat(3) {\n    \n}",
+                badge: "LOOP",
+                badgeClass: "badge-fn-kw",
+                desc: "Repeat generation loop"
+            },
+            {
+                name: "for $item in $list { ... }",
+                insertText: "for $item in $list {\n    $item\n}",
+                badge: "LOOP",
+                badgeClass: "badge-fn-kw",
+                desc: "Iterate across list/items"
+            }
+        ];
+    }
+
+    if (trigger.type === "variable") {
+        return [
+            { name: "$lens", badge: "VAR", badgeClass: "badge-fn-var", desc: "Camera focal length parameter" },
+            { name: "$lighting", badge: "VAR", badgeClass: "badge-fn-var", desc: "Lighting atmosphere" },
+            { name: "$subject", badge: "VAR", badgeClass: "badge-fn-var", desc: "Subject prompt" }
+        ].filter(v => !q || v.name.toLowerCase().includes(q));
+    }
+
+    if (trigger.type === "wildcard") {
+        const list = _cachedWildcards || [];
+        return list
+            .filter(w => !q || w.toLowerCase().includes(q))
+            .map(w => ({
+                name: `__${w}__`,
+                badge: "LIST",
+                badgeClass: "badge-fn-list",
+                desc: "Wildcard list file"
+            }));
+    }
+
+    return [];
+}
+
+function attachAutocomplete(ta, getScriptText) {
+    if (!ta || !ta.parentElement || ta._hasFnAutocomplete) return;
+    ta._hasFnAutocomplete = true;
+
+    fetchWildcardList();
+
+    const parent = ta.parentElement;
+    const parentPos = window.getComputedStyle(parent).position;
+    if (parentPos === "static") {
+        parent.style.position = "relative";
+    }
+
+    const menu = document.createElement("div");
+    menu.className = "modusflow-fn-autocomplete-menu";
+    parent.appendChild(menu);
+
+    let activeItems = [];
+    let selectedIndex = 0;
+    let currentTrigger = null;
+
+    function closeMenu() {
+        menu.style.display = "none";
+        menu.innerHTML = "";
+        activeItems = [];
+        selectedIndex = 0;
+        currentTrigger = null;
+    }
+
+    function renderMenu() {
+        menu.innerHTML = "";
+        activeItems.forEach((item, idx) => {
+            const row = document.createElement("div");
+            row.className = "modusflow-fn-autocomplete-item" + (idx === selectedIndex ? " is-selected" : "");
+            row.innerHTML = `
+                <span style="font-weight: 600; white-space: nowrap;">${escapeHtml(item.name)}</span>
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 11px; color: #94a3b8; font-style: italic;">${escapeHtml(item.desc || '')}</span>
+                    <span class="modusflow-fn-autocomplete-badge ${item.badgeClass || ''}">${escapeHtml(item.badge || '')}</span>
+                </span>
+            `;
+            row.onmousedown = (e) => {
+                e.preventDefault();
+                insertSelection(item);
+            };
+            menu.appendChild(row);
+        });
+        menu.style.display = activeItems.length > 0 ? "block" : "none";
+    }
+
+    function insertSelection(item) {
+        if (!currentTrigger) return;
+        const insert = item.insertText || item.name;
+        const before = ta.value.slice(0, currentTrigger.replaceStart);
+        const after = ta.value.slice(currentTrigger.replaceEnd);
+        ta.value = before + insert + after;
+        const newCursor = currentTrigger.replaceStart + insert.length;
+        ta.setSelectionRange(newCursor, newCursor);
+        ta.dispatchEvent(new Event("input", { bubbles: true }));
+        closeMenu();
+        ta.focus();
+    }
+
+    ta.addEventListener("input", () => {
+        const cursor = ta.selectionStart;
+        currentTrigger = detectTrigger(ta.value, cursor);
+        if (!currentTrigger) {
+            closeMenu();
+            return;
+        }
+
+        const scriptContent = typeof getScriptText === "function" ? getScriptText() : ta.value;
+        activeItems = getSuggestions(currentTrigger, scriptContent);
+        if (activeItems.length === 0) {
+            closeMenu();
+            return;
+        }
+
+        selectedIndex = 0;
+        menu.style.top = Math.min(ta.offsetHeight - 40, ta.offsetTop + 30) + "px";
+        menu.style.left = Math.min(ta.offsetWidth - 220, Math.max(10, ta.offsetLeft + 10)) + "px";
+        renderMenu();
+    });
+
+    ta.addEventListener("keydown", (e) => {
+        if (menu.style.display === "block" && activeItems.length > 0) {
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                selectedIndex = (selectedIndex + 1) % activeItems.length;
+                renderMenu();
+                return;
+            }
+            if (e.key === "ArrowUp") {
+                e.preventDefault();
+                selectedIndex = (selectedIndex - 1 + activeItems.length) % activeItems.length;
+                renderMenu();
+                return;
+            }
+            if (e.key === "Enter" || e.key === "Tab") {
+                e.preventDefault();
+                insertSelection(activeItems[selectedIndex]);
+                return;
+            }
+            if (e.key === "Escape") {
+                e.preventDefault();
+                closeMenu();
+                return;
+            }
+        }
+    });
+
+    ta.addEventListener("blur", () => {
+        setTimeout(closeMenu, 150);
+    });
+}
+
+// ── On-Canvas Syntax Highlighter Attachment ──────────────────────────────────
 function attachSyntaxHighlighter(widget, node) {
     if (!widget) return;
-    injectFunctionEditorStyles();
+    injectSyntaxStyles();
 
+    let attempts = 0;
     const bind = () => {
         const ta = widget.inputEl || widget.element;
-        if (!ta || !ta.parentElement) return;
+        if (!ta || !ta.parentElement) {
+            if (attempts++ < 30) requestAnimationFrame(bind);
+            return;
+        }
+        if (ta._hasSyntaxHighlighter) return;
+        ta._hasSyntaxHighlighter = true;
 
-        if (ta.parentElement.classList.contains("modusflow-fn-wrap")) return;
-
-        const wrap = document.createElement("div");
-        wrap.className = "modusflow-fn-wrap";
-        ta.parentNode.insertBefore(wrap, ta);
-        wrap.appendChild(ta);
+        const parent = ta.parentElement;
+        const parentPos = window.getComputedStyle(parent).position;
+        if (parentPos === "static") {
+            parent.style.position = "relative";
+        }
 
         const backdrop = document.createElement("div");
-        backdrop.className = "modusflow-fn-backdrop";
-        backdrop.style.backgroundColor = _activeTheme.bg_color || "#181825";
-        backdrop.style.color = _activeTheme.plain_text || "#e2e8f0";
-        wrap.insertBefore(backdrop, ta);
+        backdrop.className = "modusflow-fn-syntax-backdrop";
+        backdrop.style.backgroundColor = getActiveTheme().bg_color || "#181825";
+        backdrop.style.color = getActiveTheme().plain_text || "#e2e8f0";
+        parent.insertBefore(backdrop, ta);
 
-        ta.classList.add("modusflow-fn-textarea");
-        ta.style.caretColor = _activeTheme.caret_color || "#ffffff";
+        ta.classList.add("modusflow-fn-syntax-ta");
+        ta.style.position = "relative";
+        ta.style.zIndex = "1";
+        ta.style.background = "transparent";
+        ta.style.color = "transparent";
+        ta.style.caretColor = getActiveTheme().caret_color || "#ffffff";
+        ta.style.fontFamily = MONOSPACE_FONT;
+        ta.style.fontSize = "13px";
+        ta.style.lineHeight = "1.4";
+        ta.style.tabSize = "4";
+
+        const badge = document.createElement("div");
+        badge.className = "modusflow-fn-badge";
+        parent.appendChild(badge);
+
+        function syncGeometry() {
+            if (!ta || !backdrop) return;
+            backdrop.style.top = ta.offsetTop + "px";
+            backdrop.style.left = ta.offsetLeft + "px";
+            backdrop.style.width = ta.offsetWidth + "px";
+            backdrop.style.height = ta.offsetHeight + "px";
+        }
+
+        function updateMetrics(val) {
+            const lines = val.split("\n");
+            const fnCount = (val.match(/(?:fn|def)\s+[a-zA-Z0-9_]+/g) || []).length;
+            const globalCount = (val.match(/@global/gi) || []).length;
+            const privateCount = (val.match(/@private/gi) || []).length;
+
+            let desc = `${fnCount} fn (${lines.length} lines)`;
+            if (globalCount > 0 || privateCount > 0) {
+                desc += ` [${globalCount} global, ${privateCount} private]`;
+            }
+            badge.textContent = desc;
+        }
 
         const update = () => {
-            backdrop.innerHTML = tokenizeAndHighlight(ta.value, _activeTheme);
+            syncGeometry();
+            const theme = getActiveTheme();
+            backdrop.style.backgroundColor = theme.bg_color || "#181825";
+            backdrop.style.color = theme.plain_text || "#e2e8f0";
+            backdrop.innerHTML = tokenizeAndHighlight(ta.value, theme);
             backdrop.scrollTop = ta.scrollTop;
             backdrop.scrollLeft = ta.scrollLeft;
+            updateMetrics(ta.value);
         };
 
         ta.addEventListener("input", update);
@@ -342,19 +838,16 @@ function attachSyntaxHighlighter(widget, node) {
             backdrop.scrollLeft = ta.scrollLeft;
         });
 
-        // Tab indentation support
+        // Tab indentation and comment toggle
         ta.addEventListener("keydown", (e) => {
             if (e.key === "Tab") {
                 e.preventDefault();
                 const start = ta.selectionStart;
                 const end = ta.selectionEnd;
-                const text = ta.value;
-
                 if (!e.shiftKey) {
-                    // Indent with 4 spaces
                     ta.setRangeText("    ", start, end, "end");
                 } else {
-                    // Unindent: strip up to 4 spaces from current line
+                    const text = ta.value;
                     const lineStart = text.lastIndexOf("\n", start - 1) + 1;
                     const linePrefix = text.slice(lineStart, lineStart + 4);
                     const spacesToRemove = linePrefix.match(/^ {1,4}/)?.[0]?.length || 0;
@@ -364,23 +857,321 @@ function attachSyntaxHighlighter(widget, node) {
                 }
                 widget.value = ta.value;
                 update();
+            } else if ((e.ctrlKey || e.metaKey) && e.key === "/") {
+                e.preventDefault();
+                const start = ta.selectionStart;
+                const text = ta.value;
+                const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+                let lineEnd = text.indexOf("\n", start);
+                if (lineEnd === -1) lineEnd = text.length;
+                const line = text.slice(lineStart, lineEnd);
+                if (line.trim().startsWith("//")) {
+                    const newLine = line.replace("// ", "").replace("//", "");
+                    ta.setRangeText(newLine, lineStart, lineEnd, "select");
+                } else {
+                    ta.setRangeText("// " + line, lineStart, lineEnd, "select");
+                }
+                widget.value = ta.value;
+                update();
             }
         });
 
+        attachAutocomplete(ta, () => ta.value);
+
         widget._updateSyntaxHighlight = update;
-        update();
+        setTimeout(update, 20);
+        setTimeout(update, 100);
     };
 
-    let attempts = 0;
-    const poll = () => {
-        const ta = widget.inputEl || widget.element;
-        if (ta) {
-            bind();
-        } else if (attempts++ < 30) {
-            requestAnimationFrame(poll);
+    poll();
+}
+
+// ── Floating Pop-Out Studio Window ───────────────────────────────────────────
+function showFunctionPopoutStudio(node) {
+    injectSyntaxStyles();
+
+    if (node._popoutStudioEl && document.body.contains(node._popoutStudioEl)) {
+        if (node._popoutStudioEl.classList.contains("is-minimized")) {
+            node._popoutStudioEl.classList.remove("is-minimized");
+        }
+        node._popoutStudioEl.style.zIndex = String(++window._popoutZIndex || 10001);
+        node._popoutStudioEl.querySelector("textarea")?.focus();
+        return;
+    }
+
+    const scriptWidget = node.widgets?.find(w => w.name === "script_code");
+    const fileWidget = node.widgets?.find(w => w.name === "function_file");
+    const nsWidget = node.widgets?.find(w => w.name === "namespace");
+    if (!scriptWidget) return;
+
+    const win = document.createElement("div");
+    win.className = "modusflow-fn-popout-window";
+    node._popoutStudioEl = win;
+
+    let z = typeof window._popoutZIndex === "number" ? ++window._popoutZIndex : 10001;
+    window._popoutZIndex = z;
+    win.style.zIndex = String(z);
+
+    const defW = Math.min(1080, Math.floor(window.innerWidth * 0.88));
+    const defH = Math.min(760, Math.floor(window.innerHeight * 0.85));
+    const defTop = Math.max(30, Math.floor((window.innerHeight - defH) / 2));
+    const defLeft = Math.max(30, Math.floor((window.innerWidth - defW) / 2));
+
+    win.style.top = `${defTop}px`;
+    win.style.left = `${defLeft}px`;
+    win.style.width = `${defW}px`;
+    win.style.height = `${defH}px`;
+
+    // ── Header Bar ──
+    const header = document.createElement("div");
+    header.className = "modusflow-fn-popout-header";
+
+    const titleGroup = document.createElement("div");
+    titleGroup.style.cssText = "display: flex; align-items: center; gap: 8px; min-width: 0;";
+    titleGroup.innerHTML = `
+        <div style="width: 10px; height: 10px; border-radius: 50%; background: #818cf8; box-shadow: 0 0 8px #818cf8; flex-shrink: 0;"></div>
+        <span style="font-weight: 700; font-size: 13px; color: #cdd6f4; white-space: nowrap;">ModusFlow Function Studio</span>
+        <span style="font-size: 11px; color: #818cf8; background: rgba(129, 140, 248, 0.15); border: 1px solid rgba(129, 140, 248, 0.3); padding: 1px 7px; border-radius: 10px; white-space: nowrap;">#${node.id} ${escapeHtml(node.title || "Function Editor")}</span>
+    `;
+
+    const metricsGroup = document.createElement("div");
+    metricsGroup.style.cssText = "display: flex; align-items: center; gap: 8px; margin-left: auto; margin-right: 12px;";
+    const fnStatPill = document.createElement("span");
+    fnStatPill.style.cssText = "font-size: 11px; font-family: ui-monospace, monospace; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); padding: 2px 7px; border-radius: 4px; color: #34d399;";
+    metricsGroup.appendChild(fnStatPill);
+
+    const winControls = document.createElement("div");
+    winControls.style.cssText = "display: flex; align-items: center; gap: 6px; flex-shrink: 0;";
+
+    const minBtn = document.createElement("button");
+    minBtn.className = "modusflow-fn-popout-btn";
+    minBtn.innerHTML = "—";
+    minBtn.title = "Minimize to floating dock";
+    minBtn.onclick = () => win.classList.toggle("is-minimized");
+
+    const maxBtn = document.createElement("button");
+    maxBtn.className = "modusflow-fn-popout-btn";
+    maxBtn.innerHTML = "⇱";
+    maxBtn.title = "Maximize / Fullscreen";
+    maxBtn.onclick = () => win.classList.toggle("is-maximized");
+
+    const dockBtn = document.createElement("button");
+    dockBtn.className = "modusflow-fn-popout-btn";
+    dockBtn.style.cssText = "color: #f38ba8; border-color: rgba(243, 139, 168, 0.4);";
+    dockBtn.innerHTML = "✕ Dock";
+    dockBtn.title = "Close Pop-Out and dock back to canvas node";
+    dockBtn.onclick = () => {
+        win.remove();
+        node._popoutStudioEl = null;
+    };
+
+    winControls.appendChild(minBtn);
+    winControls.appendChild(maxBtn);
+    winControls.appendChild(dockBtn);
+
+    header.appendChild(titleGroup);
+    header.appendChild(metricsGroup);
+    header.appendChild(winControls);
+    win.appendChild(header);
+
+    // ── Draggable Window Logic ──
+    let isDragging = false;
+    let startX, startY, startTop, startLeft;
+    header.addEventListener("mousedown", (e) => {
+        if (e.target.closest("button") || e.target.closest("input") || win.classList.contains("is-maximized")) return;
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startTop = win.offsetTop;
+        startLeft = win.offsetLeft;
+        const onMouseMove = (ev) => {
+            if (!isDragging) return;
+            win.style.top = `${startTop + (ev.clientY - startY)}px`;
+            win.style.left = `${startLeft + (ev.clientX - startX)}px`;
+        };
+        const onMouseUp = () => {
+            isDragging = false;
+            window.removeEventListener("mousemove", onMouseMove);
+            window.removeEventListener("mouseup", onMouseUp);
+        };
+        window.addEventListener("mousemove", onMouseMove);
+        window.addEventListener("mouseup", onMouseUp);
+    });
+
+    // ── Toolbar Ribbon ──
+    const toolbar = document.createElement("div");
+    toolbar.className = "modusflow-fn-popout-toolbar";
+
+    const fileSelect = document.createElement("select");
+    fileSelect.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 5px; color: #818cf8; font-size: 11px; padding: 4px 8px; outline: none; cursor: pointer; max-width: 180px;";
+    if (fileWidget && fileWidget.options && fileWidget.options.values) {
+        fileWidget.options.values.forEach(f => {
+            const opt = document.createElement("option");
+            opt.value = f;
+            opt.textContent = f;
+            if (f === fileWidget.value) opt.selected = true;
+            fileSelect.appendChild(opt);
+        });
+    }
+
+    const nsInput = document.createElement("input");
+    nsInput.type = "text";
+    nsInput.placeholder = "Namespace (e.g. camera)";
+    nsInput.value = (nsWidget && nsWidget.value) ? nsWidget.value : "camera";
+    nsInput.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 5px; color: #38bdf8; font-size: 11px; padding: 4px 8px; width: 130px; outline: none;";
+    nsInput.oninput = () => {
+        if (nsWidget) {
+            nsWidget.value = nsInput.value;
+            app.graph.setDirtyCanvas(true, true);
         }
     };
-    poll();
+
+    const addGlobalBtn = document.createElement("button");
+    addGlobalBtn.className = "modusflow-fn-popout-btn";
+    addGlobalBtn.innerHTML = "➕ @global";
+    addGlobalBtn.onclick = () => insertSnippet("\n@global\nfn my_global_func($arg) = {\n    high quality portrait of $arg, cinematic lighting\n};\n");
+
+    const addPrivateBtn = document.createElement("button");
+    addPrivateBtn.className = "modusflow-fn-popout-btn";
+    addPrivateBtn.innerHTML = "🔒 @private";
+    addPrivateBtn.onclick = () => insertSnippet("\n@private\nfn my_private_helper($param) = {\n    subtle accent of $param\n};\n");
+
+    const addLoopBtn = document.createElement("button");
+    addLoopBtn.className = "modusflow-fn-popout-btn";
+    addLoopBtn.innerHTML = "🔁 Loop";
+    addLoopBtn.onclick = () => insertSnippet("\nrepeat(3) {\n    individual wearing {vintage|modern} clothing,\n}\n");
+
+    const saveBtn = document.createElement("button");
+    saveBtn.className = "modusflow-fn-popout-btn";
+    saveBtn.innerHTML = "💾 Save As";
+    saveBtn.onclick = () => node._saveAsNewFunction?.();
+
+    const updateBtn = document.createElement("button");
+    updateBtn.className = "modusflow-fn-popout-btn";
+    updateBtn.innerHTML = "✏️ Overwrite";
+    updateBtn.onclick = () => node._updateSelectedFunction?.();
+
+    toolbar.appendChild(fileSelect);
+    toolbar.appendChild(nsInput);
+    toolbar.appendChild(addGlobalBtn);
+    toolbar.appendChild(addPrivateBtn);
+    toolbar.appendChild(addLoopBtn);
+    toolbar.appendChild(saveBtn);
+    toolbar.appendChild(updateBtn);
+    win.appendChild(toolbar);
+
+    // ── Editor Body Pane ──
+    const body = document.createElement("div");
+    body.className = "modusflow-fn-popout-body";
+
+    const editorBox = document.createElement("div");
+    editorBox.className = "modusflow-fn-popout-editor-box";
+
+    const popBackdrop = document.createElement("div");
+    popBackdrop.className = "modusflow-fn-popout-backdrop";
+    popBackdrop.style.backgroundColor = getActiveTheme().bg_color || "#181825";
+    popBackdrop.style.color = getActiveTheme().plain_text || "#e2e8f0";
+
+    const popTa = document.createElement("textarea");
+    popTa.className = "modusflow-fn-popout-ta";
+    popTa.value = scriptWidget.value || "";
+    popTa.style.caretColor = getActiveTheme().caret_color || "#ffffff";
+
+    editorBox.appendChild(popBackdrop);
+    editorBox.appendChild(popTa);
+    body.appendChild(editorBox);
+    win.appendChild(body);
+
+    function updatePopMetrics(val) {
+        const lines = val.split("\n").length;
+        const globalCount = (val.match(/@global/gi) || []).length;
+        const privateCount = (val.match(/@private/gi) || []).length;
+        const totalFn = (val.match(/(?:fn|def)\s+[a-zA-Z0-9_]+/g) || []).length;
+        fnStatPill.textContent = `${totalFn} fn • ${lines} lines (${globalCount} global, ${privateCount} private)`;
+    }
+
+    function renderPopout() {
+        const theme = getActiveTheme();
+        popBackdrop.style.backgroundColor = theme.bg_color || "#181825";
+        popBackdrop.style.color = theme.plain_text || "#e2e8f0";
+        popBackdrop.innerHTML = tokenizeAndHighlight(popTa.value, theme);
+        popBackdrop.scrollTop = popTa.scrollTop;
+        popBackdrop.scrollLeft = popTa.scrollLeft;
+        updatePopMetrics(popTa.value);
+    }
+
+    function insertSnippet(snippet) {
+        const start = popTa.selectionStart || popTa.value.length;
+        const end = popTa.selectionEnd || popTa.value.length;
+        popTa.setRangeText(snippet, start, end, "end");
+        popTa.dispatchEvent(new Event("input", { bubbles: true }));
+        popTa.focus();
+    }
+
+    // Bidirectional synchronization: Pop-out <-> Canvas node
+    popTa.addEventListener("input", () => {
+        scriptWidget.value = popTa.value;
+        const nodeTa = scriptWidget.inputEl || scriptWidget.element;
+        if (nodeTa) {
+            nodeTa.value = popTa.value;
+        }
+        scriptWidget._updateSyntaxHighlight?.();
+        renderPopout();
+        app.graph.setDirtyCanvas(true, true);
+    });
+
+    popTa.addEventListener("scroll", () => {
+        popBackdrop.scrollTop = popTa.scrollTop;
+        popBackdrop.scrollLeft = popTa.scrollLeft;
+    });
+
+    // Tab indentation in pop-out
+    popTa.addEventListener("keydown", (e) => {
+        if (e.key === "Tab") {
+            e.preventDefault();
+            const start = popTa.selectionStart;
+            const end = popTa.selectionEnd;
+            if (!e.shiftKey) {
+                popTa.setRangeText("    ", start, end, "end");
+            } else {
+                const text = popTa.value;
+                const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+                const linePrefix = text.slice(lineStart, lineStart + 4);
+                const spacesToRemove = linePrefix.match(/^ {1,4}/)?.[0]?.length || 0;
+                if (spacesToRemove > 0) {
+                    popTa.setRangeText("", lineStart, lineStart + spacesToRemove, "end");
+                }
+            }
+            popTa.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+    });
+
+    attachAutocomplete(popTa, () => popTa.value);
+
+    // Node -> Popout sync hook
+    node._syncPopoutFromNode = () => {
+        if (popTa && popTa.value !== scriptWidget.value) {
+            popTa.value = scriptWidget.value || "";
+            renderPopout();
+        }
+        if (fileSelect && fileWidget) {
+            fileSelect.value = fileWidget.value;
+        }
+        if (nsInput && nsWidget) {
+            nsInput.value = nsWidget.value;
+        }
+    };
+
+    fileSelect.onchange = () => {
+        if (fileWidget) {
+            fileWidget.value = fileSelect.value;
+            node._loadSelectedFunction?.(fileSelect.value);
+        }
+    };
+
+    document.body.appendChild(win);
+    renderPopout();
+    popTa.focus();
 }
 
 // ── Extension Registration ──────────────────────────────────────────────────
@@ -388,10 +1179,10 @@ app.registerExtension({
     name: "modusflow.FunctionEditor",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         if (nodeData.name === "ModusFlowFunctionEditor") {
-            const onNodeCreated = nodeType.prototype.onNodeCreated;
-            nodeType.prototype.onNodeCreated = function () {
-                const r = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
-                const node = this;
+
+            function setupFunctionEditorNode(node) {
+                if (node._fnEditorInitialized) return;
+                node._fnEditorInitialized = true;
 
                 const fileWidget = node.widgets?.find(w => w.name === "function_file");
                 const nsWidget = node.widgets?.find(w => w.name === "namespace");
@@ -410,6 +1201,7 @@ app.registerExtension({
                         ta.dispatchEvent(new Event("input", { bubbles: true }));
                     }
                     widget._updateSyntaxHighlight?.();
+                    node._syncPopoutFromNode?.();
                 }
 
                 // ── Load selected function file ─────────────────────────────────
@@ -431,6 +1223,7 @@ app.registerExtension({
                     })
                     .catch(err => console.debug("[ModusFlow FunctionEditor] Load error:", err));
                 }
+                node._loadSelectedFunction = loadSelectedFunction;
 
                 // ── Refresh list of function files ──────────────────────────────
                 function refreshFunctions(selectName = null) {
@@ -451,10 +1244,12 @@ app.registerExtension({
                             if (fileWidget.value && fileWidget.value !== "--no functions found--") {
                                 loadSelectedFunction(fileWidget.value);
                             }
+                            node._syncPopoutFromNode?.();
                             app.graph.setDirtyCanvas(true, true);
                         })
                         .catch(err => console.error("[ModusFlow FunctionEditor] Refresh error:", err));
                 }
+                node._refreshFunctions = refreshFunctions;
 
                 if (fileWidget) {
                     const origCallback = fileWidget.callback;
@@ -492,13 +1287,14 @@ app.registerExtension({
                     })
                     .catch(err => alert("Save error: " + err.message));
                 }
+                node._saveAsNewFunction = saveAsNewFunction;
 
                 // ── Update selected function file ───────────────────────────────
                 function updateSelectedFunction() {
                     if (!fileWidget || !scriptWidget) return;
                     const current = fileWidget.value;
                     if (!current || current === "--no functions found--") {
-                        alert("Please select a function file from the dropdown or click 'Save As New' first.");
+                        alert("Please select a function file from the dropdown or click 'Save As' first.");
                         return;
                     }
 
@@ -522,6 +1318,7 @@ app.registerExtension({
                     })
                     .catch(err => alert("Update error: " + err.message));
                 }
+                node._updateSelectedFunction = updateSelectedFunction;
 
                 // ── Delete selected function file ───────────────────────────────
                 function deleteSelectedFunction() {
@@ -551,40 +1348,19 @@ app.registerExtension({
                     })
                     .catch(err => alert("Delete error: " + err.message));
                 }
-
-                // ── Insert Template Helpers ─────────────────────────────────────
-                function insertSnippet(snippet) {
-                    if (!scriptWidget) return;
-                    const ta = scriptWidget.inputEl || scriptWidget.element;
-                    if (ta) {
-                        const start = ta.selectionStart || ta.value.length;
-                        const end = ta.selectionEnd || ta.value.length;
-                        ta.setRangeText(snippet, start, end, "end");
-                        scriptWidget.value = ta.value;
-                        ta.dispatchEvent(new Event("input", { bubbles: true }));
-                        scriptWidget._updateSyntaxHighlight?.();
-                        ta.focus();
-                    }
-                }
+                node._deleteSelectedFunction = deleteSelectedFunction;
 
                 // ── Action Buttons ──────────────────────────────────────────────
-                node.addWidget("button", "➕ Insert @global Fn", null, () => {
-                    insertSnippet("\n@global\nfn my_global_func($arg) = {\n    high quality portrait of $arg, cinematic lighting\n};\n");
-                });
-
-                node.addWidget("button", "🔒 Insert @private Fn", null, () => {
-                    insertSnippet("\n@private\nfn my_private_helper($param) = {\n    detailed texture with $param\n};\n");
-                });
-
+                node.addWidget("button", "⛶ Pop Out Editor", null, () => showFunctionPopoutStudio(node));
                 node.addWidget("button", "💾 Save As New", null, () => saveAsNewFunction());
                 node.addWidget("button", "✏️ Update Selected", null, () => updateSelectedFunction());
                 node.addWidget("button", "🗑️ Delete Function", null, () => deleteSelectedFunction());
                 node.addWidget("button", "🔄 Refresh Functions", null, () => refreshFunctions());
 
-                node.size = [440, 600];
+                node.size = [440, 580];
                 node.resizable = true;
 
-                // Auto-load if initial selection exists
+                // Initial auto-load if dropdown has a selection
                 requestAnimationFrame(() => {
                     if (fileWidget && fileWidget.value && fileWidget.value !== "--no functions found--") {
                         if (!scriptWidget || !scriptWidget.value) {
@@ -592,17 +1368,20 @@ app.registerExtension({
                         }
                     }
                 });
+            }
 
+            const onNodeCreated = nodeType.prototype.onNodeCreated;
+            nodeType.prototype.onNodeCreated = function () {
+                const r = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
+                setupFunctionEditorNode(this);
                 return r;
             };
 
             const onConfigure = nodeType.prototype.onConfigure;
             nodeType.prototype.onConfigure = function () {
-                if (onConfigure) onConfigure.apply(this, arguments);
-                const scriptWidget = this.widgets?.find(w => w.name === "script_code");
-                if (scriptWidget) {
-                    attachSyntaxHighlighter(scriptWidget, this);
-                }
+                const r = onConfigure ? onConfigure.apply(this, arguments) : undefined;
+                setupFunctionEditorNode(this);
+                return r;
             };
 
             const onResize = nodeType.prototype.onResize;
