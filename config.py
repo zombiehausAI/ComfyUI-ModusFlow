@@ -17,6 +17,8 @@ DEFAULT_CONFIG = {
     "cloud_api_key": "",
     "cloud_model": "deepseek/deepseek-chat",
     "civitai_api_key": "",
+    "ollama_sys_prompt_expressions": "",
+    "ollama_sys_prompt_tags": "",
     "prompts_save_directory": "",  # Empty string means use default: BASE_DIR/saved_prompts
     "prompt_style": "Tags (SDXL / Pony)",
     "syntax_theme": "Modus Neon (Default)",
@@ -70,6 +72,10 @@ def get_config():
         config['ollama_cloud_url'] = os.environ['MODUSFLOW_OLLAMA_CLOUD_URL']
     if 'MODUSFLOW_OLLAMA_CLOUD_API_KEY' in os.environ:
         config['ollama_cloud_api_key'] = os.environ['MODUSFLOW_OLLAMA_CLOUD_API_KEY']
+    if 'MODUSFLOW_OLLAMA_SYS_PROMPT_EXPRESSIONS' in os.environ:
+        config['ollama_sys_prompt_expressions'] = os.environ['MODUSFLOW_OLLAMA_SYS_PROMPT_EXPRESSIONS']
+    if 'MODUSFLOW_OLLAMA_SYS_PROMPT_TAGS' in os.environ:
+        config['ollama_sys_prompt_tags'] = os.environ['MODUSFLOW_OLLAMA_SYS_PROMPT_TAGS']
     if 'MODUSFLOW_CLOUD_API_URL' in os.environ:
         config['cloud_api_url'] = os.environ['MODUSFLOW_CLOUD_API_URL']
     if 'MODUSFLOW_CLOUD_API_KEY' in os.environ:

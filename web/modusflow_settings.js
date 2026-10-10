@@ -140,8 +140,21 @@ function openModusFlowSettingsDialog() {
             })
             .catch(() => {});
 
+        const mkTextarea = (val, placeholder = "", rows = 4) => {
+            const ta = document.createElement("textarea");
+            ta.rows = rows;
+            ta.value = val || "";
+            ta.placeholder = placeholder;
+            ta.style.cssText = "background: #11111b; border: 1px solid #313244; border-radius: 6px; padding: 7px 10px; color: #cdd6f4; font-size: 11px; font-family: monospace; outline: none; resize: vertical; min-height: 60px; line-height: 1.4;";
+            ta.onfocus = () => { ta.style.borderColor = "#89b4fa"; };
+            ta.onblur = () => { ta.style.borderColor = "#313244"; };
+            return ta;
+        };
+
         mkField("Default Ollama Enhancement Model", modelSelect, "Model used for one-click prompt enhancement and selection refinement.");
         const timeoutInput = mkField("Ollama Timeout (seconds)", mkInput(cfg.ollama_timeout || 120, "120", "number"), "Timeout before canceling long LLM completions.");
+        const sysPromptExprInput = mkField("Expressions System Prompt (Flux / SD3 / Midjourney)", mkTextarea(cfg.ollama_sys_prompt_expressions, "Leave blank to use default natural language enricher prompt..."), "Custom system instructions sent to Ollama when enhancing in Expressions style.");
+        const sysPromptTagsInput = mkField("Tags System Prompt (SDXL / Pony / Anime)", mkTextarea(cfg.ollama_sys_prompt_tags, "Leave blank to use default visual tags enricher prompt..."), "Custom system instructions sent to Ollama when enhancing in Tags style.");
 
         mkSection("2. Cloud LLMs (OpenAI, OpenRouter, Groq, DeepSeek)");
         const cloudUrlInput = mkField("Cloud API Base URL", mkInput(cfg.cloud_api_url, "https://openrouter.ai/api/v1"), "OpenAI-compatible chat completions endpoint");
@@ -183,6 +196,8 @@ function openModusFlowSettingsDialog() {
                 ollama_url: (ollamaUrlInput.value || "").trim().replace(/\/+$/, ""),
                 ollama_model: (modelSelect.value || "").trim(),
                 ollama_timeout: parseInt(timeoutInput.value, 10) || 120,
+                ollama_sys_prompt_expressions: (sysPromptExprInput.value || "").trim(),
+                ollama_sys_prompt_tags: (sysPromptTagsInput.value || "").trim(),
                 cloud_api_url: (cloudUrlInput.value || "").trim().replace(/\/+$/, ""),
                 cloud_api_key: (cloudKeyInput.value || "").trim(),
                 cloud_model: (cloudModelInput.value || "").trim(),
@@ -198,6 +213,12 @@ function openModusFlowSettingsDialog() {
             if (payload.prompt_style && typeof localStorage !== "undefined") {
                 try { localStorage.setItem("modusflow_default_prompt_style", payload.prompt_style); } catch (_) {}
                 app.ui?.settings?.setSettingValue?.("ModusFlow.DefaultPromptStyle", payload.prompt_style);
+            }
+            if (payload.ollama_sys_prompt_expressions !== undefined) {
+                app.ui?.settings?.setSettingValue?.("ModusFlow.OllamaSysPromptExpressions", payload.ollama_sys_prompt_expressions);
+            }
+            if (payload.ollama_sys_prompt_tags !== undefined) {
+                app.ui?.settings?.setSettingValue?.("ModusFlow.OllamaSysPromptTags", payload.ollama_sys_prompt_tags);
             }
 
             try {
@@ -385,6 +406,34 @@ function buildModusFlowSettingsList(serverConfig = {}) {
             onChange: (newVal, oldVal) => {
                 if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
                     queueSave("ollama_timeout", Number(newVal) || 120);
+                }
+            }
+        },
+        {
+            id: "ModusFlow.OllamaSysPromptExpressions",
+            category: ["ModusFlow", "Local Ollama"],
+            name: "ModusFlow: System Prompt (Expressions / Flux)",
+            type: "text",
+            defaultValue: serverConfig.ollama_sys_prompt_expressions || "",
+            tooltip: "Custom system instructions for Ollama when enhancing prompts in Expressions style (leave blank for default)",
+            sortOrder: 38,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
+                    queueSave("ollama_sys_prompt_expressions", newVal);
+                }
+            }
+        },
+        {
+            id: "ModusFlow.OllamaSysPromptTags",
+            category: ["ModusFlow", "Local Ollama"],
+            name: "ModusFlow: System Prompt (Tags / SDXL / Pony)",
+            type: "text",
+            defaultValue: serverConfig.ollama_sys_prompt_tags || "",
+            tooltip: "Custom system instructions for Ollama when enhancing prompts in Tags style (leave blank for default)",
+            sortOrder: 37,
+            onChange: (newVal, oldVal) => {
+                if (newVal !== undefined && oldVal !== undefined && newVal !== oldVal) {
+                    queueSave("ollama_sys_prompt_tags", newVal);
                 }
             }
         },

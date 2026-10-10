@@ -125,10 +125,15 @@ You can open the ModusFlow configuration at any time through any of these entry 
 ### Configuration Options
 1. **Ollama Server URL (`ModusFlow.OllamaURL`)**: Endpoint for your local Ollama service (defaults to `http://127.0.0.1:11434` or custom LAN IP like `http://192.168.x.x:11434`). Automatically sanitizes whitespace, trailing slashes, and accidental trailing dots.
 2. **Enhancement Model Dropdown (`ModusFlow.OllamaEnhanceModel`)**: Automatically discovers installed models from your Ollama server (e.g. `deepseek-r1`, `dolphin-mistral`, `llama3.2`, `qwen2.5`, etc.) and presents them in a dropdown combo for easy selection.
-3. **Check Status / Connection Test (`ModusFlow.OllamaCheckStatus`)**: Dedicated test button that immediately probes the endpoint and displays a live badge: `🟢 Online (X models detected)` or `🔴 Offline`.
-4. **Cloud LLM Integration**: Configure Cloud Base URL, API Key, and Model ID (OpenRouter, DeepSeek, OpenAI, Groq) for cloud prompt assistance.
-5. **Civitai API Key**: Securely store your Civitai API key for high-resolution LoRA cards and metadata previews.
-6. **Prompts Directory Override**: Specify a custom folder to store prompt presets across different workflows.
+3. **Custom System Prompts (`ModusFlow.OllamaSysPromptExpressions` & `ModusFlow.OllamaSysPromptTags`)**: 
+   - **Expressions Style (Flux / SD3 / Midjourney)**: Custom system instruction text telling Ollama how to rewrite prompts into natural language sentences.
+   - **Tags Style (SDXL / Pony / Anime)**: Custom system instruction text telling Ollama how to expand prompts using structured visual tags.
+   - *Leave either field blank to use ModusFlow's built-in defaults.*
+4. **Pre-Enhancement Variable Resolution**: Clicking **✨ Enhance with Ollama** automatically evaluates and resolves variables (`$var`), inline calculations, comments, and dynamic choices before sending the prompt to Ollama. This ensures Ollama sees the complete, concrete prompt context rather than unparsed variable tokens.
+5. **Check Status / Connection Test (`ModusFlow.OllamaCheckStatus`)**: Dedicated test button that immediately probes the endpoint and displays a live badge: `🟢 Online (X models detected)` or `🔴 Offline`.
+6. **Cloud LLM Integration**: Configure Cloud Base URL, API Key, and Model ID (OpenRouter, DeepSeek, OpenAI, Groq) for cloud prompt assistance.
+7. **Civitai API Key**: Securely store your Civitai API key for high-resolution LoRA cards and metadata previews.
+8. **Prompts Directory Override**: Specify a custom folder to store prompt presets across different workflows.
 
 ### On-Node Status & Model Modal
 - **Clicking when Offline**: If Ollama was offline or recovering, clicking **✨ Enhance with Ollama (Offline)** runs an immediate live probe and, if still unreachable, opens the diagnostic modal with exact error details and troubleshooting tips.

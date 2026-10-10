@@ -159,23 +159,45 @@ async def enhance_prompt(request):
         if not model:
             return web.json_response({"success": False, "message": "No Ollama model specified or available"})
 
+        # Resolve variables, comments, wildcards, and dynamic syntax before enhancement
+        try:
+            loras, clean_for_eval = ModusFlowTextEditor.extract_prompt_loras(prompt_text)
+            uncommented = ModusFlowTextEditor.filter_comments(clean_for_eval)
+            resolved_text = ModusFlowTextEditor.resolve_dynamic_prompts(uncommented)
+            resolved_text = re.sub(r'\{!neg:[^{}]*\}', '', resolved_text, flags=re.IGNORECASE)
+            resolved_text = re.sub(r'\s*,\s*,+', ', ', resolved_text)
+            resolved_text = re.sub(r'^[,\s]+|[,\s]+$', '', resolved_text).strip()
+            if resolved_text:
+                prompt_text = resolved_text
+        except Exception as e:
+            print(f"[ModusFlow Ollama Enhance] Warning resolving variables: {e}")
+
+        custom_expr_prompt = settings.get("ollama_sys_prompt_expressions", "").strip()
+        custom_tag_prompt = settings.get("ollama_sys_prompt_tags", "").strip()
+
         if "expression" in style:
-            system_prompt = (
-                "You are an expert AI prompt engineer specializing in modern natural language diffusion models (FLUX.1, SD3, Midjourney). "
-                "Your task is to enrich and enhance the user's prompt into a vivid, descriptive natural English paragraph (fluent sentences). "
-                "Describe the subject, environment, lighting, camera angle, textures, and sensory nuances in rich natural prose without using comma tag soup or attention weights like (word:1.2). "
-                "Maintain the core subject and intent of the original prompt. "
-                "Return ONLY the enhanced prompt as natural descriptive sentences. "
-                "Do NOT include explanations, quotes, preambles, or markdown formatting."
-            )
+            if custom_expr_prompt:
+                system_prompt = custom_expr_prompt
+            else:
+                system_prompt = (
+                    "You are an expert AI prompt engineer specializing in modern natural language diffusion models (FLUX.1, SD3, Midjourney). "
+                    "Your task is to enrich and enhance the user's prompt into a vivid, descriptive natural English paragraph (fluent sentences). "
+                    "Describe the subject, environment, lighting, camera angle, textures, and sensory nuances in rich natural prose without using comma tag soup or attention weights like (word:1.2). "
+                    "Maintain the core subject and intent of the original prompt. "
+                    "Return ONLY the enhanced prompt as natural descriptive sentences. "
+                    "Do NOT include explanations, quotes, preambles, or markdown formatting."
+                )
         else:
-            system_prompt = (
-                "You are an expert AI prompt engineer specializing in tag-based visual image models (SDXL, Pony Diffusion, Illustrious, Anime/Danbooru). "
-                "Your task is to enrich and enhance the user's prompt by adding vivid, high-quality visual keyword tags. "
-                "Maintain the core subject and intent of the original prompt. "
-                "Return ONLY the enhanced prompt as a clean comma-separated list of descriptive visual tags (e.g. 1girl, solo, masterpiece, cinematic lighting, detailed background). "
-                "Do NOT include explanations, quotes, preambles, or markdown formatting."
-            )
+            if custom_tag_prompt:
+                system_prompt = custom_tag_prompt
+            else:
+                system_prompt = (
+                    "You are an expert AI prompt engineer specializing in tag-based visual image models (SDXL, Pony Diffusion, Illustrious, Anime/Danbooru). "
+                    "Your task is to enrich and enhance the user's prompt by adding vivid, high-quality visual keyword tags. "
+                    "Maintain the core subject and intent of the original prompt. "
+                    "Return ONLY the enhanced prompt as a clean comma-separated list of descriptive visual tags (e.g. 1girl, solo, masterpiece, cinematic lighting, detailed background). "
+                    "Do NOT include explanations, quotes, preambles, or markdown formatting."
+                )
 
         payload = {
             "model": model,
