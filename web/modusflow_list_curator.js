@@ -822,10 +822,13 @@ function attachCommentShortcuts(widget) {
 // ── Autocomplete System: Wildcards, LoRAs, Variables ──────────────────────────
 let _cachedWildcards = null;
 let _cachedLoras = null;
+let _fetchingWildcardsPromise = null;
+let _fetchingLorasPromise = null;
 
 function fetchWildcardList(force = false) {
     if (_cachedWildcards && !force) return Promise.resolve(_cachedWildcards);
-    return fetch("/modusflow/wildcards/list")
+    if (_fetchingWildcardsPromise && !force) return _fetchingWildcardsPromise;
+    _fetchingWildcardsPromise = fetch("/modusflow/wildcards/list")
         .then(r => r.json())
         .then(data => {
             _cachedWildcards = (data.success && Array.isArray(data.data)) ? data.data : [];
@@ -834,16 +837,21 @@ function fetchWildcardList(force = false) {
         .catch(err => {
             console.debug("[ModusFlow ListCurator] Wildcard fetch:", err.message);
             return _cachedWildcards || [];
+        })
+        .finally(() => {
+            _fetchingWildcardsPromise = null;
         });
+    return _fetchingWildcardsPromise;
 }
 
 function fetchLoraList(force = false) {
     if (_cachedLoras && !force) return Promise.resolve(_cachedLoras);
-    return fetch("/modusflow/get_loras")
+    if (_fetchingLorasPromise && !force) return _fetchingLorasPromise;
+    _fetchingLorasPromise = fetch("/modusflow/get_loras")
         .then(r => r.json())
         .then(data => {
             if (data.success && Array.isArray(data.data)) {
-                _cachedLoras = data.data.map(name => name.replace(/\.(safetensors|pt|ckpt|bin)$/i, ""));
+                _cachedLoras = data.data.map(name => name.replace(/\.(safetensors|pt|ckpt|bin)$/i, "").replace(/\\/g, "/"));
             } else {
                 _cachedLoras = [];
             }
@@ -852,7 +860,11 @@ function fetchLoraList(force = false) {
         .catch(err => {
             console.debug("[ModusFlow ListCurator] LoRA fetch:", err.message);
             return _cachedLoras || [];
+        })
+        .finally(() => {
+            _fetchingLorasPromise = null;
         });
+    return _fetchingLorasPromise;
 }
 
 const SYSTEM_VARS = [
@@ -928,18 +940,35 @@ function detectTrigger(text, cursor) {
     }
 
     // 5. LoRA tag: <lora: or <l
-    const loraMatch = sub.match(/(?:^|[\s,.:;!?([{\"])(<(?:lora:)?([a-zA-Z0-9_.\/-]*))$/i);
+    const loraMatch = sub.match(/(?:^|[\s,.:;!?([{\"])(<(?:lora:)?([a-zA-Z0-9_.\/\\-]*))$/i);
     if (loraMatch) {
+        let q = (loraMatch[2] || "").replace(/\\/g, "/");
+        if (/^l(ora)?$/i.test(q) && !loraMatch[1].includes(":")) {
+            q = "";
+        }
         return {
             type: "lora",
             fullToken: loraMatch[1],
-            query: loraMatch[2] || "",
+            query: q,
             replaceStart: cursor - loraMatch[1].length,
             replaceEnd: cursor
         };
     }
 
     return null;
+}
+
+function normalizePathSeparatorsInTags(text) {
+    if (!text || typeof text !== "string") return text;
+    // 1. Normalize <lora:path\to\model:weight> -> <lora:path/to/model:weight>
+    let result = text.replace(/(<lora:[^>\r\n]+>)/gi, (match) => {
+        return match.replace(/\\/g, "/");
+    });
+    // 2. Normalize @import "path\to\file" or @import 'path\to\file' or @import("path\to\file")
+    result = result.replace(/(@import\s*(?:\(\s*)?["'])([^"'\r\n]+)(["']\s*\)?)/gi, (match, prefix, pathStr, suffix) => {
+        return prefix + pathStr.replace(/\\/g, "/") + suffix;
+    });
+    return result;
 }
 
 function formatReplacement(item, type) {
@@ -953,7 +982,7 @@ function formatReplacement(item, type) {
         case "curator":
             return `{${item.name}} `;
         case "lora":
-            return `<lora:${item.name}:1.0> `;
+            return `<lora:${item.name.replace(/\\/g, "/")}:1.0> `;
         default:
             return `${item.name} `;
     }
@@ -1207,11 +1236,19 @@ function attachAutocomplete(widget, node) {
             }
 
             if (trigger.type === "wildcard" && !_cachedWildcards) {
-                fetchWildcardList().then(() => checkTriggerAndSuggest());
+                fetchWildcardList().then(() => {
+                    if (document.activeElement === ta) {
+                        checkTriggerAndSuggest();
+                    }
+                });
                 return;
             }
             if (trigger.type === "lora" && !_cachedLoras) {
-                fetchLoraList().then(() => checkTriggerAndSuggest());
+                fetchLoraList().then(() => {
+                    if (document.activeElement === ta) {
+                        checkTriggerAndSuggest();
+                    }
+                });
                 return;
             }
 
@@ -1226,6 +1263,36 @@ function attachAutocomplete(widget, node) {
         }
 
         ta.addEventListener("input", checkTriggerAndSuggest);
+
+        ta.addEventListener("paste", (e) => {
+            const pasted = (e.clipboardData || window.clipboardData)?.getData("text");
+            if (pasted && (/<lora:[^>\r\n]*\\/i.test(pasted) || /@import[^"'\r\n]*["'][^"'\r\n]*\\/i.test(pasted))) {
+                e.preventDefault();
+                const normalized = normalizePathSeparatorsInTags(pasted);
+                if (document.queryCommandSupported && document.queryCommandSupported("insertText")) {
+                    document.execCommand("insertText", false, normalized);
+                } else {
+                    const start = ta.selectionStart;
+                    const end = ta.selectionEnd;
+                    ta.setRangeText(normalized, start, end, "end");
+                    widget.value = ta.value;
+                    ta.dispatchEvent(new Event("input", { bubbles: true }));
+                }
+            }
+        });
+
+        ta.addEventListener("blur", () => {
+            const val = ta.value;
+            const normalized = normalizePathSeparatorsInTags(val);
+            if (normalized !== val) {
+                const start = ta.selectionStart;
+                const end = ta.selectionEnd;
+                ta.value = normalized;
+                widget.value = normalized;
+                ta.dispatchEvent(new Event("input", { bubbles: true }));
+                try { ta.setSelectionRange(start, end); } catch (_) {}
+            }
+        });
 
         ta.addEventListener("keydown", (e) => {
             if (menu.style.display !== "none" && activeItems.length > 0) {

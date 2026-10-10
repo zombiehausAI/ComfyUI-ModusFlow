@@ -163,7 +163,7 @@ class ModusFlowLoraLoader:
 
         loras = []
         for m in re.finditer(pattern, uncommented, flags=re.IGNORECASE):
-            name = m.group(1).strip()
+            name = m.group(1).strip().replace('\\', '/')
             w1 = m.group(2)
             w2 = m.group(3)
 

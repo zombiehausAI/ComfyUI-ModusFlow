@@ -1134,6 +1134,19 @@ function handleEditorTabKey(ta, e, onUpdate) {
     }
 }
 
+function normalizePathSeparatorsInTags(text) {
+    if (!text || typeof text !== "string") return text;
+    // 1. Normalize <lora:path\to\model:weight> -> <lora:path/to/model:weight>
+    let result = text.replace(/(<lora:[^>\r\n]+>)/gi, (match) => {
+        return match.replace(/\\/g, "/");
+    });
+    // 2. Normalize @import "path\to\file" or @import 'path\to\file' or @import("path\to\file")
+    result = result.replace(/(@import\s*(?:\(\s*)?["'])([^"'\r\n]+)(["']\s*\)?)/gi, (match, prefix, pathStr, suffix) => {
+        return prefix + pathStr.replace(/\\/g, "/") + suffix;
+    });
+    return result;
+}
+
 function attachTabPasteNormalization(ta, onUpdate) {
     if (!ta || ta._hasTabPasteNorm) return;
     ta._hasTabPasteNorm = true;
@@ -1141,15 +1154,31 @@ function attachTabPasteNormalization(ta, onUpdate) {
     ta.addEventListener("paste", (e) => {
         const clipData = e.clipboardData || window.clipboardData;
         if (!clipData) return;
-        const pasted = clipData.getData("text");
-        if (pasted && pasted.includes("\t")) {
+        let pasted = clipData.getData("text");
+        const hasTab = pasted && pasted.includes("\t");
+        const hasBackslashTag = pasted && (/<lora:[^>\r\n]*\\/i.test(pasted) || /@import[^"'\r\n]*["'][^"'\r\n]*\\/i.test(pasted));
+        if (hasTab || hasBackslashTag) {
             e.preventDefault();
-            const converted = pasted.replace(/\t/g, "    ");
+            if (hasTab) pasted = pasted.replace(/\t/g, "    ");
+            if (hasBackslashTag) pasted = normalizePathSeparatorsInTags(pasted);
             const start = ta.selectionStart;
             const end = ta.selectionEnd;
-            ta.setRangeText(converted, start, end, "end");
+            ta.setRangeText(pasted, start, end, "end");
             ta.dispatchEvent(new Event("input", { bubbles: true }));
             onUpdate?.();
+        }
+    });
+
+    ta.addEventListener("blur", () => {
+        const val = ta.value;
+        const normalized = normalizePathSeparatorsInTags(val);
+        if (normalized !== val) {
+            const start = ta.selectionStart;
+            const end = ta.selectionEnd;
+            ta.value = normalized;
+            ta.dispatchEvent(new Event("input", { bubbles: true }));
+            onUpdate?.();
+            try { ta.setSelectionRange(start, end); } catch (_) {}
         }
     });
 }
@@ -1884,10 +1913,13 @@ function setNodeTheme(node, themeName) {
 // ── Autocomplete System: Wildcards, Variables, Curator & LoRAs ───────────────
 let _cachedWildcards = null;
 let _cachedLoras = null;
+let _fetchingWildcardsPromise = null;
+let _fetchingLorasPromise = null;
 
 function fetchWildcardList(force = false) {
     if (_cachedWildcards && !force) return Promise.resolve(_cachedWildcards);
-    return fetch("/modusflow/wildcards/list")
+    if (_fetchingWildcardsPromise && !force) return _fetchingWildcardsPromise;
+    _fetchingWildcardsPromise = fetch("/modusflow/wildcards/list")
         .then(r => r.json())
         .then(data => {
             if (data.success && Array.isArray(data.data)) {
@@ -1900,17 +1932,17 @@ function fetchWildcardList(force = false) {
         .catch(err => {
             console.debug("[ModusFlow Autocomplete] Wildcard fetch:", err.message);
             return _cachedWildcards || [];
+        })
+        .finally(() => {
+            _fetchingWildcardsPromise = null;
         });
+    return _fetchingWildcardsPromise;
 }
-
-let _fetchingWildcards = false;
-let _fetchingLoras = false;
 
 function fetchLoraList(force = false) {
     if (_cachedLoras && !force) return Promise.resolve(_cachedLoras);
-    if (_fetchingLoras) return Promise.resolve(_cachedLoras || []);
-    _fetchingLoras = true;
-    return fetch("/modusflow/get_loras")
+    if (_fetchingLorasPromise && !force) return _fetchingLorasPromise;
+    _fetchingLorasPromise = fetch("/modusflow/get_loras")
         .then(r => r.json())
         .then(data => {
             if (data.success && Array.isArray(data.data)) {
@@ -1925,8 +1957,9 @@ function fetchLoraList(force = false) {
             return _cachedLoras || [];
         })
         .finally(() => {
-            _fetchingLoras = false;
+            _fetchingLorasPromise = null;
         });
+    return _fetchingLorasPromise;
 }
 
 // ── Property / Dictionary Autocomplete Cache & Helpers ───────────────────────
@@ -2275,7 +2308,7 @@ function formatReplacement(item, type) {
         case "curator":
             return `{${item.name}} `;
         case "lora":
-            return `<lora:${item.name}:1.0> `;
+            return `<lora:${item.name.replace(/\\/g, "/")}:1.0> `;
         case "property":
             return `${item.name}`;
         default:
@@ -2618,16 +2651,28 @@ function attachAutocomplete(widget, node) {
                 return;
             }
 
-            if (trigger.type === "wildcard" && (!_cachedWildcards || _cachedWildcards.length === 0) && !_fetchingWildcards) {
-                fetchWildcardList(true).then(() => checkTriggerAndSuggest());
+            if (trigger.type === "wildcard" && (!_cachedWildcards || _cachedWildcards.length === 0)) {
+                fetchWildcardList().then(() => {
+                    if (document.activeElement === ta) {
+                        checkTriggerAndSuggest();
+                    }
+                });
                 return;
             }
-            if (trigger.type === "lora" && (!_cachedLoras || _cachedLoras.length === 0) && !_fetchingLoras) {
-                fetchLoraList(true).then(() => checkTriggerAndSuggest());
+            if (trigger.type === "lora" && (!_cachedLoras || _cachedLoras.length === 0)) {
+                fetchLoraList().then(() => {
+                    if (document.activeElement === ta) {
+                        checkTriggerAndSuggest();
+                    }
+                });
                 return;
             }
             if (trigger.type === "property" && trigger.wildcardName && !_wildcardKeysCache.has(trigger.wildcardName)) {
-                fetchWildcardKeys(trigger.wildcardName).then(() => checkTriggerAndSuggest());
+                fetchWildcardKeys(trigger.wildcardName).then(() => {
+                    if (document.activeElement === ta) {
+                        checkTriggerAndSuggest();
+                    }
+                });
                 return;
             }
 
@@ -2915,6 +2960,7 @@ function showHistoryDialog(node) {
 // ── Prompt Prettifier & Deduplicator ─────────────────────────────────────────
 function prettifyPromptText(text) {
     if (!text || typeof text !== "string") return "";
+    text = normalizePathSeparatorsInTags(text);
     // Collapse consecutive duplicate parenthesized tags e.g. (realistic:1.2) (realistic:1.2)
     let preprocessed = text.replace(/(\([^)]+\))(?:\s*,\s*|\s+)\1+/gi, "$1");
     // Ensure comma separation between adjacent parenthesized tokens: ) ( -> ), (

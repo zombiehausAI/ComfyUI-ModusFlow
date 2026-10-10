@@ -149,7 +149,7 @@ class ModusFlowTextEditor:
 
         loras = []
         for m in re.finditer(pattern, uncommented, flags=re.IGNORECASE):
-            name = m.group(1).strip()
+            name = m.group(1).strip().replace('\\', '/')
             w1 = m.group(2)
             w2 = m.group(3)
 
@@ -166,6 +166,23 @@ class ModusFlowTextEditor:
         clean = re.sub(r',\s*,+', ', ', clean)
         clean = re.sub(r'^[,\s]+|[,\s]+$', '', clean)
         return loras, clean
+
+    @staticmethod
+    def normalize_tags_path_separators(text: str) -> str:
+        """Normalize Windows backslashes to forward slashes strictly inside <lora:...> and @import tags."""
+        if not text or not isinstance(text, str):
+            return text
+        # 1. Normalize <lora:path\to\model:weight>
+        text = re.sub(r'<lora:[^>\r\n]+>', lambda m: m.group(0).replace('\\', '/'), text, flags=re.IGNORECASE)
+
+        # 2. Normalize @import "path\to\file" or @import 'path\to\file' or @import("path\to\file")
+        def fix_import(m):
+            prefix = m.group(1)
+            path_str = m.group(2).replace('\\', '/')
+            suffix = m.group(3)
+            return f"{prefix}{path_str}{suffix}"
+        text = re.sub(r'(@import\s*(?:\(\s*)?["\'])([^"\'\r\n]+)(["\']\s*\)?)', fix_import, text, flags=re.IGNORECASE)
+        return text
 
     @staticmethod
     def strip_lora_tags(text: str) -> str:
@@ -234,6 +251,8 @@ class ModusFlowTextEditor:
         if not text or not isinstance(text, str):
             return ""
 
+        text = ModusFlowTextEditor.normalize_tags_path_separators(text)
+
         import random
         rng = random.Random(seed) if seed is not None and seed != 0 else random.Random()
 
@@ -276,7 +295,7 @@ class ModusFlowTextEditor:
             import_pattern = r'(?m)^[ \t]*@import\s+["\']([^"\']+)["\'][ \t]*(?:;)?\r?$|@import\s+["\']([^"\']+)["\']'
 
             def replace_import(m):
-                rel_path = (m.group(1) or m.group(2)).strip()
+                rel_path = (m.group(1) or m.group(2)).strip().replace('\\', '/')
                 candidates = []
                 if os.path.isabs(rel_path):
                     candidates.append(rel_path)
@@ -312,6 +331,7 @@ class ModusFlowTextEditor:
                             else:
                                 with open(cand_norm, 'r', encoding='utf-8') as f:
                                     content = f.read()
+                                content = ModusFlowTextEditor.normalize_tags_path_separators(content)
 
                                 raw_lines = [l.strip() for l in content.splitlines()]
                                 lines = [l for l in raw_lines if l and not l.startswith(('#', '//'))]

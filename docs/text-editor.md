@@ -437,6 +437,7 @@ A rapid, one-click visual dock above the editor to inject curated prompt tokens 
       ```
   - **Optional Extension**: Omitting the extension will automatically test `path`, `path.txt`, and `path.json`.
   - **Recursive Imports**: Imported files can themselves contain `@import` statements (with built-in recursion guard up to 5 levels).
+  - **Cross-Platform Path Normalization**: On Windows or when copying filesystem paths with backslashes (`\`), paths inside `@import "path\to\file"` and `<lora:path\to\model:weight>` are automatically normalized to forward slashes (`/`) on paste, blur, and execution. Non-tag prompt text (such as escape characters in `\(tags\)` or `\:D`) remains completely untouched.
 
 - **Reusable Macro Functions (`fn name($arg1, $arg2) = { ... };` and `@name(...)`)**: Define reusable, parameterized prompt template functions directly in your prompt text or imported libraries:
   - **Definition Syntax**:

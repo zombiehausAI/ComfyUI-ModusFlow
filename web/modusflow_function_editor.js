@@ -435,6 +435,9 @@ function tokenizeAndHighlight(text, theme = getActiveTheme()) {
     // 11. Attention weights: (tag:1.2)
     addMatches(/\([^():\r\n]+:\s*-?\d+(?:\.\d+)?\)/g, "weight");
 
+    // 11.5 LoRA tags: <lora:...>
+    addMatches(/<lora:[^>\r\n]+>/gi, "lora");
+
     // 12. Strings: "..." or '...'
     addMatches(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, "shuffle");
 
@@ -479,6 +482,9 @@ function tokenizeAndHighlight(text, theme = getActiveTheme()) {
         } else if (iv.type === "weight") {
             const color = theme.weight || "#34d399";
             html += `<span style="color: ${color}; font-weight: bold;">${tokenText}</span>`;
+        } else if (iv.type === "lora") {
+            const color = theme.lora || "#f87171";
+            html += `<span style="color: ${color}; font-weight: 600;">${tokenText}</span>`;
         } else if (iv.type === "shuffle") {
             const color = theme.shuffle || "#f472b6";
             html += `<span style="color: ${color};">${tokenText}</span>`;
@@ -502,16 +508,47 @@ function tokenizeAndHighlight(text, theme = getActiveTheme()) {
 
 // ── Autocomplete System ──────────────────────────────────────────────────────
 let _cachedWildcards = null;
+let _cachedLoras = null;
+let _fetchingWildcardsPromise = null;
+let _fetchingLorasPromise = null;
 
-function fetchWildcardList() {
-    if (_cachedWildcards) return Promise.resolve(_cachedWildcards);
-    return fetch("/modusflow/wildcards/list")
+function fetchWildcardList(force = false) {
+    if (_cachedWildcards && !force) return Promise.resolve(_cachedWildcards);
+    if (_fetchingWildcardsPromise && !force) return _fetchingWildcardsPromise;
+    _fetchingWildcardsPromise = fetch("/modusflow/wildcards/list")
         .then(r => r.json())
         .then(data => {
             _cachedWildcards = (data.success && Array.isArray(data.data)) ? data.data : [];
             return _cachedWildcards;
         })
-        .catch(() => _cachedWildcards || []);
+        .catch(() => _cachedWildcards || [])
+        .finally(() => {
+            _fetchingWildcardsPromise = null;
+        });
+    return _fetchingWildcardsPromise;
+}
+
+function fetchLoraList(force = false) {
+    if (_cachedLoras && !force) return Promise.resolve(_cachedLoras);
+    if (_fetchingLorasPromise && !force) return _fetchingLorasPromise;
+    _fetchingLorasPromise = fetch("/modusflow/get_loras")
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && Array.isArray(data.data)) {
+                _cachedLoras = data.data.map(name => name.replace(/\.(safetensors|pt|ckpt|bin)$/i, "").replace(/\\/g, "/"));
+            } else {
+                _cachedLoras = [];
+            }
+            return _cachedLoras;
+        })
+        .catch(err => {
+            console.debug("[ModusFlow FunctionEditor] LoRA fetch:", err);
+            return _cachedLoras || [];
+        })
+        .finally(() => {
+            _fetchingLorasPromise = null;
+        });
+    return _fetchingLorasPromise;
 }
 
 function detectTrigger(text, cursor) {
@@ -578,7 +615,36 @@ function detectTrigger(text, cursor) {
         };
     }
 
+    // 6. LoRA tag: <lora: or <l
+    const loraMatch = sub.match(/(?:^|[\s,.:;!?([{\"])(<(?:lora:)?([a-zA-Z0-9_.\/\\-]*))$/i);
+    if (loraMatch) {
+        let q = (loraMatch[2] || "").replace(/\\/g, "/");
+        if (/^l(ora)?$/i.test(q) && !loraMatch[1].includes(":")) {
+            q = "";
+        }
+        return {
+            type: "lora",
+            fullToken: loraMatch[1],
+            query: q,
+            replaceStart: cursor - loraMatch[1].length,
+            replaceEnd: cursor
+        };
+    }
+
     return null;
+}
+
+function normalizePathSeparatorsInTags(text) {
+    if (!text || typeof text !== "string") return text;
+    // 1. Normalize <lora:path\to\model:weight> -> <lora:path/to/model:weight>
+    let result = text.replace(/(<lora:[^>\r\n]+>)/gi, (match) => {
+        return match.replace(/\\/g, "/");
+    });
+    // 2. Normalize @import "path\to\file" or @import 'path\to\file' or @import("path\to\file")
+    result = result.replace(/(@import\s*(?:\(\s*)?["'])([^"'\r\n]+)(["']\s*\)?)/gi, (match, prefix, pathStr, suffix) => {
+        return prefix + pathStr.replace(/\\/g, "/") + suffix;
+    });
+    return result;
 }
 
 function getSuggestions(trigger, currentScript = "") {
@@ -654,6 +720,19 @@ function getSuggestions(trigger, currentScript = "") {
                 badge: "LIST",
                 badgeClass: "badge-fn-list",
                 desc: "Wildcard list file"
+            }));
+    }
+
+    if (trigger.type === "lora") {
+        const list = _cachedLoras || [];
+        return list
+            .filter(name => !q || name.toLowerCase().includes(q))
+            .map(name => ({
+                name: `<lora:${name.replace(/\\/g, "/")}:1.0> `,
+                insertText: `<lora:${name.replace(/\\/g, "/")}:1.0> `,
+                badge: "LORA",
+                badgeClass: "badge-fn-var",
+                desc: "LoRA tag"
             }));
     }
 
@@ -791,6 +870,24 @@ function attachAutocomplete(ta, getScriptText) {
             return;
         }
 
+        if (currentTrigger.type === "wildcard" && !_cachedWildcards) {
+            fetchWildcardList().then(() => {
+                if (document.activeElement === ta) {
+                    ta.dispatchEvent(new Event("input", { bubbles: true }));
+                }
+            });
+            return;
+        }
+
+        if (currentTrigger.type === "lora" && !_cachedLoras) {
+            fetchLoraList().then(() => {
+                if (document.activeElement === ta) {
+                    ta.dispatchEvent(new Event("input", { bubbles: true }));
+                }
+            });
+            return;
+        }
+
         const scriptContent = typeof getScriptText === "function" ? getScriptText() : ta.value;
         activeItems = getSuggestions(currentTrigger, scriptContent);
         if (activeItems.length === 0) {
@@ -801,6 +898,22 @@ function attachAutocomplete(ta, getScriptText) {
         selectedIndex = 0;
         positionMenu();
         renderMenu();
+    });
+
+    ta.addEventListener("paste", (e) => {
+        const pasted = (e.clipboardData || window.clipboardData)?.getData("text");
+        if (pasted && (/<lora:[^>\r\n]*\\/i.test(pasted) || /@import[^"'\r\n]*["'][^"'\r\n]*\\/i.test(pasted))) {
+            e.preventDefault();
+            const normalized = normalizePathSeparatorsInTags(pasted);
+            if (document.queryCommandSupported && document.queryCommandSupported("insertText")) {
+                document.execCommand("insertText", false, normalized);
+            } else {
+                const start = ta.selectionStart;
+                const end = ta.selectionEnd;
+                ta.setRangeText(normalized, start, end, "end");
+                ta.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+        }
     });
 
     ta.addEventListener("keydown", (e) => {
@@ -831,6 +944,15 @@ function attachAutocomplete(ta, getScriptText) {
     });
 
     ta.addEventListener("blur", () => {
+        const val = ta.value;
+        const normalized = normalizePathSeparatorsInTags(val);
+        if (normalized !== val) {
+            const start = ta.selectionStart;
+            const end = ta.selectionEnd;
+            ta.value = normalized;
+            ta.dispatchEvent(new Event("input", { bubbles: true }));
+            try { ta.setSelectionRange(start, end); } catch (_) {}
+        }
         setTimeout(closeMenu, 150);
     });
 }
