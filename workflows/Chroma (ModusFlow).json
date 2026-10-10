@@ -874,21 +874,31 @@
       "title": "ModusFlow Model Upscale (All-in-One)",
       "widgets_values": [
         "4x-UltraSharp.pth",
-        true,
+        "target",
+        2560,
         true,
         0.5,
         "lanczos",
+        512,
+        32,
+        0,
+        0,
         false,
-        "ModusFlow_Upscale"
+        "%date:yyyy-MM-dd%\\\\Upscaled\\\\Chroma_Upscaled_%seed%"
       ],
       "widgets_values_named": {
         "upscale_model_name": "4x-UltraSharp.pth",
-        "upscale_enabled": true,
+        "upscale_mode": "target",
+        "target_size": 2560,
         "downscale_enabled": true,
         "scale_down_by": 0.5,
         "rescale_method": "lanczos",
+        "tile_size": 512,
+        "tile_overlap": 32,
+        "target_width": 0,
+        "target_height": 0,
         "save_upscale": false,
-        "upscale_save_prefix": "ModusFlow_Upscale"
+        "upscale_save_prefix": "%date:yyyy-MM-dd%\\\\Upscaled\\\\Chroma_Upscaled_%seed%"
       }
     },
     {

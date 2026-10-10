@@ -50,25 +50,29 @@ Overview and usage reference for ModusFlow's advanced utility suite: Tiled VAE D
 
 ## 4. All-in-One Model Upscaler (`ModusFlowModelUpscale`)
 * **Category:** `ModusFlow/Image`
-* **Overview:** Complete super-resolution pipeline in a single node. Combines model loading (e.g. `4x-UltraSharp.pth`, `4x_NMKD-Superscale-SP_178000_G.pth`), neural upscaling inference, and high-quality downscaling with **independent bypass switches** for each stage.
-* **Why Use It?** Eliminates the need to wire separate `UpscaleModelLoader`, `ImageUpscaleWithModel`, and third-party image scaler nodes (`easy imageScaleDownBy`).
-* **Super-Resolution Workflow (e.g. 4x Model to 2x Output):**
-  1. Set `upscale_model_name: "4x-UltraSharp.pth"`.
-  2. Set `upscale_enabled: True`.
-  3. Set `downscale_enabled: True`, `scale_down_by: 0.5`, `rescale_method: "lanczos"`.
-  4. The image is super-resolved 4x by the model and downscaled 0.5x, yielding an ultra-crisp 2x final image with zero blurriness.
+* **Overview:** Complete super-resolution pipeline in a single node. Combines upscale model loading (e.g. `4x-UltraSharp.pth`, `4x_foolhardy_Remacri.pth`, `2x-UltraSharp.pth`), **memory-safe tiled neural inference** to completely prevent VRAM out-of-memory errors, and precision downscaling/rescaling (**Targeted Resolution** or **Scale Factor multiplier**) with seamless pipe pass-through.
+* **Why Use It?** Eliminates the need to wire separate `UpscaleModelLoader`, `ImageUpscaleWithModel`, and third-party image scaler nodes (`easy imageScaleDownBy`). Enables upscaling high-resolution passes without running out of GPU memory.
+* **Modes (`upscale_mode`):**
+  * `target`: Runs tiled neural model upscaling and automatically resizes to `target_size` (longest side, preserving aspect ratio) or custom width/height.
+  * `tiled`: Runs memory-safe tiled neural upscaling, then resizes by `scale_down_by` multiplier (e.g. 0.5x from a 4x model to create an ultra-crisp 2x final image).
+  * `standard`: Classic non-tiled full-image model upscaling, then resizes by `scale_down_by`.
+  * `disabled`: Completely bypasses the upscale model (preserves image or applies standalone downscale).
 * **Inputs:**
   * `image` (IMAGE): Input pixel image.
   * `upscale_model_name` (dropdown): Available upscale models in `models/upscale_models`.
-  * `upscale_enabled` (BOOLEAN, default `true`): Toggle the neural model upscaling pass.
-  * `downscale_enabled` (BOOLEAN, default `true`): Toggle the subsequent downscaling pass.
-  * `scale_down_by` (FLOAT, default `0.5`): Rescale factor.
+  * `upscale_mode` (`target`, `tiled`, `standard`, `disabled`): Upscaling and sizing mode.
+  * `target_size` (INT, default `2560`): Target size for the longest side when in `target` mode.
+  * `downscale_enabled` (BOOLEAN, default `true`): Toggle the subsequent downscaling/rescaling pass.
+  * `scale_down_by` (FLOAT, default `0.5`): Rescale factor when in `tiled` or `standard` mode.
   * `rescale_method` (`lanczos`, `bicubic`, `bilinear`, `area`, `nearest-exact`).
+  * `tile_size` (INT, default `512`): Size of each processing tile in input pixels (512 uses ~1GB VRAM).
+  * `tile_overlap` (INT, default `32`): Overlap in pixels between adjacent tiles with 2D linear blending to eliminate seams.
   * `pipe` (PIPE, optional): Pass-through pipe.
-  * `save_upscale` (BOOLEAN, optional, default `false`): When enabled, automatically saves the full-resolution model-upscaled image to disk before downscaling.
+  * `target_width` / `target_height` (INT, optional, default `0`): Exact pixel dimensions for `target` mode (overrides `target_size` when both > 0).
+  * `save_upscale` (BOOLEAN, optional, default `false`): Automatically saves the raw upscaled image to disk before downscaling.
   * `upscale_save_prefix` (STRING, optional, default `"ModusFlow_Upscale"`): Output file prefix for saved upscaled images.
 * **Outputs:**
-  * `image` (IMAGE): Final image (after optional downscaling).
+  * `image` (IMAGE): Final image (after targeted or factor downscaling).
   * `pipe` (PIPE): Pass-through pipe.
   * `upscaled_image` (IMAGE): Full-resolution model-upscaled image before downscaling (ideal for wiring to preview or custom save nodes).
 
