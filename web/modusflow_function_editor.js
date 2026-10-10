@@ -809,10 +809,11 @@ function attachSyntaxHighlighter(widget, node) {
         }
 
         function updateMetrics(val) {
-            const lines = val.split("\n");
-            const fnCount = (val.match(/(?:fn|def)\s+[a-zA-Z0-9_]+/g) || []).length;
-            const globalCount = (val.match(/@global/gi) || []).length;
-            const privateCount = (val.match(/@private/gi) || []).length;
+            const safeVal = val || "";
+            const lines = safeVal.split("\n");
+            const fnCount = (safeVal.match(/(?:fn|def)\s+[a-zA-Z0-9_]+/g) || []).length;
+            const globalCount = (safeVal.match(/@global/gi) || []).length;
+            const privateCount = (safeVal.match(/@private/gi) || []).length;
 
             let desc = `${fnCount} fn (${lines.length} lines)`;
             if (globalCount > 0 || privateCount > 0) {
@@ -883,7 +884,7 @@ function attachSyntaxHighlighter(widget, node) {
         setTimeout(update, 100);
     };
 
-    poll();
+    bind();
 }
 
 // ── Floating Pop-Out Studio Window ───────────────────────────────────────────
@@ -1083,10 +1084,11 @@ function showFunctionPopoutStudio(node) {
     win.appendChild(body);
 
     function updatePopMetrics(val) {
-        const lines = val.split("\n").length;
-        const globalCount = (val.match(/@global/gi) || []).length;
-        const privateCount = (val.match(/@private/gi) || []).length;
-        const totalFn = (val.match(/(?:fn|def)\s+[a-zA-Z0-9_]+/g) || []).length;
+        const safeVal = val || "";
+        const lines = safeVal.split("\n").length;
+        const globalCount = (safeVal.match(/@global/gi) || []).length;
+        const privateCount = (safeVal.match(/@private/gi) || []).length;
+        const totalFn = (safeVal.match(/(?:fn|def)\s+[a-zA-Z0-9_]+/g) || []).length;
         fnStatPill.textContent = `${totalFn} fn • ${lines} lines (${globalCount} global, ${privateCount} private)`;
     }
 
