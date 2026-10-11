@@ -153,10 +153,15 @@ function fetchThemes(callback) {
 }
 
 function injectSyntaxStyles() {
-    if (document.getElementById("modusflow-syntax-style")) return;
+    if (document.getElementById("modusflow-list-curator-style")) return;
     const styleEl = document.createElement("style");
-    styleEl.id = "modusflow-syntax-style";
+    styleEl.id = "modusflow-list-curator-style";
     styleEl.textContent = `
+        .modusflow-syntax-ta {
+            color: transparent !important;
+            background: transparent !important;
+            background-color: transparent !important;
+        }
         .modusflow-syntax-ta::selection {
             background: rgba(56, 189, 248, 0.35) !important;
             color: transparent !important;
@@ -167,6 +172,10 @@ function injectSyntaxStyles() {
         }
         .modusflow-syntax-backdrop {
             position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
             overflow: hidden;
             box-sizing: border-box;
@@ -175,6 +184,7 @@ function injectSyntaxStyles() {
             overflow-wrap: break-word;
             user-select: none;
             -webkit-user-select: none;
+            z-index: 0;
         }
         .modusflow-section-banner {
             display: inline;
@@ -362,18 +372,21 @@ function tokenizeAndHighlight(text, theme) {
         }
     };
 
-    // Priority order of syntax tokens (matching ModusFlow Text Editor):
+    // Priority order of syntax tokens (matching ModusFlow Text Editor & List Curator):
     // 0. Section Banners & Directives: [ALL], [Section Name], // [Section], /* [Section] */, #mode: all
     addMatches(/(?:\/\/|#|\/\*)\s*\[[^\]\r\n]+\](?:\s*\*\/)?/g, "section_header");
     addMatches(/(?:^|(?<=[\r\n]))\s*\[[^\]\r\n]+\](?=\s*(?:[\r\n]|$))/g, "section_header");
     addMatches(/(?:^|(?<=[\r\n]))\s*#(?:mode\s*:\s*)?all\b/gi, "section_header");
-    // 1. Comments: /* ... */
+
+    // 1. Comments (Block): /* ... */
     addMatches(/\/\*[\s\S]*?\*\//g, "comment");
-    // 2. Hex colors: #RRGGBB or #RGB
+    // 2. Comments (Line): // ... or # ... (strictly excluding hex color codes like #000000)
+    addMatches(/(?:^|(?<=[\s\r\n]))(?:\/\/|#\s|#[^0-9a-fA-F]|#(?:[0-9a-fA-F]{1,2}|[0-9a-fA-F]{4,5}|[0-9a-fA-F]{7,})\b)[^\r\n]*/g, "comment");
+
+    // 3. Hex colors: #RRGGBB or #RGB
     addMatches(/#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g, "hex_color");
-    // 3. Comments (Line): // ... or # ...
-    addMatches(/\/\/[^\r\n]*|#[^\r\n]*/g, "comment");
-    // 4. LoRA tags: <lora:...>
+
+    // 4. LoRA tags: <lora:...> (handling forward and backslashes)
     addMatches(/<lora:[^>\r\n]+>/gi, "lora");
 
     // 4.5 CASE Statements: {$var: val1 => result1 | * => default} or {case $var: ...}
@@ -521,6 +534,32 @@ function tokenizeAndHighlight(text, theme) {
     // 12. Attention Weights: (tag:1.3)
     addMatches(/\([^():\r\n]+:\s*-?\d+(?:\.\d+)?\)/g, "weight");
 
+    // 13. Object / Dict Keys in List Curator: key: or "key":
+    const addObjectKeyMatches = () => {
+        const re = /(?:^|[{,\s])(?:"([a-zA-Z0-9_]+)"|([a-zA-Z0-9_]+))(?=\s*:)/g;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+            const keyStr = m[1] || m[2];
+            const fullMatch = m[0];
+            const keyStart = m.index + fullMatch.indexOf(keyStr);
+            const keyEnd = keyStart + keyStr.length;
+            if (!intervals.some(iv => (keyStart < iv.end && keyEnd > iv.start))) {
+                intervals.push({ start: keyStart, end: keyEnd, type: "object_key" });
+            }
+        }
+    };
+    addObjectKeyMatches();
+
+    // 14. Quoted Strings: "..." or '...'
+    addMatches(/"(?:\\.|[^"\r\n])*"/g, "string");
+    addMatches(/'(?:\\.|[^'\r\n])*'/g, "string");
+
+    // 15. Booleans & Null
+    addMatches(/\b(true|false|null)\b/gi, "keyword");
+
+    // 16. Numbers
+    addMatches(/\b\d+(?:\.\d+)?\b/g, "number");
+
     // 13. Rainbow & Matching Parentheses + Unclosed Warning
     const RAINBOW_PAREN_COLORS = ["#38bdf8", "#c084fc", "#f472b6", "#34d399", "#fbbf24", "#a78bfa"];
     const isExcluded = (pos) => intervals.some(iv => pos >= iv.start && pos < iv.end);
@@ -529,9 +568,9 @@ function tokenizeAndHighlight(text, theme) {
     for (let i = 0; i < text.length; i++) {
         if (isExcluded(i)) continue;
         const ch = text[i];
-        if (ch === "(") {
-            pStack.push({ index: i, depth: pStack.length });
-        } else if (ch === ")") {
+        if (ch === "(" || ch === "{") {
+            pStack.push({ index: i, depth: pStack.length, char: ch });
+        } else if (ch === ")" || ch === "}") {
             if (pStack.length > 0) {
                 const open = pStack.pop();
                 const color = RAINBOW_PAREN_COLORS[open.depth % RAINBOW_PAREN_COLORS.length];
@@ -571,9 +610,9 @@ function tokenizeAndHighlight(text, theme) {
         if (iv.type === "section_header") {
             html += `<span class="modusflow-section-banner">${tokenText}</span>`;
         } else if (iv.type === "rainbow_paren") {
-            html += `<span style="color: ${iv.color}; font-weight: bold;">${tokenText}</span>`;
+            html += `<span style="color: ${iv.color || theme.keyword || '#c084fc'}; font-weight: bold;">${tokenText}</span>`;
         } else if (iv.type === "unclosed_paren" || iv.type === "unmatched_paren") {
-            html += `<span style="background: rgba(239, 68, 68, 0.4); color: #f87171; border-radius: 2px; text-decoration: underline wavy #ef4444; font-weight: bold;" title="${iv.type === 'unclosed_paren' ? 'Unclosed opening parenthesis!' : 'Unmatched closing parenthesis!'}">${tokenText}</span>`;
+            html += `<span style="background: rgba(239, 68, 68, 0.4); color: #f87171; border-radius: 2px; text-decoration: underline wavy #ef4444; font-weight: bold;" title="${iv.type === 'unclosed_paren' ? 'Unclosed opening parenthesis/brace!' : 'Unmatched closing parenthesis/brace!'}">${tokenText}</span>`;
         } else if (iv.type === "hex_color") {
             const rawHex = text.slice(iv.start, iv.end);
             html += `<span class="modusflow-hex-pill" data-hex="${rawHex}" style="color: ${rawHex}; font-weight: bold; background: ${rawHex}33; text-decoration: underline dotted ${rawHex};" title="Hex Color: ${rawHex}">${tokenText}</span>`;
@@ -611,6 +650,15 @@ function tokenizeAndHighlight(text, theme) {
             innerHtml = innerHtml.replace(/(\$[a-zA-Z0-9_]+)/g, `<span style="color: ${varColor}; font-weight: 600;">$1</span>`);
             innerHtml = innerHtml.replace(/(\bin\b)/g, `<span style="color: ${keywordColor}; font-weight: bold;">$1</span>`);
             html += `<span style="color: ${theme.choice || '#c084fc'}; font-weight: 500;" title="Ternary Conditional: ${tokenText}">${innerHtml}</span>`;
+        } else if (iv.type === "object_key") {
+            const color = theme.function || theme.variable || "#89b4fa";
+            html += `<span style="color: ${color}; font-weight: 600;" title="Key: ${tokenText}">${tokenText}</span>`;
+        } else if (iv.type === "string") {
+            const color = theme.curator || "#a6e3a1";
+            html += `<span style="color: ${color}; font-weight: 500;">${tokenText}</span>`;
+        } else if (iv.type === "number") {
+            const color = theme.choice || "#fab387";
+            html += `<span style="color: ${color}; font-weight: 500;">${tokenText}</span>`;
         } else if (iv.type === "keyword") {
             const color = theme.keyword || theme.choice || "#cba6f7";
             html += `<span style="color: ${color}; font-weight: bold;" title="Keyword: ${tokenText}">${tokenText}</span>`;
@@ -648,7 +696,7 @@ function attachSyntaxHighlighter(widget, node) {
     const bind = () => {
         const ta = widget.inputEl || widget.element;
         if (!ta || !ta.parentElement) {
-            if (attempts++ < 30) requestAnimationFrame(bind);
+            if (attempts++ < 120) requestAnimationFrame(bind);
             return;
         }
         if (ta._hasSyntaxHighlighter) return;
@@ -671,13 +719,18 @@ function attachSyntaxHighlighter(widget, node) {
         ta.style.fontSize = "13px";
         ta.style.lineHeight = "1.4";
         ta.style.tabSize = "4";
+        ta.style.setProperty("color", "transparent", "important");
+        ta.style.setProperty("background", "transparent", "important");
+        ta.style.setProperty("background-color", "transparent", "important");
 
         function syncGeometry() {
             if (!ta || !backdrop) return;
+            const w = ta.offsetWidth;
+            const h = ta.offsetHeight;
+            if (w > 0) backdrop.style.width = w + "px";
+            if (h > 0) backdrop.style.height = h + "px";
             backdrop.style.top = ta.offsetTop + "px";
             backdrop.style.left = ta.offsetLeft + "px";
-            backdrop.style.width = ta.offsetWidth + "px";
-            backdrop.style.height = ta.offsetHeight + "px";
             backdrop.scrollTop = ta.scrollTop;
             backdrop.scrollLeft = ta.scrollLeft;
 
@@ -702,8 +755,12 @@ function attachSyntaxHighlighter(widget, node) {
         parent.appendChild(listBadge);
 
         function render() {
-            const stats = estimateListStats(ta.value || "");
-            if (stats.totalLines > 0 && (ta.value || "").trim().length > 0) {
+            const rawVal = (ta && ta.value !== undefined && ta.value !== "") ? ta.value : (widget.value || "");
+            if (ta && widget && widget.value && !ta.value) {
+                ta.value = widget.value;
+            }
+            const stats = estimateListStats(rawVal);
+            if (stats.totalLines > 0 && rawVal.trim().length > 0) {
                 listBadge.style.display = "block";
                 listBadge.textContent = `${stats.activeItems} item${stats.activeItems === 1 ? '' : 's'}` +
                     (stats.activeItems !== stats.totalLines ? ` (${stats.totalLines} lines)` : "");
@@ -711,12 +768,15 @@ function attachSyntaxHighlighter(widget, node) {
                 listBadge.style.display = "none";
             }
 
-            const currentThemeName = (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_syntax_theme")) ||
+            const currentThemeName = (node && node._currentSyntaxTheme) ||
+                                    (node && node.properties && node.properties.syntax_theme) ||
+                                    (typeof localStorage !== "undefined" && localStorage.getItem("modusflow_syntax_theme")) ||
                                     "Modus Neon (Default)";
 
             if (currentThemeName === "Off (Plain Text)") {
-                ta.style.color = "";
-                ta.style.background = "";
+                ta.style.removeProperty("color");
+                ta.style.removeProperty("background");
+                ta.style.removeProperty("background-color");
                 ta.style.caretColor = "";
                 backdrop.style.display = "none";
                 return;
@@ -724,18 +784,29 @@ function attachSyntaxHighlighter(widget, node) {
 
             const theme = getThemeByName(currentThemeName);
             backdrop.style.display = "block";
-            ta.style.color = "transparent";
-            ta.style.background = "transparent";
+            ta.style.setProperty("color", "transparent", "important");
+            ta.style.setProperty("background", "transparent", "important");
+            ta.style.setProperty("background-color", "transparent", "important");
             ta.style.caretColor = theme.caret_color || "#ffffff";
             backdrop.style.backgroundColor = theme.bg_color || "#181825";
             backdrop.style.color = theme.plain_text || "#e2e8f0";
 
-            backdrop.innerHTML = tokenizeAndHighlight(ta.value || "", theme);
+            backdrop.innerHTML = tokenizeAndHighlight(rawVal, theme);
             syncGeometry();
         }
 
         widget._updateSyntaxHighlight = render;
         widget._applyTheme = render;
+
+        const origCallback = widget.callback;
+        widget.callback = function (v) {
+            const r = origCallback ? origCallback.apply(this, arguments) : undefined;
+            if (ta && v !== undefined && ta.value !== v) {
+                ta.value = v;
+            }
+            render();
+            return r;
+        };
 
         ta.addEventListener("input", render);
         ta.addEventListener("scroll", () => {
@@ -1539,9 +1610,9 @@ app.registerExtension({
                 node.size = [420, 560];
                 node.resizable = true;
 
-                // Initial auto-load if dropdown has a selection and textarea is empty
+                // Initial auto-load if dropdown has a selection and textarea is empty and not configured from workflow
                 requestAnimationFrame(() => {
-                    if (listWidget && listWidget.value && (!entriesWidget || !entriesWidget.value)) {
+                    if (!node._configured && listWidget && listWidget.value && (!entriesWidget || !entriesWidget.value)) {
                         loadSelectedWildcard(listWidget.value);
                     }
                 });
@@ -1552,11 +1623,19 @@ app.registerExtension({
             const onConfigure = nodeType.prototype.onConfigure;
             nodeType.prototype.onConfigure = function () {
                 if (onConfigure) onConfigure.apply(this, arguments);
+                this._configured = true;
                 const entriesWidget = this.widgets?.find(w => w.name === "custom_entries");
                 if (entriesWidget) {
                     attachCommentShortcuts(entriesWidget);
                     attachSyntaxHighlighter(entriesWidget, this);
                     attachAutocomplete(entriesWidget, this);
+                    requestAnimationFrame(() => {
+                        const ta = entriesWidget.inputEl || entriesWidget.element;
+                        if (ta && entriesWidget.value && ta.value !== entriesWidget.value) {
+                            ta.value = entriesWidget.value;
+                        }
+                        entriesWidget._updateSyntaxHighlight?.();
+                    });
                 }
             };
 
@@ -1565,6 +1644,23 @@ app.registerExtension({
                 const r = onResize ? onResize.apply(this, arguments) : undefined;
                 const entriesWidget = this.widgets?.find(w => w.name === "custom_entries");
                 entriesWidget?._updateSyntaxHighlight?.();
+                return r;
+            };
+
+            const origOnDrawForeground = nodeType.prototype.onDrawForeground;
+            nodeType.prototype.onDrawForeground = function (ctx) {
+                const r = origOnDrawForeground ? origOnDrawForeground.apply(this, arguments) : undefined;
+                const entriesWidget = this.widgets?.find(w => w.name === "custom_entries");
+                if (entriesWidget) {
+                    const ta = entriesWidget.inputEl || entriesWidget.element;
+                    const currentVal = (ta && ta.value !== undefined) ? ta.value : (entriesWidget.value || "");
+                    const currentWidth = ta ? ta.offsetWidth : 0;
+                    if (this._lastHighlightedVal !== currentVal || (currentWidth > 0 && this._lastRenderedWidth !== currentWidth)) {
+                        this._lastHighlightedVal = currentVal;
+                        this._lastRenderedWidth = currentWidth;
+                        entriesWidget._updateSyntaxHighlight?.();
+                    }
+                }
                 return r;
             };
         }
